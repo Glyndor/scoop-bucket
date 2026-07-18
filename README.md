@@ -1,3 +1,7 @@
+<p align="center">
+  <img src=".github/banner.png" alt="Glyndor" width="820">
+</p>
+
 # Glyndor Scoop bucket
 
 Scoop manifests for Glyndor's Windows binaries. The Windows counterpart to the
