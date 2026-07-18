@@ -1,0 +1,77 @@
+name: update
+
+# Keeps bucket/*.json in sync with each product's latest signed release, the same
+# pull model as Glyndor/apt: no product pushes here. This reads their public
+# releases, verifies the signed SHA256SUMS against the org release key, and opens
+# an auto-merging PR when a manifest changes — so a new Windows build reaches
+# `scoop update` within a day without any product holding a credential here.
+on:
+  schedule:
+    # Daily, staggered after apt's 06:00 publish so the two don't contend.
+    - cron: "30 6 * * *"
+  workflow_dispatch:
+  # Optional instant trigger: a product's release workflow may
+  # POST /repos/Glyndor/scoop-bucket/dispatches with event_type "release".
+  # Nothing is wired to it today; the daily schedule is the baseline.
+  repository_dispatch:
+    types: [release]
+
+permissions:
+  contents: read
+
+# Never run two updates at once — they would race on the branch and the PR.
+concurrency:
+  group: update-manifests
+  cancel-in-progress: false
+
+jobs:
+  update:
+    name: Render and open PR
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Install the signature verifier
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq python3-cryptography
+
+      - name: Render manifests from the latest signed releases
+        id: render
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          ./scripts/render-manifests.sh
+          if git diff --quiet -- bucket; then
+            echo "changed=0" >> "$GITHUB_OUTPUT"
+            echo "No manifest changed."
+          else
+            echo "changed=1" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Open an auto-merging pull request
+        if: steps.render.outputs.changed == '1'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          branch="chore/update-manifests-${{ github.run_id }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$branch"
+          git add bucket
+          git commit -s -m "chore: update manifests from the latest signed releases"
+          git push origin "$branch"
+          # Auto-merge: the PR runs manifest validation (ci.yml) and lands on green,
+          # so the update is validated but hands-off, mirroring apt's auto-publish.
+          gh pr create \
+            --base main \
+            --head "$branch" \
+            --title "chore: update manifests from the latest signed releases" \
+            --body "Automated re-render of bucket/*.json from the products' latest signed releases (SHA256SUMS verified against the org release key)." \
+            --label "type:chore"
+          gh pr merge "$branch" --auto --squash --delete-branch

@@ -1,0 +1,45 @@
+name: CI
+
+# Validates every manifest on each PR and push to main, so a malformed or
+# incomplete manifest fails review instead of a `scoop install`. A structural
+# jq check (no network, no third-party action) covers the fields Scoop requires.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  manifests:
+    name: validate manifests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Check each manifest is valid JSON with the required fields
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          manifests=(bucket/*.json)
+          if [ ${#manifests[@]} -eq 0 ]; then
+            echo "::error::no manifests found under bucket/"
+            exit 1
+          fi
+          for m in "${manifests[@]}"; do
+            # Fails if $m is not valid JSON, or if any required field is missing:
+            # version, and a url+hash+bin for each declared architecture.
+            jq -e '
+              (.version | type == "string" and (. | length > 0))
+              and (.homepage | type == "string")
+              and (.license | type == "string")
+              and (.architecture | type == "object" and (. | length > 0))
+              and (.architecture | to_entries | all(
+                    .value.url and .value.hash and (.value.bin | type == "array")))
+            ' "$m" >/dev/null || {
+              echo "::error file=$m::$m is not a valid, complete Scoop manifest"
+              exit 1
+            }
+            echo "ok  $m"
+          done
