@@ -20,6 +20,7 @@ jobs:
 
       - name: The README table and bucket/ must match PRODUCTS
         run: |
+          # shellcheck disable=SC2016 # the awk and sed programs below are single-quoted on purpose: the $ anchors and backticks in them belong to awk, sed and Markdown, not to the shell
           set -euo pipefail
           # scripts/render-manifests.sh's PRODUCTS table is the only place a
           # product is declared. Two things restate it and cannot be generated
@@ -40,7 +41,7 @@ jobs:
                        | sed -n 's/^| `\([^`]*\)`.*/\1/p' | sort -u)"
 
           rendered="$(find bucket -maxdepth 1 -name '*.json' -printf '%f\n' \
-                     | sed 's/\.json$//' | sort -u)"
+                     | while read -r f; do echo "${f%.json}"; done | sort -u)"
 
           status=0
           if [ "$declared" != "$documented" ]; then
