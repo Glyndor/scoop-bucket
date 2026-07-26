@@ -9,15 +9,28 @@ the [Homebrew tap](https://github.com/Glyndor/homebrew-tap) (macOS).
 ## Install
 
 ```powershell
+scoop install git
 scoop bucket add glyndor https://github.com/Glyndor/scoop-bucket
 scoop install podup
 ```
+
+A bucket is a git clone, so Scoop refuses to add one without git. Skip the first
+line if you already have it.
 
 `scoop` reads this repository directly from GitHub, so there is no separate
 server or domain to trust. Each manifest pins the exact SHA-256 of the release
 binary it installs, so Scoop refuses a download whose bytes don't match.
 
-Upgrades come with `scoop update podup` once a new release is published (below).
+Upgrades come once a new release is published (below):
+
+```powershell
+scoop update
+scoop update podup
+```
+
+The first line re-syncs the bucket clone. On its own, `scoop update podup`
+compares against the copy on disk and reports the version you already have as
+the latest one until Scoop next refreshes the bucket by itself.
 
 ## Available manifests
 
@@ -47,9 +60,9 @@ repository's pull model:
 4. Validate the re-rendered manifests, then commit them straight to `main`,
    signed by GitHub.
 
-So the hash a manifest ships is one taken from a signature-verified manifest,
-not from whatever an unverified release asset happened to contain, and no
-product needs a write credential on this repository.
+So the hash a manifest ships is one taken from a signature-verified
+`SHA256SUMS`, not from whatever an unverified release asset happened to contain,
+and no product needs a write credential on this repository.
 
 The commit is direct rather than a pull request because the organisation forbids
 GitHub Actions from opening PRs, and because a bucket's git content *is* the

@@ -29,7 +29,9 @@ jobs:
           fi
           for m in "${manifests[@]}"; do
             # Fails if $m is not valid JSON, or if any required field is missing:
-            # version, and a url+hash+bin for each declared architecture.
+            # version, homepage and license (Scoop's three required root fields),
+            # and a url+hash+bin for each declared architecture. Keep this in step
+            # with update.yml's own copy, which gates the commit before it lands.
             jq -e '
               (.version | type == "string" and (. | length > 0))
               and (.homepage | type == "string")

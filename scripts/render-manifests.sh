@@ -10,10 +10,14 @@
 # Run by .github/workflows/update.yml on a schedule and on demand.
 set -euo pipefail
 
-# The org's Ed25519 release-signing public key (raw, unpadded base64) — the same
-# key the products embed; its private half signs SHA256SUMS in every release.
+# The org's Ed25519 release-signing public key, raw and unpadded base64.
 # Verifying against it is what makes the rendered hash trustworthy rather than
 # whatever an attacker-influenced release asset happens to contain.
+#
+# Rotating the org release key means editing this constant here AND in
+# Glyndor/homebrew-tap's render-formulae.sh, on top of the products that embed
+# it in their own verifiers. A stale value fails closed: every render aborts on
+# a signature that no longer matches.
 RELEASE_PUBKEY_B64="HFv7vg5FCY7YyKUDbJhaQSfB9SboJGSblJtFbLmLHzM"
 
 # Products to publish, one per line: repo|manifest|description|64bit|arm64
@@ -37,12 +41,14 @@ import base64, sys
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 msg = open(sys.argv[1], "rb").read()
 sig = open(sys.argv[2], "rb").read()
+# The key constant above is stored raw, so restore the two "=" that base64
+# decoding needs. Pasting a padded key here yields "====" and fails to decode.
 Ed25519PublicKey.from_public_bytes(base64.b64decode(sys.argv[3] + "==")).verify(sig, msg)
 print("SHA256SUMS signature verified")
 PY
 }
 
-# Print the verified SHA-256 of an asset, or fail if it is absent from the manifest.
+# Print the verified SHA-256 of an asset, or fail if it is absent from SHA256SUMS.
 hash_of() { # $1=asset
 	awk -v a="$1" '$2 == a { print $1; found = 1 } END { if (!found) exit 1 }' \
 		"$work/SHA256SUMS"
@@ -73,6 +79,8 @@ for entry in "${PRODUCTS[@]}"; do
 			version: $version,
 			description: $desc,
 			homepage: $homepage,
+			# Every product published here is MIT, so this is fixed rather than
+			# per-product. Move it into PRODUCTS before adding one that is not.
 			license: "MIT",
 			architecture: {
 				"64bit": { url: $url64, hash: $h64, bin: [[$a64, $manifest]] },
