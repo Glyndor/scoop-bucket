@@ -45,6 +45,10 @@ while [ $# -gt 0 ]; do
 done
 
 # Products to publish, one per line: repo|manifest|description|64bit|arm64
+#
+# An asset field of "-" means the product publishes nothing for that
+# architecture and the manifest omits it; at least one must be a real name. An
+# EMPTY field stays an error, because that is what a dropped column looks like.
 # `64bit`/`arm64` are the Windows release asset names. Add a product here once it
 # ships Windows binaries with a signed SHA256SUMS.
 #
@@ -119,9 +123,19 @@ hash_of() { # $1=asset
 # unchecked failure would carry on and render a manifest from a half-read state.
 render_product() { # $1=table entry
 	local entry="$1"
-	local repo manifest desc a64 aarm tag version h64 harm base
+	local repo manifest desc a64 aarm tag version h64 harm base arches
 
 	IFS='|' read -r repo manifest desc a64 aarm <<<"$entry"
+
+	# Reject a short row by name rather than letting it render from empty
+	# variables: an absent asset name would reach hash_of as "", fail there, and
+	# report a missing asset when the real fault is a dropped column.
+	for field in repo manifest desc a64 aarm; do
+		[ -n "${!field}" ] || {
+			echo "::error::the PRODUCTS entry \"$entry\" has no $field"
+			return 1
+		}
+	done
 
 	tag="$(gh release view --repo "$repo" --json tagName --jq .tagName)" || {
 		echo "::error::$repo: could not read the latest release"
@@ -134,16 +148,43 @@ render_product() { # $1=table entry
 		return 1
 	}
 
-	h64="$(hash_of "$a64")" || {
-		echo "::error::$repo $tag: the verified SHA256SUMS does not list $a64"
-		return 1
-	}
-	harm="$(hash_of "$aarm")" || {
-		echo "::error::$repo $tag: the verified SHA256SUMS does not list $aarm"
+	# "-" means the product publishes nothing for that architecture, so the
+	# manifest omits it. An EMPTY field is still rejected above: an empty field
+	# between two pipes is what a dropped column looks like, and confusing "not
+	# published" with "I mistyped the row" would silently ship half a manifest.
+	[ "$a64" != "-" ] || [ "$aarm" != "-" ] || {
+		echo "::error::the PRODUCTS entry \"$entry\" publishes neither architecture"
 		return 1
 	}
 
+	if [ "$a64" != "-" ]; then
+		h64="$(hash_of "$a64")" || {
+			echo "::error::$repo $tag: the verified SHA256SUMS does not list $a64"
+			return 1
+		}
+	fi
+	if [ "$aarm" != "-" ]; then
+		harm="$(hash_of "$aarm")" || {
+			echo "::error::$repo $tag: the verified SHA256SUMS does not list $aarm"
+			return 1
+		}
+	fi
+
 	base="https://github.com/$repo/releases/download/$tag"
+
+	# Build the architecture object from only what the product ships, with jq so
+	# the result is valid JSON either way.
+	arches="$(jq -n '{}')"
+	if [ "$a64" != "-" ]; then
+		arches="$(jq -n --argjson a "$arches" \
+			--arg url "$base/$a64" --arg h "$h64" --arg asset "$a64" --arg tool "$manifest" \
+			'$a + {"64bit": {url: $url, hash: $h, bin: [[$asset, $tool]]}}')"
+	fi
+	if [ "$aarm" != "-" ]; then
+		arches="$(jq -n --argjson a "$arches" \
+			--arg url "$base/$aarm" --arg h "$harm" --arg asset "$aarm" --arg tool "$manifest" \
+			'$a + {"arm64": {url: $url, hash: $h, bin: [[$asset, $tool]]}}')"
+	fi
 
 	# Build with jq so the output is always valid JSON. `bin` renames the arch
 	# exe to the tool name, so `scoop install` exposes it simply as `<manifest>`.
@@ -151,9 +192,7 @@ render_product() { # $1=table entry
 		--arg version "$version" \
 		--arg desc "$desc" \
 		--arg homepage "https://github.com/$repo" \
-		--arg url64 "$base/$a64" --arg h64 "$h64" --arg a64 "$a64" \
-		--arg urlarm "$base/$aarm" --arg harm "$harm" --arg aarm "$aarm" \
-		--arg manifest "$manifest" \
+		--argjson architecture "$arches" \
 		'{
 			version: $version,
 			description: $desc,
@@ -161,10 +200,7 @@ render_product() { # $1=table entry
 			# Every product published here is MIT, so this is fixed rather than
 			# per-product. Move it into PRODUCTS before adding one that is not.
 			license: "MIT",
-			architecture: {
-				"64bit": { url: $url64, hash: $h64, bin: [[$a64, $manifest]] },
-				"arm64": { url: $urlarm, hash: $harm, bin: [[$aarm, $manifest]] }
-			}
+			architecture: $architecture
 		}' >"$root/bucket/$manifest.json" || return 1
 
 	echo "rendered bucket/$manifest.json -> $version"
