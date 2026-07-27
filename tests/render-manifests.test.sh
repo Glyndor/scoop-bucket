@@ -111,6 +111,19 @@ open(sys.argv[3], "wb").write(key.sign(open(sys.argv[2], "rb").read()))
 PY
 }
 
+# Re-sign a hand-built SHA256SUMS so the generator still sees a valid signature.
+# The point of these cases is malformed CONTENT behind a good signature.
+resign() { # $1=sums file $2=repo
+	local base="$RELEASES/${2//\//__}"
+	cp "$1" "$base/SHA256SUMS"
+	python3 - "$WORK/signing.key" "$base/SHA256SUMS" "$base/SHA256SUMS.sig" <<'SIGN'
+import sys
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+key = Ed25519PrivateKey.from_private_bytes(open(sys.argv[1], "rb").read())
+open(sys.argv[3], "wb").write(key.sign(open(sys.argv[2], "rb").read()))
+SIGN
+}
+
 # A copy of the generator whose PRODUCTS table is replaced wholesale. Replacing
 # the block rather than editing fields keeps these tests working when the table
 # gains a column, which is what happened to the Homebrew tap's.
@@ -223,6 +236,60 @@ check "an unknown argument is a usage error" "2" "$rc"
 rc=0
 ( cd "$WORK/r1" && RELEASE_PUBKEY_B64="$PUBKEY" "$WORK/r1/scripts/render-manifests.sh" ) >/dev/null 2>&1 || rc=$?
 check "the environment cannot swap the trust anchor" "3" "$rc"
+
+# --- a signed manifest can still be malformed --------------------------------
+
+publish Glyndor/podup v9.9.9 podup-windows-x86_64.exe podup-windows-x86_64.exe podup-windows-arm64.exe
+new_root "$WORK/r7"
+generator_with "$WORK/r7/scripts/render-manifests.sh" "$PODUP"
+rc=0; run "$WORK/r7/scripts/render-manifests.sh" "$WORK/r7" || rc=$?
+check "an asset listed twice is rejected" "3" "$rc"
+check "and no manifest is written" "0" "$(find "$WORK/r7/bucket" -name '*.json' | wc -l)"
+check "the error says how many times" "1" \
+	"$(grep -c 'lists podup-windows-x86_64.exe 2 times' "$WORK/out")"
+
+publish Glyndor/podup v9.9.9 podup-windows-arm64.exe
+{
+	printf 'nothexadecimal!!nothexadecimal!!nothexadecimal!!nothexadecimal!!  podup-windows-x86_64.exe\n'
+	cat "$RELEASES/Glyndor__podup/SHA256SUMS"
+} > "$WORK/tmpsums"
+resign "$WORK/tmpsums" Glyndor/podup
+new_root "$WORK/r8"
+generator_with "$WORK/r8/scripts/render-manifests.sh" "$PODUP"
+rc=0; run "$WORK/r8/scripts/render-manifests.sh" "$WORK/r8" || rc=$?
+check "a non-hexadecimal checksum is rejected" "3" "$rc"
+check "the error says why" "1" "$(grep -c 'is not hexadecimal' "$WORK/out")"
+
+publish Glyndor/podup v9.9.9 podup-windows-arm64.exe
+{
+	printf 'abcdef  podup-windows-x86_64.exe\n'
+	cat "$RELEASES/Glyndor__podup/SHA256SUMS"
+} > "$WORK/tmpsums"
+resign "$WORK/tmpsums" Glyndor/podup
+new_root "$WORK/r9"
+generator_with "$WORK/r9/scripts/render-manifests.sh" "$PODUP"
+rc=0; run "$WORK/r9/scripts/render-manifests.sh" "$WORK/r9" || rc=$?
+check "a short digest is rejected" "3" "$rc"
+check "the error gives the length" "1" "$(grep -c 'is 6 characters, not 64' "$WORK/out")"
+
+# --- two healthy products together -------------------------------------------
+# The plain multi-product case: the suite otherwise only ever pairs a good
+# product with a broken one, and this is the shape the second real product takes.
+
+publish Glyndor/podup v1.2.3 podup-windows-x86_64.exe podup-windows-arm64.exe
+publish Glyndor/other v4.5.6 other-windows-x86_64.exe other-windows-arm64.exe
+new_root "$WORK/r10"
+generator_with "$WORK/r10/scripts/render-manifests.sh" \
+	"Glyndor/podup|podup|first|podup-windows-x86_64.exe|podup-windows-arm64.exe" \
+	"Glyndor/other|other|second|other-windows-x86_64.exe|other-windows-arm64.exe"
+rc=0; run "$WORK/r10/scripts/render-manifests.sh" "$WORK/r10" || rc=$?
+check "two healthy products both render, exit 0" "0" "$rc"
+check "both manifests exist" "2" "$(find "$WORK/r10/bucket" -name '*.json' | wc -l)"
+check "each gets its own version" "1.2.3" "$(jq -r .version "$WORK/r10/bucket/podup.json")"
+check "including the second" "4.5.6" "$(jq -r .version "$WORK/r10/bucket/other.json")"
+check "each gets its own description" "second" "$(jq -r .description "$WORK/r10/bucket/other.json")"
+check "and its own bin mapping" "other-windows-x86_64.exe other" \
+	"$(jq -r '.architecture."64bit".bin[0] | join(" ")' "$WORK/r10/bucket/other.json")"
 
 echo
 echo "$pass passed, $fail failed"
