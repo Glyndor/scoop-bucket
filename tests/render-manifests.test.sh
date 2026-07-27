@@ -291,6 +291,56 @@ check "each gets its own description" "second" "$(jq -r .description "$WORK/r10/
 check "and its own bin mapping" "other-windows-x86_64.exe other" \
 	"$(jq -r '.architecture."64bit".bin[0] | join(" ")' "$WORK/r10/bucket/other.json")"
 
+# --- a product that ships one architecture ----------------------------------
+# klyradb publishes a single Windows build; before this, a row had to name both
+# assets, so such a product could not be carried at all.
+
+publish Glyndor/single v2.0.0 single-windows-x86_64.exe
+new_root "$WORK/r11"
+generator_with "$WORK/r11/scripts/render-manifests.sh" \
+	"Glyndor/single|single|64bit only|single-windows-x86_64.exe|-"
+rc=0; run "$WORK/r11/scripts/render-manifests.sh" "$WORK/r11" || rc=$?
+check "a 64bit-only product renders, exit 0" "0" "$rc"
+S="$WORK/r11/bucket/single.json"
+check "the manifest is valid JSON" "0" "$(jq -e . "$S" >/dev/null 2>&1; echo $?)"
+check "it declares exactly one architecture" "1" "$(jq -r '.architecture | length' "$S")"
+check "and that one is 64bit" "64bit" "$(jq -r '.architecture | keys[0]' "$S")"
+check "with the right url" "https://github.com/Glyndor/single/releases/download/v2.0.0/single-windows-x86_64.exe" \
+	"$(jq -r '.architecture."64bit".url' "$S")"
+check "it still passes ci.yml's own schema check" "true" \
+	"$(jq -e '(.version|type=="string") and (.homepage|type=="string") and (.license|type=="string")
+	          and (.architecture|type=="object" and (.|length > 0))
+	          and (.architecture|to_entries|all(.value.url and .value.hash and (.value.bin|type=="array")))' "$S")"
+
+publish Glyndor/single v2.0.0 single-windows-arm64.exe
+new_root "$WORK/r12"
+generator_with "$WORK/r12/scripts/render-manifests.sh" \
+	"Glyndor/single|single|arm only|-|single-windows-arm64.exe"
+rc=0; run "$WORK/r12/scripts/render-manifests.sh" "$WORK/r12" || rc=$?
+check "an arm64-only product renders, exit 0" "0" "$rc"
+check "and declares only arm64" "arm64" "$(jq -r '.architecture | keys[0]' "$WORK/r12/bucket/single.json")"
+
+new_root "$WORK/r13"
+generator_with "$WORK/r13/scripts/render-manifests.sh" \
+	"Glyndor/single|single|neither|-|-"
+rc=0; run "$WORK/r13/scripts/render-manifests.sh" "$WORK/r13" || rc=$?
+check "a row publishing neither architecture is rejected" "3" "$rc"
+check "and says so" "1" "$(grep -c 'publishes neither architecture' "$WORK/out")"
+
+new_root "$WORK/r14"
+generator_with "$WORK/r14/scripts/render-manifests.sh" \
+	"Glyndor/single|single|empty arm|single-windows-x86_64.exe|"
+rc=0; run "$WORK/r14/scripts/render-manifests.sh" "$WORK/r14" || rc=$?
+check "an EMPTY field is still an error, not a declaration" "3" "$rc"
+check "and names the field" "1" "$(grep -c 'has no aarm' "$WORK/out")"
+
+publish Glyndor/single v2.0.0 single-windows-x86_64.exe
+new_root "$WORK/r15"
+generator_with "$WORK/r15/scripts/render-manifests.sh" \
+	"Glyndor/single|single|arm declared|single-windows-x86_64.exe|single-windows-arm64.exe"
+rc=0; run "$WORK/r15/scripts/render-manifests.sh" "$WORK/r15" || rc=$?
+check "a DECLARED architecture that is missing still fails" "3" "$rc"
+
 echo
 echo "$pass passed, $fail failed"
 [ "$fail" -eq 0 ]
