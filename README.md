@@ -36,7 +36,7 @@ the latest one until Scoop next refreshes the bucket by itself.
 
 | Manifest | Product |
 |---|---|
-| `podup` | docker-compose translator and runner for rootless Podman |
+| `podup` | Docker-compose translator and runner for rootless Podman |
 
 ## How it stays current
 
