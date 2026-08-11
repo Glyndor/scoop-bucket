@@ -22,7 +22,7 @@ jobs:
   # green, I will promote this from advisory to required in the ruleset.
   empty-diff:
     if: github.event_name == 'pull_request'
-    uses: Glyndor/.github/.github/workflows/empty-diff.yml@c958978687af37dc2d826a967d9c549589afb39f # pre-v1.14.1
+    uses: Glyndor/.github/.github/workflows/empty-diff.yml@c958978687af37dc2d826a967d9c549589afb39f # v1.14.1
 
   # Lint scripts/ the same way Glyndor/apt does. The generator verifies a
   # release signature and writes the file users install from, and the update
