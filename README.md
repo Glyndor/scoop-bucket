@@ -2,8 +2,6 @@
 
 Scoop manifests for Glyndor's Windows binaries. The Windows counterpart to the
 signed apt repository at [apt.glyndor.net](https://apt.glyndor.net) (Linux) and
-
-[![Release v1.13.2](https://github.com/Glyndor/.github/releases/tag/v1.13.2)](https://github.com/Glyndor/.github/releases)
 the [Homebrew tap](https://github.com/Glyndor/homebrew-tap) (macOS).
 
 [![update](https://github.com/Glyndor/scoop-bucket/actions/workflows/update.yml/badge.svg)](https://github.com/Glyndor/scoop-bucket/actions/workflows/update.yml)
