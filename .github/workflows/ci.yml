@@ -34,6 +34,14 @@ jobs:
     with:
       test-command: ./tests/render-manifests.test.sh && ./tests/update-workflow.test.sh
 
+  pin-policy:
+    uses: Glyndor/.github/.github/workflows/pin-policy-reusable.yml@eee4c4e129feca3970a6550151d13bf50bfc568d # v1.15.0
+
+  dependabot-freshness:
+    uses: Glyndor/.github/.github/workflows/dependabot-freshness.yml@c149c995c10d3ed908489866bafe7d3c97920977 # v1.14.0
+    with:
+      max-age-days: 15
+
   products:
     name: products match the generator
     runs-on: ubuntu-latest
