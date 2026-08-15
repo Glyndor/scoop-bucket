@@ -99,13 +99,17 @@ output() { # $1=key
 
 RENDER="$WORK/render.sh"
 VALIDATE="$WORK/validate.sh"
+COMMIT="$WORK/commit.sh"
 step_script "Render manifests" > "$RENDER"
 step_script "Validate the re-rendered manifests" > "$VALIDATE"
+step_script "Commit the update to main" > "$COMMIT"
 
 check "the render step was extracted from the workflow" "1" \
 	"$(grep -c 'render-manifests.sh' "$RENDER")"
 check "the validate step was extracted from the workflow" "1" \
 	"$(grep -c 'no manifests found under bucket/' "$VALIDATE")"
+check "the commit step was extracted from the workflow" "2" \
+	"$(grep -c 'createCommitOnBranch' "$COMMIT")"
 
 # --- exit code becomes `partial` -------------------------------------------
 
@@ -179,6 +183,63 @@ rc=0; run_step "$VALIDATE" "$WORK/h" || rc=$?
 check "an incomplete manifest fails validation" "1" "$rc"
 check "and the error names the file, not an empty bucket" "1" \
 	"$(grep -c 'is not a valid, complete Scoop manifest' "$WORK/out")"
+
+# --- the commit step uses createCommitOnBranch, not git push -----------------
+# Twin of the tap test: the workflow commits straight to main, with no PR
+# review between the commit and `scoop install`. The only thing between a
+# refactor that swaps the GraphQL mutation for a plain `git push` and an
+# unsigned commit hitting main is this test: a plain `git push` would push
+# the re-rendered manifests, but main's `require-signed-commits` rule
+# rejects the unsigned commit in CI, and the bot does not recover until the
+# next manual run.
+#
+# Strategy mirrors the tap: stub `gh` on PATH so the step's
+# `gh api graphql --input -` call captures its stdin instead of hitting the
+# network; assert on the captured payload's shape. If someone replaces the
+# call with anything that does not go through `gh api graphql`, the stub
+# is never invoked and the assertions go red.
+
+# Stub `gh`: log args + stdin, exit 0.
+stub_gh() { # $1=dir
+	local dir="$1"
+	mkdir -p "$dir"
+	cat > "$dir/gh" <<'GHSTUB'
+#!/usr/bin/env bash
+printf '%s\n' "$*" > "$STUB_DIR/.args"
+cat > "$STUB_DIR/.stdin"
+exit 0
+GHSTUB
+	chmod +x "$dir/gh"
+}
+
+stub_gh "$WORK/gh"
+sandbox "$WORK/h" 0 yes	# the generator changes the manifest so commit is non-empty
+
+# The commit step's body uses REPO and GH_TOKEN; pass dummies and the stub on
+# PATH. The `|| true` swallows the subshell's exit code: a mutated step that
+# drops the GraphQL call fails here for lack of a remote, and we assert on
+# what the step tried to do, not on its success.
+( cd "$WORK/h" && \
+	PATH="$WORK/gh:$PATH" \
+	STUB_DIR="$WORK/gh" \
+	REPO="Glyndor/scoop-bucket" \
+	GH_TOKEN="dummy" \
+	bash "$COMMIT" ) > "$WORK/out" 2>&1 || true
+
+check "the commit step invokes gh (not git push)" "yes" \
+	"$(test -s "$WORK/gh/.args" && echo yes || echo no)"
+check "and the invocation is 'gh api graphql'" "yes" \
+	"$(grep -q 'api graphql' "$WORK/gh/.args" 2>/dev/null && echo yes || echo no)"
+check "and the payload uses createCommitOnBranch" "yes" \
+	"$(grep -q 'createCommitOnBranch' "$WORK/gh/.stdin" 2>/dev/null && echo yes || echo no)"
+check "and pins expectedHeadOid" "yes" \
+	"$(grep -q 'expectedHeadOid' "$WORK/gh/.stdin" 2>/dev/null && echo yes || echo no)"
+# $branch is literal on purpose: jq does not expand inside the GraphQL
+# query string, so the captured payload contains the literal text
+# `branchName:$branch`. Single quotes preserve it for grep -F.
+# shellcheck disable=SC2016
+check "and references branch main in the GraphQL argument" "yes" \
+	"$(branch_re='branchName:$branch'; grep -qF "$branch_re" "$WORK/gh/.stdin" 2>/dev/null && echo yes || echo no)"
 
 # --- the wiring, asserted by reading the workflow ---------------------------
 # These conditions are evaluated by the Actions engine, so they can be read but
