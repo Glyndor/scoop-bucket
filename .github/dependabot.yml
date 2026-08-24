@@ -33,9 +33,9 @@ updates:
     # Five action references across five workflows, all pinned by SHA. Without
     # grouping, one upstream release day means five near-identical pull
     # requests and five full CI runs.
-    # Grouped into two, not one. The Glyndor reusables and the third-party
-    # actions get opposite answers from the same review, and a single group
-    # forces one answer for both.
+    # Grouped into two, not one. The Glyndor reusables and the actions/* get
+    # opposite answers from the same review, and a single group forces one
+    # answer for both.
     #
     # A .github release usually changes nothing this repository calls. The
     # reusables come back byte-identical and I close the bump as a no-op --
@@ -46,15 +46,25 @@ updates:
     # Under patterns: ["*"] both arrive in the same pull request, so closing
     # the no-op closes the bump that mattered. That is the whole reason for
     # the split: one pull request, one answer.
+    #
+    # The second group is named `github-owned`. It used to be `third-party`,
+    # here and in apt and homebrew-tap, and that name was wrong about the only
+    # thing that matters: every non-Glyndor `uses:` in this repository is
+    # `actions/checkout` -- GitHub-owned, a runner primitive per the org CI
+    # standard. `third-party` implies an external maintainer to audit, when the
+    # group holds GitHub's own primitives. All three channel repos are being
+    # renamed together; podup landed the same shape first. A group name is what
+    # a reviewer reads before deciding how closely to look at the diff, so it
+    # has to describe what it matches.
     groups:
       glyndor-reusables:
         patterns: ["Glyndor/.github*"]
-      third-party:
+      github-owned:
         patterns: ["*"]
         exclude-patterns: ["Glyndor/.github*"]
     # Dependabot infers a prefix from the commit history when this is absent,
-    # and here it inferred "build(deps): Bump ..." -- a capitalised verb and a
-    # type the label taxonomy does not use. Set it so the generated title is
-    # predictable and matches the apt repo's.
+    # and the inference has been unstable across repositories (build(deps):
+    # Bump ... in some, chore(deps): bump ... in others). Set it so the
+    # generated title is predictable and matches homebrew-tap and podup.
     commit-message:
       prefix: chore
