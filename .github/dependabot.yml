@@ -47,12 +47,15 @@ updates:
     # the no-op closes the bump that mattered. That is the whole reason for
     # the split: one pull request, one answer.
     #
-    # The second group is named `github-owned`, not `third-party` as in apt.
-    # Every non-Glyndor `uses:` in this repository is `actions/checkout` --
-    # GitHub-owned, a runner primitive per the org CI standard. `third-party`
-    # is the wrong word here: it implies an external maintainer to audit,
-    # when in fact this group is GitHub's own primitives. The name should
-    # describe what it matches.
+    # The second group is named `github-owned`. It used to be `third-party`,
+    # here and in apt and homebrew-tap, and that name was wrong about the only
+    # thing that matters: every non-Glyndor `uses:` in this repository is
+    # `actions/checkout` -- GitHub-owned, a runner primitive per the org CI
+    # standard. `third-party` implies an external maintainer to audit, when the
+    # group holds GitHub's own primitives. All three channel repos are being
+    # renamed together; podup landed the same shape first. A group name is what
+    # a reviewer reads before deciding how closely to look at the diff, so it
+    # has to describe what it matches.
     groups:
       glyndor-reusables:
         patterns: ["Glyndor/.github*"]
