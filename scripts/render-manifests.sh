@@ -110,6 +110,13 @@ def load(b64):
     # validate=True matters: without it b64decode DISCARDS characters outside
     # the alphabet, so "AAAA!!!!BBBB" decodes to six bytes without complaint and
     # a corrupted key silently becomes a shorter one.
+    # Trim the ends before validating. The key reaches here as a shell
+    # argument, and a value pasted into --pubkey arrives with whatever
+    # whitespace came with it; validate=True would reject that as "not base64"
+    # and point at the key when the fault is a trailing newline. Only the ends:
+    # whitespace INSIDE the string is not a formatting convention for a base64
+    # key the way grouping is for a gpg fingerprint, so it stays an error.
+    b64 = b64.strip()
     b64 += "=" * (-len(b64) % 4)
     raw = base64.b64decode(b64, validate=True)
     if len(raw) != 32:
