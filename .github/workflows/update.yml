@@ -85,26 +85,12 @@ jobs:
           # artifact, with no PR review between it and `scoop install`. Each
           # manifest must be valid JSON with version, homepage, license, and a
           # url+hash+bin per declared architecture.
-          shopt -s nullglob
-          manifests=(bucket/*.json)
-          if [ ${#manifests[@]} -eq 0 ]; then
-            echo "::error::no manifests found under bucket/"
-            exit 1
-          fi
-          for m in "${manifests[@]}"; do
-            jq -e '
-              (.version | type == "string" and (. | length > 0))
-              and (.homepage | type == "string")
-              and (.license | type == "string")
-              and (.architecture | type == "object" and (. | length > 0))
-              and (.architecture | to_entries | all(
-                    .value.url and .value.hash and (.value.bin | type == "array")))
-            ' "$m" >/dev/null || {
-              echo "::error file=$m::$m is not a valid, complete Scoop manifest"
-              exit 1
-            }
-            echo "ok  $m"
-          done
+          # The empty-bucket refusal is inside the script, and it is the
+          # first thing it does. It has to be: a loop over no manifests
+          # succeeds, so "every manifest is valid" would be true of a bucket
+          # that serves nobody -- which is how an emptied bucket reaches
+          # `scoop install` with nothing between it and the user.
+          ./scripts/check-manifests.sh
 
       - name: Commit the update to main (GitHub-signed)
         if: steps.render.outputs.changed == '1'
@@ -140,7 +126,7 @@ jobs:
           # this machine (org account suspended over raw API traffic before).
           # This call uses GITHUB_TOKEN, which is a job-scoped actor on
           # its own rate limit — the documented exception, not the banned
-          # call. See schedule-freshness.yml in Glyndor/.github for the
+          # call. See .github/workflows/reusable-schedule-freshness.yml for the
           # same shape with the same justification.
           echo "$gh_api_query" | gh api graphql --input - >/dev/null
           echo "Committed the manifest update to main."

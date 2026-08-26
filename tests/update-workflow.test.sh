@@ -80,6 +80,13 @@ esac
 exit $code
 SH
 	chmod +x "$dir/scripts/render-manifests.sh"
+	# The validate step calls scripts/check-manifests.sh rather than carrying a
+	# copy of the jq filter, so the sandbox needs the real script. Copying it
+	# is the point: the step is exercised with the code that ships, and a
+	# workflow that stopped calling it would fail here rather than pass on a
+	# stub that happens to agree.
+	cp "$HERE/scripts/check-manifests.sh" "$dir/scripts/check-manifests.sh"
+	chmod +x "$dir/scripts/check-manifests.sh"
 	git -C "$dir" init -q
 	git -C "$dir" -c user.email=t@t -c user.name=t add -A
 	git -C "$dir" -c user.email=t@t -c user.name=t commit -qm init
@@ -107,7 +114,7 @@ step_script "Commit the update to main" > "$COMMIT"
 check "the render step was extracted from the workflow" "1" \
 	"$(grep -c 'render-manifests.sh' "$RENDER")"
 check "the validate step was extracted from the workflow" "1" \
-	"$(grep -c 'no manifests found under bucket/' "$VALIDATE")"
+	"$(grep -c 'check-manifests.sh' "$VALIDATE")"
 check "the commit step was extracted from the workflow" "2" \
 	"$(grep -c 'createCommitOnBranch' "$COMMIT")"
 
@@ -153,8 +160,12 @@ sandbox "$WORK/f" 0 no
 rm -f "$WORK/f"/bucket/*.json
 rc=0; run_step "$VALIDATE" "$WORK/f" || rc=$?
 check "an emptied bucket/ fails validation" "1" "$rc"
+# The script names the directory by absolute path, which is more use in a
+# runner log than the literal "bucket/" this asserted when the check was inline.
 check "and the error says why" "1" \
-	"$(grep -c 'no manifests found under bucket/' "$WORK/out")"
+	"$(grep -c 'no manifests found under' "$WORK/out")"
+check "and names the directory it looked in" "1" \
+	"$(grep -c "$WORK/f/bucket" "$WORK/out")"
 
 # The mirror image, in two halves. Unlike the Homebrew tap, this repo's
 # validation is jq, which is present here, so the whole step runs for real.
