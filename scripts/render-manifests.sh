@@ -210,6 +210,37 @@ render_product() { # $1=table entry
 	}
 	version="${tag#v}"
 
+	# The tag is the only field here that comes from outside this repository and
+	# carries no signature of its own. SHA256SUMS is verified, and the digests it
+	# gives are checked to be 64 hex characters before use -- but the tag travels
+	# beside that signature, not inside it, and it lands in a manifest Scoop reads.
+	#
+	# The JSON here is built with `jq --arg`, which escapes the value properly,
+	# so a hostile tag cannot break out of the string the way it can in the tap's
+	# unquoted Ruby heredoc. The guard is here anyway: the version reaches Scoop's
+	# update comparison and its install paths, the two renderers should not
+	# diverge in what they accept, and a validation whose necessity depends on
+	# one call site staying `jq` is not a validation.
+	#
+	# So the version is held to the same standard as the digest: a fixed
+	# character set, checked before it is interpolated. Real tags are v5.1.0,
+	# v3.7.1 -- digits, dots, and the pre-release and build punctuation semver
+	# allows. Nothing else.
+	case "$version" in
+		"" | *[!0-9A-Za-z.+-]* | .* | *.)
+			echo "::error::$repo: the release tag \"$tag\" is not a plain version; refusing to interpolate it into generated code" >&2
+			return 1
+			;;
+	esac
+	case "$version" in
+		[0-9]*) ;;
+		*)
+			echo "::error::$repo: the release tag \"$tag\" does not start with a digit after stripping a leading v" >&2
+			return 1
+			;;
+	esac
+
+
 	verify_sha256sums "$repo" "$tag" || {
 		echo "::error::$repo $tag: SHA256SUMS is missing or does not verify against the org release key"
 		return 1
