@@ -32,7 +32,7 @@ jobs:
   shell:
     uses: ./.github/workflows/reusable-shell-ci.yml
     with:
-      test-command: ./tests/render-manifests.test.sh && ./tests/update-workflow.test.sh && ./tests/check-products-consistent.test.sh && ./tests/check-manifests.test.sh && ./tests/check-test-coverage.test.sh
+      test-command: ./tests/render-manifests.test.sh && ./tests/update-workflow.test.sh && ./tests/check-products-consistent.test.sh && ./tests/check-manifests.test.sh && ./tests/check-test-coverage.test.sh && ./tests/locale-pinned.test.sh
 
   dependabot-freshness:
     uses: ./.github/workflows/reusable-dependabot-freshness.yml
