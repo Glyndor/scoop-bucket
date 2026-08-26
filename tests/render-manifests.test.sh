@@ -268,6 +268,38 @@ rc=0
 	--pubkey "$OTHER" --pubkey2 "$OTHER" ) >/dev/null 2>&1 || rc=$?
 check "two wrong keys still fail closed" "3" "$rc"
 
+# --- a broken trust anchor is not a bad signature ---------------------------
+#
+# `except Exception: continue` around the verify call collapsed "this key did
+# not sign it" and "this key is not a key" into one message. The operator then
+# read "does not verify against any configured release key" and went looking at
+# the upstream release for a fault that was in this repository.
+
+for bad_case in \
+	"AAAA!!!!AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA|Only base64 data is allowed|not base64" \
+	"AAAA|3 bytes|too short" \
+	"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA|33 bytes|one byte too long"; do
+	bad_key="${bad_case%%|*}"; rest="${bad_case#*|}"
+	needle="${rest%%|*}"; label="${rest#*|}"
+	rc=0
+	out="$( cd "$WORK/r1" && "$WORK/r1/scripts/render-manifests.sh" \
+		--pubkey "$bad_key" 2>&1 )" || rc=$?
+	check "a key that is $label is refused" "3" "$rc"
+	check "and it is named as malformed, not as a failed signature ($label)" "1" \
+		"$(printf '%s' "$out" | grep -c 'malformed release public key')"
+	check "and the message says how it is malformed ($label)" "1" \
+		"$(printf '%s' "$out" | grep -cF "$needle")"
+done
+
+# The mirror image, so the cases above are not satisfied by a renderer that
+# calls every key malformed.
+rc=0
+out="$( cd "$WORK/r1" && "$WORK/r1/scripts/render-manifests.sh" \
+	--pubkey "$OTHER" 2>&1 )" || rc=$?
+check "a well-formed key that did not sign it fails as a signature" "3" "$rc"
+check "and is NOT reported as malformed" "0" \
+	"$(printf '%s' "$out" | grep -c 'malformed release public key')"
+
 # --- a signed manifest can still be malformed --------------------------------
 
 publish Glyndor/podup v9.9.9 podup-windows-x86_64.exe podup-windows-x86_64.exe podup-windows-arm64.exe
