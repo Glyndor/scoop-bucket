@@ -22,7 +22,7 @@ jobs:
   # green, I will promote this from advisory to required in the ruleset.
   empty-diff:
     if: github.event_name == 'pull_request'
-    uses: Glyndor/.github/.github/workflows/empty-diff.yml@8ae47ccd49ffdbf59d1acf7e6f9c18165bfba959 # v1.19.0
+    uses: ./.github/workflows/reusable-empty-diff.yml
 
   # Lint scripts/ the same way Glyndor/apt does. The generator verifies a
   # release signature and writes the file users install from, and the update
@@ -30,15 +30,12 @@ jobs:
   # reaches users with no pull request in between. `bash -n` plus a pinned
   # shellcheck, both from the reusable.
   shell:
-    uses: Glyndor/.github/.github/workflows/shell-ci.yml@8ae47ccd49ffdbf59d1acf7e6f9c18165bfba959 # v1.19.0
+    uses: ./.github/workflows/reusable-shell-ci.yml
     with:
-      test-command: ./tests/render-manifests.test.sh && ./tests/update-workflow.test.sh
-
-  pin-policy:
-    uses: Glyndor/.github/.github/workflows/pin-policy-reusable.yml@8ae47ccd49ffdbf59d1acf7e6f9c18165bfba959 # v1.19.0
+      test-command: ./tests/render-manifests.test.sh && ./tests/update-workflow.test.sh && ./tests/check-products-consistent.test.sh && ./tests/check-manifests.test.sh && ./tests/check-test-coverage.test.sh
 
   dependabot-freshness:
-    uses: Glyndor/.github/.github/workflows/dependabot-freshness.yml@8ae47ccd49ffdbf59d1acf7e6f9c18165bfba959 # v1.19.0
+    uses: ./.github/workflows/reusable-dependabot-freshness.yml
     with:
       max-age-days: 15
 
@@ -51,44 +48,10 @@ jobs:
       - name: The README table and bucket/ must match PRODUCTS
         run: |
           set -euo pipefail
-          # scripts/render-manifests.sh's PRODUCTS table is the only place a
-          # product is declared. Two things restate it and cannot be generated
-          # from it: the README's "Available manifests" table, and the set of
-          # files under bucket/. With one product the drift is invisible; with
-          # the full roster it is certain, and it is the same rot as the install
-          # snippet corrected in #8.
-          declared="$(awk '/^PRODUCTS=\(/ { inside = 1; next }
-                           inside && /^\)/  { exit }
-                           inside           { print }' scripts/render-manifests.sh \
-                     | sed -n 's/^[^"]*"[^|]*|\([^|]*\)|.*/\1/p' | sort -u)"
-          [ -n "$declared" ] || { echo "::error::could not read PRODUCTS out of scripts/render-manifests.sh"; exit 1; }
-
-          # Backticks and "$" never appear inside the single quotes below. They
-          # would be awk's and Markdown's, but SC2016 reads them as shell
-          # expansions and actionlint runs shellcheck over this block; a
-          # file-level disable directive is not honoured there.
-          documented="$(awk '/^\| Manifest \| Product \|/ { inside = 1; next }
-                             inside && /^\|---/ { next }
-                             inside && /^\|/    { print; next }
-                             inside              { exit }' README.md \
-                       | cut -d'|' -f2 | tr -cd '[:alnum:]._\n-' | awk 'NF' | sort -u)"
-
-          rendered="$(find bucket -maxdepth 1 -name '*.json' -printf '%f\n' \
-                     | while read -r f; do echo "${f%.json}"; done | sort -u)"
-
-          status=0
-          if [ "$declared" != "$documented" ]; then
-            echo "::error file=README.md::the README's Available manifests table disagrees with PRODUCTS"
-            diff <(echo "$declared") <(echo "$documented") | sed 's/^/  /' || true
-            status=1
-          fi
-          if [ "$declared" != "$rendered" ]; then
-            echo "::error::bucket/ disagrees with PRODUCTS — re-run scripts/render-manifests.sh"
-            diff <(echo "$declared") <(echo "$rendered") | sed 's/^/  /' || true
-            status=1
-          fi
-          [ "$status" -eq 0 ] && echo "ok  $(echo "$declared" | tr '\n' ' ')"
-          exit "$status"
+          # The check lives in scripts/ so it can be tested. Inline here it was
+          # reachable only by a real CI run, which is why it had never been
+          # watched fail. tests/check-products-consistent.test.sh covers it.
+          ./scripts/check-products-consistent.sh
 
   manifests:
     name: validate manifests
@@ -99,30 +62,10 @@ jobs:
       - name: Check each manifest is valid JSON with the required fields
         run: |
           set -euo pipefail
-          shopt -s nullglob
-          manifests=(bucket/*.json)
-          if [ ${#manifests[@]} -eq 0 ]; then
-            echo "::error::no manifests found under bucket/"
-            exit 1
-          fi
-          for m in "${manifests[@]}"; do
-            # Fails if $m is not valid JSON, or if any required field is missing:
-            # version, homepage and license (Scoop's three required root fields),
-            # and a url+hash+bin for each declared architecture. Keep this in step
-            # with update.yml's own copy, which gates the commit before it lands.
-            jq -e '
-              (.version | type == "string" and (. | length > 0))
-              and (.homepage | type == "string")
-              and (.license | type == "string")
-              and (.architecture | type == "object" and (. | length > 0))
-              and (.architecture | to_entries | all(
-                    .value.url and .value.hash and (.value.bin | type == "array")))
-            ' "$m" >/dev/null || {
-              echo "::error file=$m::$m is not a valid, complete Scoop manifest"
-              exit 1
-            }
-            echo "ok  $m"
-          done
+          # One copy, called from here and from update.yml. It used to be
+          # duplicated in both with a comment on each asking whoever edited one
+          # to keep the other in step.
+          ./scripts/check-manifests.sh
 
   # A cron that stops firing emits nothing, and "no alert" is indistinguishable
   # from "all clear". Every scheduled workflow in this org went dark on
@@ -134,7 +77,7 @@ jobs:
     permissions:
       contents: read
       actions: read
-    uses: Glyndor/.github/.github/workflows/schedule-freshness.yml@8ae47ccd49ffdbf59d1acf7e6f9c18165bfba959 # v1.19.0
+    uses: ./.github/workflows/reusable-schedule-freshness.yml
     with:
       workflow: update.yml
       max-age-days: 3
