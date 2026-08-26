@@ -35,6 +35,7 @@ jobs:
         && ./tests/check-manifests.test.sh
         && ./tests/locale-pinned.test.sh
         && ./tests/check-test-coverage.test.sh
+        && ./tests/check-dco-on-main.test.sh
         && ./tests/ci-runs-every-test.test.sh
 
   products:
