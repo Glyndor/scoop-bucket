@@ -291,6 +291,24 @@ for bad_case in \
 		"$(printf '%s' "$out" | grep -cF "$needle")"
 done
 
+# A key pasted with whitespace on the ends still loads. It arrives here as a
+# shell argument, so a value copied from anywhere brings whatever came with it;
+# rejecting that as "not base64" would point at the key when the fault is a
+# trailing newline. Whitespace INSIDE stays an error: unlike a gpg fingerprint,
+# a base64 key has no grouped display convention to accommodate.
+rc=0
+( cd "$WORK/r1" && "$WORK/r1/scripts/render-manifests.sh" \
+	--pubkey "  $PUBKEY
+" ) >/dev/null 2>&1 || rc=$?
+check "a key pasted with whitespace on the ends still verifies" "0" "$rc"
+
+rc=0
+out="$( cd "$WORK/r1" && "$WORK/r1/scripts/render-manifests.sh" \
+	--pubkey "$(printf '%s' "$PUBKEY" | sed 's/^\(..........\)/\1 /')" 2>&1 )" || rc=$?
+check "but whitespace inside the key is still refused" "3" "$rc"
+check "and it is named as malformed" "1" \
+	"$(printf '%s' "$out" | grep -c 'malformed release public key')"
+
 # The mirror image, so the cases above are not satisfied by a renderer that
 # calls every key malformed.
 rc=0
