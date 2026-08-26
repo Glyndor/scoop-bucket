@@ -88,7 +88,8 @@ verify_sha256sums() { # $1=repo $2=tag
 		|| return 1
 	python3 - "$work/SHA256SUMS" "$work/SHA256SUMS.sig" \
 		"$RELEASE_PUBKEY_B64" "$RELEASE_PUBKEY2_B64" <<'PY'
-import base64, sys
+import base64, binascii, sys
+from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 
 msg = open(sys.argv[1], "rb").read()
@@ -99,15 +100,40 @@ sig = open(sys.argv[2], "rb").read()
 # fallthrough, so a stale pair aborts the render exactly as a single stale key
 # did before.
 #
-# The key constants are stored raw, so restore the two "=" that base64
-# decoding needs. Pasting a padded key here yields "====" and fails to decode.
-keys = [k for k in sys.argv[3:] if k]
-if not keys:
+# Padding is normalised to a 4-character boundary rather than restored by
+# appending two "=", so a key pasted with its padding already on works instead
+# of decoding to nothing. Appending blindly was survivable only because the
+# error was swallowed below.
+
+
+def load(b64):
+    # validate=True matters: without it b64decode DISCARDS characters outside
+    # the alphabet, so "AAAA!!!!BBBB" decodes to six bytes without complaint and
+    # a corrupted key silently becomes a shorter one.
+    b64 += "=" * (-len(b64) % 4)
+    raw = base64.b64decode(b64, validate=True)
+    if len(raw) != 32:
+        raise ValueError(f"{len(raw)} bytes, not a 32-byte Ed25519 key")
+    return Ed25519PublicKey.from_public_bytes(raw)
+
+
+raw_keys = [k for k in sys.argv[3:] if k]
+if not raw_keys:
     sys.exit("no release key configured")
+
+# Loading is separate from verifying so that a broken trust anchor of ours is
+# not reported as a bad signature of theirs. `except Exception` around the
+# verify call collapsed both into one message, and the operator then went
+# looking at the upstream release for a fault that was in this repository.
+try:
+    keys = [load(k) for k in raw_keys]
+except (ValueError, binascii.Error) as exc:
+    sys.exit(f"malformed release public key: {exc}")
+
 for key in keys:
     try:
-        Ed25519PublicKey.from_public_bytes(base64.b64decode(key + "==")).verify(sig, msg)
-    except Exception:
+        key.verify(sig, msg)
+    except InvalidSignature:
         continue
     print("SHA256SUMS signature verified")
     sys.exit(0)
