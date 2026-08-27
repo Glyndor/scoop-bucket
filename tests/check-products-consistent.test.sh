@@ -61,14 +61,6 @@ B="$(mkbucket agree alpha beta)"
 rc=0; run "$B" || rc=$?
 check "a bucket where all three agree passes" "0" "$rc"
 
-# --- the README is missing a product ----------------------------------------
-B="$(mkbucket noreadme alpha beta)"
-printf '| Manifest | Product |\n|---|---|\n| alpha | alpha |\n' > "$B/README.md"
-rc=0; run "$B" || rc=$?
-check "a README missing a product fails" "1" "$rc"
-check "and it says which file disagrees" "1" "$(said 'README.md')"
-check "and the diff names the missing product" "1" "$(said 'beta')"
-
 # --- bucket/ is missing a file ---------------------------------------------
 B="$(mkbucket noformula alpha beta)"
 rm -f "$B/bucket/beta.json"
@@ -86,18 +78,17 @@ rc=0; run "$B" || rc=$?
 check "an unreadable PRODUCTS table fails rather than agreeing with nothing" "1" "$rc"
 check "and says it could not read PRODUCTS" "1" "$(said 'could not read PRODUCTS')"
 
-# --- the README table header was renamed ---------------------------------
+# --- the README is prose, and editing it must not break anything -----------
 #
-# An empty `documented` means the header was not found, not that the table is
-# empty. Without a guard the check diffs every product against nothing, which
-# sends the reader looking for a drift that does not exist. I hit exactly that
-# while porting this from the tap.
-B="$(mkbucket notable alpha)"
-sed -i 's/^| Manifest | Product |/| Package | Product |/' "$B/README.md"
+# This check compared PRODUCTS against the README's table until 2026-08-26. It
+# made rewording documentation a CI failure, and it broke on a heading rename
+# while being ported between these two repositories -- the check was wrong and
+# the README was fine. What gets installed is decided by bucket/, which is still
+# compared; the README is documentation and can drift.
+B="$(mkbucket readme-edited alpha)" 2>/dev/null || B="$(mktap readme-edited alpha)"
+printf 'totally different prose, no table at all\n' > "$B/README.md"
 rc=0; run "$B" || rc=$?
-check "a renamed README table header fails" "1" "$rc"
-check "and says the table could not be found, not that it disagrees" "1" \
-	"$(said 'could not find the Available manifests table')"
+check "rewriting the README does not fail the check" "0" "$rc"
 
 # --- the collation case -----------------------------------------------------
 #
