@@ -1,13 +1,26 @@
 #!/usr/bin/env bash
 #
 # scripts/render-manifests.sh's PRODUCTS table is the only place a product is
-# declared. Two things restate it and cannot be generated from it: the README's
-# "Available manifests" table, and the set of files under bucket/. With one
-# product the drift is invisible; with the full roster it is certain.
+# declared. bucket/ restates it and cannot be generated from the check itself, so
+# this compares the two: a product added to PRODUCTS without re-running the
+# generator leaves a directory that is a correct artefact of an obsolete input.
+# "Generated" says where a file came from, not when.
 #
-# This lived inline in .github/workflows/ci.yml, where nothing could test it.
-# A check that decides whether a tap agrees with itself, and that has never
-# been watched fail, is decoration -- so it moved here and got a test.
+# The README's table is NOT checked, deliberately, and was until 2026-08-26.
+#
+# It made editing prose break CI. The comparison parsed a markdown table with
+# awk, so renaming the heading or adding a column reported every product as
+# missing -- which happened while porting this check between the two
+# repositories, where one says "Formula" and the other "Manifest". The check was
+# wrong and the README was fine.
+#
+# And it compared two things a person maintains by hand, which anyone can
+# reconcile by editing whichever is easier rather than whichever is right. That
+# is not a check against ground truth; it is two documents agreeing.
+#
+# What is lost: the README can drift from what the tap serves. That is a
+# documentation staleness, not a correctness failure -- what gets installed is
+# decided by bucket/, and that is still checked.
 #
 # Usage: check-products-consistent.sh [repo-root]   (default: the repo this
 # lives in)
@@ -33,31 +46,10 @@ declared="$(awk '/^PRODUCTS=\(/ { inside = 1; next }
 	exit 1
 }
 
-# Backticks and "$" never appear inside the single quotes below. They would be
-# awk's and Markdown's, but SC2016 reads them as shell expansions.
-documented="$(awk '/^\| Manifest \| Product \|/ { inside = 1; next }
-                   inside && /^\|---/ { next }
-                   inside && /^\|/    { print; next }
-                   inside              { exit }' "$root/README.md" \
-             | cut -d'|' -f2 | tr -cd '[:alnum:]._\n-' | awk 'NF' | sort -u)"
-
-# An empty list here means the table header was not found, not that the table
-# is empty -- renaming that heading turns this into a diff of every product
-# against nothing, which sends the reader looking for a drift that is not there.
-[ -n "$documented" ] || {
-	echo "::error file=README.md::could not find the Available manifests table in README.md" >&2
-	exit 1
-}
-
 rendered="$(find "$root/bucket" -maxdepth 1 -name '*.json' -printf '%f\n' \
            | while read -r f; do echo "${f%.json}"; done | sort -u)"
 
 status=0
-if [ "$declared" != "$documented" ]; then
-	echo "::error file=README.md::the README's Available manifests table disagrees with PRODUCTS" >&2
-	diff <(echo "$declared") <(echo "$documented") | sed 's/^/  /' >&2 || true
-	status=1
-fi
 if [ "$declared" != "$rendered" ]; then
 	echo "::error::bucket/ disagrees with PRODUCTS - re-run scripts/render-manifests.sh" >&2
 	diff <(echo "$declared") <(echo "$rendered") | sed 's/^/  /' >&2 || true
