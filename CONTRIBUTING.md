@@ -13,7 +13,10 @@ welcome; unsolicited pull requests are not accepted.
 
 It is the Scoop bucket for Glyndor's products. It carries no product source:
 `bucket/*.json` is generated from each product's latest signed release, with
-the release signature verified before anything is written.
+the release signature verified before anything is written. Edit
+`scripts/render-manifests.sh`, never the manifests themselves: the next
+scheduled run overwrites them, so a hand edit survives until the following
+morning and then disappears without a trace.
 
 **Its git content IS the published artifact.** A commit on `main` is what
 `scoop install` reads. There is no build step between them and no CDN in front.
