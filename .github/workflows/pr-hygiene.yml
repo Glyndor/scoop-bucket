@@ -7,7 +7,8 @@ name: PR hygiene
 # empty-diff catches a pull request whose diff against the base is empty. Eight
 # no-op pull requests landed on this repository and the sibling tap before this
 # gate existed: the work was already on main via squash-merge, the branch was
-# recreated as -v2, and the second merge landed with zero files changed.
+# recreated as -v2, and the second merge landed with zero files changed. CI was
+# happy with that, because a commit with no diff is valid git.
 
 on:
   pull_request:
