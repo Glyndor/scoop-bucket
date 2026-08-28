@@ -15,6 +15,13 @@ name: update
 # `main` directly, validated in this job *before* it lands (there is no PR gate
 # standing between the commit and `scoop install`), and signed by GitHub so
 # `main`'s require-signed-commits rule accepts it without a signing key here.
+
+# Schedule plus dispatch, no push and no pull_request, by design. This
+# is not about a pull request at all: it reads each product's latest
+# signed release and re-renders the published artifact. Validation
+# runs inside the job before the commit, because no pull request review
+# stands between the commit and `scoop install`.
+
 on:
   schedule:
     # Daily, staggered after apt's 06:00 publish so the two don't contend.

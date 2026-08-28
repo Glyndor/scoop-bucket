@@ -28,6 +28,11 @@ name: DCO on main
 # or the bot pushing to a side ref where checks run before `main` fast-forwards.
 # See this repository's open issue.
 
+# Push to main only, by design. A pull request trigger would ask the
+# question before the commit lands on `main`, where `scoop install` reads
+# from. By the time this fires the commit is already on the install
+# branch, so this file can only report, never gate.
+
 on:
   push:
     branches: [main]

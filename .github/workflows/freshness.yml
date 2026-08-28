@@ -14,6 +14,11 @@ name: Freshness
 # Separate from the suite on purpose. These fail because something did not
 # happen elsewhere, never because this pull request is wrong.
 
+# Pull request and push to main, no schedule, by design. This is a
+# watcher on the ordinary CI path: a quiet repository stops checking
+# its own freshness, and that matters here because update.yml commits
+# straight to main, so main can move on its own.
+
 on:
   pull_request:
   push:
