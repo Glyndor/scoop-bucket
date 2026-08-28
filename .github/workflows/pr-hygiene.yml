@@ -10,6 +10,12 @@ name: PR hygiene
 # recreated as -v2, and the second merge landed with zero files changed. CI was
 # happy with that, because a commit with no diff is valid git.
 
+# Pull request only. empty-diff asks whether a pull request's DIFF against
+# its base ref is empty, which is not the same as asking whether it carries
+# commits: a re-created branch whose work already merged carries commits and
+# changes nothing. A push to `main` has no base ref to compare against, so
+# the trigger says that rather than an `if:` repairing it afterwards.
+
 on:
   pull_request:
 

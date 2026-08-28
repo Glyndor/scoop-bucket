@@ -3,6 +3,12 @@ name: DCO
 # Requires a Signed-off-by trailer on every commit in the pull request, via the
 # shared reusable — the same gate every product repo runs.
 
+# Pull request only. It reads the commits between a pull request's base
+# and head and checks each carries a sign-off, so a push to `main` is not
+# a range it can walk. The question is NOT settled by a push: a human can
+# commit straight to `main` here, which is why dco-on-main.yml exists and
+# why four such commits are already on this branch.
+
 on:
   pull_request:
 
