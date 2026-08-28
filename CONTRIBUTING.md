@@ -70,9 +70,17 @@ There is no `develop`. Branch from `main`, open a pull request against
 ## Tests
 
 ```sh
-for t in tests/*.test.sh; do "./$t" || echo "FAILED: $t"; done
-shellcheck scripts/*.sh tests/*.sh
+fail=0
+for t in tests/*.test.sh; do "./$t" || { echo "FAILED: $t"; fail=1; }; done
+shellcheck scripts/*.sh tests/*.sh || fail=1
+[ "$fail" -eq 0 ] && echo "all green" || echo "SOMETHING FAILED"
 ```
+
+Keep the flag. A loop that carries on past a failure is more useful locally than
+one that stops, but it surrenders the exit status, and the printed `FAILED:`
+lines then become the only signal there is. They scroll. The flag turns them
+back into something a script can read. Compare the workflow, where the same
+scripts are joined with `&&` and the first failure ends the job.
 
 **Every script in `scripts/` needs a test.**
 `scripts/check-test-coverage.sh` fails when one does not, itself included --
