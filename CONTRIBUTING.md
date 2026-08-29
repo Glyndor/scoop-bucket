@@ -41,8 +41,16 @@ validation that runs INSIDE `update.yml` before the commit lands.
 covered by `tests/update-workflow.test.sh`, which extracts the workflow's own
 `run:` blocks and executes them as they ship rather than against a copy.
 
-One consequence is open and tracked: dropping required checks also dropped the
-DCO gate for human pull requests. See the repository's issues.
+One consequence has been closed out rather than left open: dropping required
+checks also dropped the DCO gate for human pull requests. Every route to
+preventing it was priced and declined, including the near miss that is worse
+than the gap, since making the bot a bypass actor would exempt every human with
+Write. The reasoning is in `ai-context`, `context/scoop-bucket/index.md`, under
+"Closed 2026-08-26: detection shipped, prevention priced and declined".
+
+What shipped instead is detection. `dco-on-main.yml` makes an unsigned human
+commit a red run within a minute of it landing. The case nobody has a mechanism
+for is the human who sees that red and merges regardless.
 
 ## Branch flow
 
