@@ -63,6 +63,9 @@ credential on this repository. A bad signature fails the run and leaves the
 manifests untouched, so the failure mode is a bucket that stops updating, never
 one that ships an unverified binary.
 
+The [threat model](docs/threat-model.md) lists each threat, the control that
+answers it, and the test that fails when that control is removed.
+
 ---
 
 See [CONTRIBUTING.md](CONTRIBUTING.md). Report a problem via the
