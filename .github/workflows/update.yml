@@ -67,6 +67,12 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    # The concurrency group above serialises the hourly runs, so one run that
+    # hangs on a download holds every later one behind it until the six-hour
+    # default kills it. Measured over the last eight runs the job takes 13 to
+    # 20 seconds; ten minutes is far above any honest run and bounds the
+    # worst case to one missed hour instead of six.
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
