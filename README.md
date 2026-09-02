@@ -51,7 +51,7 @@ is refused.
 
 ```mermaid
 flowchart LR
-  R["Product release<br/>SHA256SUMS + .sig"] -->|daily pull| V["Verify signature<br/>org Ed25519 release key"]
+  R["Product release<br/>SHA256SUMS + .sig"] -->|hourly pull| V["Verify signature<br/>org Ed25519 release key"]
   V -->|verified| G["Re-render bucket/*.json<br/>version, URLs, hashes"]
   G --> C["Validate, then commit to main<br/>GitHub-signed"]
   C -->|scoop update| U["User"]
