@@ -47,6 +47,9 @@ jobs:
   shellcheck:
     name: shellcheck
     runs-on: ubuntu-latest
+    # Measured at 8 to 9 seconds across recent runs; an unbounded run holds
+    # the runner for GitHub's six-hour default.
+    timeout-minutes: 10
     defaults:
       run:
         working-directory: ${{ inputs.working-directory }}
@@ -193,6 +196,12 @@ jobs:
     name: test
     if: inputs.test-command != ''
     runs-on: ubuntu-latest
+    # Measured at up to 83 seconds in apt; the suite grows with the tree.
+    # The org floor for a job whose honest run is seconds is ten minutes;
+    # this one gets fifteen because the worst-case run on the largest
+    # consumer sits well above the floor and there is no second consumer
+    # to make a tighter number mean anything.
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: ${{ inputs.working-directory }}

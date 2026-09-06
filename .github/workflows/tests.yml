@@ -48,6 +48,8 @@ jobs:
         && ./tests/reusable-dependabot-freshness.test.sh
         && ./tests/reusable-schedule-freshness.test.sh
         && ./tests/reusable-workflow-lint.test.sh
+        && ./tests/jobs-are-bounded.test.sh
+        && ./tests/network-calls-are-bounded.test.sh
       # shellcheck: tests/lint-workflow-shell.test.sh plants a violation and
       # requires the linter to report it, so it needs the linter. The gate
       # itself runs in the shellcheck job against the pinned binary; this one
@@ -59,6 +61,8 @@ jobs:
   products:
     name: products match the generator
     runs-on: ubuntu-latest
+    # Measured at 5 seconds.
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -75,6 +79,8 @@ jobs:
   manifests:
     name: validate manifests
     runs-on: ubuntu-latest
+    # Measured at 4 seconds.
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

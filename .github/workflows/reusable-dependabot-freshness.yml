@@ -80,6 +80,9 @@ jobs:
   freshness:
     name: dependabot freshness
     runs-on: ubuntu-latest
+    # Measured at 5 to 29 seconds across recent runs; queries the GitHub
+    # API and `git ls-remote` against each pinned action's upstream.
+    timeout-minutes: 10
     permissions:
       contents: read
     steps:
