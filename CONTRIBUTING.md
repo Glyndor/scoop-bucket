@@ -108,6 +108,18 @@ reason it names. Four ways that goes wrong are written up in
 Assert **which** failure fired, never that some failure did. Everything runs
 under `set -euo pipefail`, so almost any mistake exits non-zero.
 
+Two failures that only appear after the commit:
+
+**The mode in the index, not the mode on disk.** Where `core.fileMode=false` is
+set, `chmod +x` changes nothing git records, and a test file that landed
+`100644` gives exit 126 on the runner and stops every suite after it. Check with
+`git ls-files -s tests/` and fix with
+`git update-index --chmod=+x tests/<name>.test.sh`.
+
+**A missing final newline hides until the file is tracked.** The editorconfig
+checker walks tracked files on purpose, and a test holds it to that, so run it
+after staging or it will tell you a new file is fine when it is not.
+
 ## Workflows
 
 | file | what a red means |
