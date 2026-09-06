@@ -63,6 +63,10 @@ jobs:
   drift:
     name: reusable drift
     runs-on: ubuntu-latest
+    # Measured at about 10 seconds; performs fourteen sequential fetches
+    # against raw.githubusercontent.com, with the deadlines added to the
+    # scripts themselves bounding each one.
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
