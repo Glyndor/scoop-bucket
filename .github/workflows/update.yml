@@ -103,7 +103,17 @@ jobs:
             3) echo "partial=1" >> "$GITHUB_OUTPUT" ;;
             *) exit "$rc" ;;
           esac
-          if git diff --quiet -- bucket; then
+          # changed merges the diff of tracked bucket/ files (ACMR) with the
+          # untracked ones under bucket/. A product's first manifest is
+          # untracked until this commit lands, so the diff alone reports no
+          # change for it and the additions payload below would also be empty:
+          # the new product would never reach `main`, and the bucket would not
+          # learn it exists until somebody committed the manifest by hand.
+          changes="$(
+            { git diff --name-only --diff-filter=ACMR -- bucket
+              git ls-files -o --exclude-standard -- bucket; } | sort -u
+          )"
+          if [ -z "$changes" ]; then
             echo "changed=0" >> "$GITHUB_OUTPUT"
             echo "No manifest changed."
           else
@@ -140,12 +150,19 @@ jobs:
           # needs no signing key (unlike `git commit -S`). expectedHeadOid pins
           # the parent to the HEAD we rendered from, so if main moved since
           # checkout the mutation fails cleanly instead of clobbering, and the next
-          # scheduled run re-renders from the new HEAD. Modified files go in
-          # fileChanges.additions (base64), removed ones in deletions.
+          # scheduled run re-renders from the new HEAD. Tracked additions (ACMR)
+          # and untracked files both go in fileChanges.additions (base64),
+          # removed ones in deletions. Deletions keep their own
+          # `--diff-filter=D` derivation, because an untracked path can never
+          # be a deletion; folding the two would be wrong rather than shorter.
           head="$(git rev-parse HEAD)"
-          adds="$(git diff --name-only --diff-filter=ACMR -- bucket | while read -r f; do
-            jq -cn --arg path "$f" --arg contents "$(base64 -w0 "$f")" '{path:$path, contents:$contents}'
-          done | jq -cs '.')"
+          adds="$(
+            { git diff --name-only --diff-filter=ACMR -- bucket
+              git ls-files -o --exclude-standard -- bucket; } | sort -u \
+            | while read -r f; do
+              jq -cn --arg path "$f" --arg contents "$(base64 -w0 "$f")" '{path:$path, contents:$contents}'
+            done | jq -cs '.'
+          )"
           dels="$(git diff --name-only --diff-filter=D -- bucket | while read -r f; do
             jq -cn --arg path "$f" '{path:$path}'
           done | jq -cs '.')"

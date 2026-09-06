@@ -67,7 +67,7 @@ PY
 
 # A repository the step can run in: a git repo with a committed manifest/ and a
 # stub generator whose behaviour each case chooses.
-sandbox() { # $1=path $2=generator exit code $3=writes? (yes|no|empty)
+sandbox() { # $1=path $2=generator exit code $3=writes? (yes|no|empty|new)
 	local dir="$1" code="$2" mode="$3"
 	rm -rf "$dir"; mkdir -p "$dir/scripts" "$dir/bucket"
 	printf '{"version":"1"}\n' > "$dir/bucket/podup.json"
@@ -76,6 +76,7 @@ sandbox() { # $1=path $2=generator exit code $3=writes? (yes|no|empty)
 case "$mode" in
 	yes)   printf '{"version":"2"}\n' > "$dir/bucket/podup.json" ;;
 	empty) rm -f "$dir"/bucket/*.json ;;
+	new)   printf '{"version":"1"}\n' > "$dir/bucket/newproduct.json" ;;
 esac
 exit $code
 SH
@@ -251,6 +252,29 @@ check "and pins expectedHeadOid" "yes" \
 # shellcheck disable=SC2016
 check "and references branch main in the GraphQL argument" "yes" \
 	"$(branch_re='branchName:$branch'; grep -qF "$branch_re" "$WORK/gh/.stdin" 2>/dev/null && echo yes || echo no)"
+
+# --- a new product's first manifest gets committed --------------------------
+# A first manifest is untracked until this commit lands, so the change gate
+# and the additions payload both have to look past `git diff` to find it.
+# Without that, the gate reads "no change" and the additions payload is
+# empty: the new manifest never reaches `main`, and `scoop install` does not
+# learn the product exists until somebody commits the file by hand.
+sandbox "$WORK/i" 0 new
+rc=0; run_step "$RENDER" "$WORK/i" || rc=$?
+check "an untracked first manifest reports changed=1" "1" "$(output changed)"
+
+( cd "$WORK/i" && \
+	PATH="$WORK/gh:$PATH" \
+	STUB_DIR="$WORK/gh" \
+	REPO="Glyndor/scoop-bucket" \
+	GH_TOKEN="dummy" \
+	bash "$COMMIT" ) > "$WORK/out" 2>&1 || true
+
+# Assert the payload, not the log line: the GraphQL mutation is what carries
+# the new path into the commit, and a regression that only fixes the gate
+# while leaving the payload on ACMR alone would still lose the manifest.
+check "and the commit step lists it under additions" "1" \
+	"$(jq '.variables.changes.additions | map(select(.path == "bucket/newproduct.json")) | length' "$WORK/gh/.stdin" 2>/dev/null || echo 0)"
 
 # --- the wiring, asserted by reading the workflow ---------------------------
 # These conditions are evaluated by the Actions engine, so they can be read but
