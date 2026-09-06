@@ -160,4 +160,5 @@ check "and the caller is exempt, not reported" 0 \
 	"$(printf '%s' "$out" | grep -cE '(^|/)(bounded|caller)\.yml')"
 
 echo "$pass passed, $fail failed"
+printf 'DONE %s %d %d\n' "${BASH_SOURCE[0]##*/}" "$pass" "$fail"
 [ "$fail" -eq 0 ]
