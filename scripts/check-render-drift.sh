@@ -18,7 +18,7 @@
 #
 # WHAT IS COMPARED
 #
-#   Three named units inside the script:
+#   Four named units inside the script:
 #
 #       verify_sha256sums  the function that fetches SHA256SUMS + .sig and
 #                         verifies the Ed25519 signature against the
@@ -27,6 +27,12 @@
 #                         does the actual signature verification
 #       hash_of           the function that pulls a single asset's hex digest
 #                         out of the verified SHA256SUMS
+#       release_keys      the two top-level RELEASE_PUBKEY_B64= and
+#                         RELEASE_PUBKEY2_B64= declarations. The logic is
+#                         identical on both sides; the keys themselves are not.
+#                         A rotation applied in one channel and not the other
+#                         leaves both scripts accepting different signing keys,
+#                         and every check stays green because the code matches.
 #
 #   render_product is EXCLUDED by name, with the reason given below. The two
 #   repositories render to different formats, so the function legitimately
@@ -66,7 +72,7 @@ set -euo pipefail
 SIBLING_REPO="Glyndor/homebrew-tap"
 
 # The file each side renders from. The names are deliberately different: this
-# repository renders JSON manifests; the sibling renders Ruby formulae.
+# repository renders Ruby formulae; the sibling renders JSON manifests.
 LOCAL_FILE="scripts/render-manifests.sh"
 REMOTE_FILE="scripts/render-formulae.sh"
 
@@ -76,10 +82,11 @@ UNITS=(
 	verify_sha256sums
 	py_block
 	hash_of
+	release_keys
 )
 
-# render_product is intentionally excluded by name. It formats to JSON manifests
-# on this side and to Ruby formulae on the sibling, so the function legitimately
+# render_product is intentionally excluded by name. It formats to Ruby formulae
+# on this side and to JSON manifests on the sibling, so the function legitimately
 # differs, and the difference is the whole point. If it is silently added to
 # UNITS above, this check becomes permanently red and gets switched off; the
 # most useful thing this comment can do is name the unit that is not compared,
@@ -124,6 +131,17 @@ extract_unit() { # $1=file $2=unit
 			# condition, which is what we want.
 			awk '/<<.*PY/{found=1} found{print; if(/^PY$/){exit}}' "$file"
 			;;
+		release_keys)
+			# One unit carrying both declarations rather than two units each
+			# carrying one: they are the trusted key set as a whole. A rotation
+			# touches both lines together; splitting them would report two
+			# separate drifts for the same rotation and the reader would have
+			# to reconstruct that the lines belong together. The sed range
+			# starts at the first key and stops at the second, so a missing
+			# RELEASE_PUBKEY2_B64 is reported as a partial extraction rather
+			# than silently accepted as the whole unit.
+			sed -n '/^RELEASE_PUBKEY_B64=/,/^RELEASE_PUBKEY2_B64=/p' "$file"
+			;;
 		*)
 			echo "::error::internal: unknown unit '$unit'" >&2
 			return 1
@@ -134,6 +152,11 @@ extract_unit() { # $1=file $2=unit
 # Does the extracted unit end with its expected closer? $1 is the last line of
 # the extracted text; $2 is the unit name. Returns 0 if the closer matches,
 # 1 otherwise (partial match: opening marker was found but closing was not).
+# The default branch refuses unknown units: in bash a case with no matching
+# branch returns success, which would let a partial extraction of a unit that
+# has not been wired in here be accepted as a whole one. That is the silent
+# pass that a new unit (e.g. release_keys above) has to defeat by being
+# listed explicitly.
 unit_is_complete() { # $1=last-line $2=unit
 	local last="$1" unit="$2"
 	case "$unit" in
@@ -142,6 +165,13 @@ unit_is_complete() { # $1=last-line $2=unit
 			;;
 		py_block)
 			[[ "$last" == "PY" ]]
+			;;
+		release_keys)
+			[[ "$last" =~ ^RELEASE_PUBKEY2_B64= ]]
+			;;
+		*)
+			echo "::error::internal: unknown unit '$unit' in unit_is_complete" >&2
+			return 1
 			;;
 	esac
 }
@@ -215,7 +245,19 @@ else
 				--label "$SIBLING_REPO: $REMOTE_FILE ($unit)" \
 				"$tmp/mine.stripped" "$tmp/remote.stripped" > "$tmp/diff"; then
 				echo "::error file=$LOCAL_FILE::$unit has drifted from $SIBLING_REPO" >&2
-				echo "  the difference is in the logic, not in the comments:" >&2
+				case "$unit" in
+					release_keys)
+						# "drift in release_keys" tells the reader nothing they
+						# did not already see. The unit is the two key
+						# declarations; a mismatch is a rotation that landed
+						# in only one channel, so name that and what to do.
+						echo "  the two channels now trust different release keys:" >&2
+						echo "  a key rotation has to land in both repositories, or signatures verified on one side will not verify on the other." >&2
+						;;
+					*)
+						echo "  the difference is in the logic, not in the comments:" >&2
+						;;
+				esac
 				sed 's/^/  /' "$tmp/diff" >&2
 				drifted=$((drifted + 1))
 			fi
