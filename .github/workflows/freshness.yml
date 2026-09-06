@@ -88,3 +88,47 @@ jobs:
     with:
       workflow: freshness.yml
       max-age-days: 2
+
+  # Report when `main` is red, not just when the workflow stopped firing.
+  #
+  # reusable-schedule-freshness reads the newest SUCCESSFUL scheduled
+  # run of the workflow it names, so a failing run is invisible to it
+  # by construction. This job covers the other half: the suite workflow
+  # is firing, the run is on record, and the newest COMPLETED one
+  # concluded with something other than success. A run still in
+  # progress is not a failure; it is filtered out at the API layer.
+  #
+  # DELIBERATELY NOT a required status check. A red `main` would then
+  # block the pull request that repairs it, which is the failure this
+  # exists to surface rather than deepen. Watching the ordinary CI path
+  # on push to main and on the schedule above is enough: a developer
+  # pushing the fix sees the red on their next visit, the schedule
+  # makes sure somebody sees it within hours either way.
+  #
+  # Reads the API with the job's own GITHUB_TOKEN, the same shape
+  # reusable-schedule-freshness uses. `actions: read` is the scope that
+  # makes that call work, and `contents: read` is what the caller is
+  # already granted.
+  suite-on-main:
+    name: suite is green on main
+    runs-on: ubuntu-latest
+    # Measured at 2 to 4 seconds across replays of the planted cases;
+    # one API call, network-bound by GitHub's API latency rather than
+    # by anything the script does.
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Check the newest completed run of tests.yml on main
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          WORKFLOW: tests.yml
+        run: |
+          set -euo pipefail
+          ./scripts/check-suite-on-main.sh
