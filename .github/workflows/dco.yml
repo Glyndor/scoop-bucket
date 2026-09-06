@@ -1,7 +1,7 @@
 name: DCO
 
 # Requires a Signed-off-by trailer on every commit in the pull request, via the
-# shared reusable — the same gate every product repo runs.
+# shared reusable, the same gate every product repo runs.
 
 # Pull request only. It reads the commits between a pull request's base
 # and head and checks each carries a sign-off, so a push to `main` is not
