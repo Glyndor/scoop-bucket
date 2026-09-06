@@ -36,6 +36,7 @@ jobs:
         && ./tests/locale-pinned.test.sh
         && ./tests/check-test-coverage.test.sh
         && ./tests/check-dco-on-main.test.sh
+        && ./tests/check-suite-on-main.test.sh
         && ./tests/ci-runs-every-test.test.sh
         && ./tests/lint-workflow-shell.test.sh
         && ./tests/reusable-line-limit.test.sh
