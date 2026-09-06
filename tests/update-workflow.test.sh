@@ -170,15 +170,23 @@ check "and names the directory it looked in" "1" \
 
 # The mirror image, in two halves. Unlike the Homebrew tap, this repo's
 # validation is jq, which is present here, so the whole step runs for real.
+# The fixture has to be a manifest the gate accepts, which since the allowlist
+# means an org release url and a 64 character lowercase hex hash: a placeholder
+# would now be refused for its shape and this case would pass for the wrong
+# reason.
 sandbox "$WORK/g" 0 no
 cat > "$WORK/g/bucket/podup.json" <<'JSON'
 {
   "version": "1.0.0",
   "description": "d",
-  "homepage": "https://example.invalid",
+  "homepage": "https://github.com/Glyndor/podup",
   "license": "MIT",
   "architecture": {
-    "64bit": { "url": "https://example.invalid/a.exe", "hash": "aa", "bin": [["a.exe", "podup"]] }
+    "64bit": {
+      "url": "https://github.com/Glyndor/podup/releases/download/v1.0.0/podup-windows-x86_64.exe",
+      "hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "bin": [["podup-windows-x86_64.exe", "podup"]]
+    }
   }
 }
 JSON
@@ -193,8 +201,11 @@ sandbox "$WORK/h" 0 no
 printf '{"version":"1.0.0"}\n' > "$WORK/h/bucket/podup.json"
 rc=0; run_step "$VALIDATE" "$WORK/h" || rc=$?
 check "an incomplete manifest fails validation" "1" "$rc"
-check "and the error names the file, not an empty bucket" "1" \
-	"$(grep -c 'is not a valid, complete Scoop manifest' "$WORK/out")"
+# One line per missing field, so this asks whether the message appeared at all
+# rather than counting them: the count is a property of the fixture, not of the
+# behaviour under test.
+check "and the error names the missing field, not an empty bucket" "1" \
+	"$(grep -q 'missing required top-level field' "$WORK/out" && echo 1 || echo 0)"
 
 # --- the commit step uses createCommitOnBranch, not git push -----------------
 # Twin of the tap test: the workflow commits straight to main, with no PR
