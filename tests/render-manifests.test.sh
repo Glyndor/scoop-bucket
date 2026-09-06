@@ -179,7 +179,10 @@ check "every field ci.yml requires is present" "true" \
 # --- fail closed ------------------------------------------------------------
 
 publish Glyndor/podup v9.9.9 podup-windows-x86_64.exe podup-windows-arm64.exe
-printf 'not a signature' > "$RELEASES/Glyndor__podup/SHA256SUMS.sig"
+# Exactly 64 bytes of garbage: the size check passes and the python verify
+# actually fires, so the test exercises the signature path rather than being
+# short-circuited by the resource bound.
+head -c 64 /dev/zero | tr '\0' X > "$RELEASES/Glyndor__podup/SHA256SUMS.sig"
 new_root "$WORK/r2"
 generator_with "$WORK/r2/scripts/render-manifests.sh" "$PODUP"
 rc=0; run "$WORK/r2/scripts/render-manifests.sh" "$WORK/r2" || rc=$?
@@ -198,6 +201,61 @@ generator_with "$WORK/r4/scripts/render-manifests.sh" \
 	"Glyndor/nothing-here|nothing|d|a-x86_64.exe|a-arm64.exe"
 rc=0; run "$WORK/r4/scripts/render-manifests.sh" "$WORK/r4" || rc=$?
 check "an unreadable release skips the product" "3" "$rc"
+
+# --- the release assets are attacker-influenced; bound them -----------------
+#
+# The signature proves what the publisher meant, but it does not bound how
+# much of it there is. Whoever can attach an asset to a release decides what
+# every hourly run transfers and the embedded python holds in memory, so the
+# renderer refuses anything outside the per-file caps below before the python
+# opens the file. A size refusal is a third thing and must not be reported as
+# either "the trust anchor is malformed" or "their signature does not verify";
+# the test pinpoints the third message by name.
+#
+# The existing happy path on line 154 uses a real signed release with a real
+# sized signature, so its assertions still hold: a harness that refuses
+# everything would turn that test red and would never reach these cases.
+
+publish Glyndor/podup v9.9.9 podup-windows-x86_64.exe podup-windows-arm64.exe
+# Pad the manifest past MAX_SUMS_BYTES (4096). The signature is now stale,
+# but the size check fires before the python verifies it, so the signature
+# path is never reached and the test stays a pure size test.
+# No pipe, no SIGPIPE: `printf 'X\n%.0s' $(seq 1 N)` writes N lines of
+# "X\n" without a pipe, so `set -o pipefail` does not kill it when the
+# producer finishes.
+printf 'a\n%.0s' $(seq 1 5000) > "$RELEASES/Glyndor__podup/SHA256SUMS"
+new_root "$WORK/r2b"
+generator_with "$WORK/r2b/scripts/render-manifests.sh" "$PODUP"
+rc=0
+out="$( cd "$WORK/r2b" && "$WORK/r2b/scripts/render-manifests.sh" --pubkey "$PUBKEY" 2>&1 )" || rc=$?
+check "an oversized SHA256SUMS is refused" "3" "$rc"
+check "and the message names the size limit" "1" \
+	"$(printf '%s' "$out" | grep -c 'over the 4096-byte cap')"
+check "and it is NOT reported as a failed signature" "0" \
+	"$(printf '%s' "$out" | grep -c 'does not verify against any configured release key')"
+check "and it is NOT reported as a malformed key" "0" \
+	"$(printf '%s' "$out" | grep -c 'malformed release public key')"
+check "and no manifest is written" "0" "$(find "$WORK/r2b/bucket" -name '*.json' | wc -l)"
+
+# A signature that is not 64 bytes is refused at the size check, not at the
+# signature check, and the message names the measured size. Two distinct
+# sizes prove the check measures exactly and is not satisfied by anything
+# larger (or smaller) than 64.
+publish Glyndor/podup v9.9.9 podup-windows-x86_64.exe podup-windows-arm64.exe
+for sz in 32 128; do
+	head -c "$sz" /dev/zero | tr '\0' X > "$RELEASES/Glyndor__podup/SHA256SUMS.sig"
+	new_root "$WORK/r2c$sz"
+	generator_with "$WORK/r2c$sz/scripts/render-manifests.sh" "$PODUP"
+	rc=0
+	out="$( cd "$WORK/r2c$sz" && "$WORK/r2c$sz/scripts/render-manifests.sh" --pubkey "$PUBKEY" 2>&1 )" || rc=$?
+	check "a ${sz}-byte signature is refused" "3" "$rc"
+	check "and is named by its measured size, not as a bad signature ($sz bytes)" "1" \
+		"$(printf '%s' "$out" | grep -c "SHA256SUMS.sig is ${sz} bytes")"
+	check "and is NOT reported as a failed signature ($sz bytes)" "0" \
+		"$(printf '%s' "$out" | grep -c 'does not verify against any configured release key')"
+	check "and is NOT reported as a malformed key ($sz bytes)" "0" \
+		"$(printf '%s' "$out" | grep -c 'malformed release public key')"
+done
 
 # --- one product must not take down another ---------------------------------
 
