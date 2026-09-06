@@ -153,7 +153,7 @@ check "a planted violation is caught" 1 "$rc"
 check "and names the file" 1 \
 	"$(printf '%s' "$out" | grep -q 'unbounded.yml' && echo 1 || echo 0)"
 check "and names the job" 1 \
-	"$(printf '%s' "$out" | grep -q '`u`' && echo 1 || echo 0)"
+	"$(printf '%s' "$out" | grep -qE 'job .u. is not a caller' && echo 1 || echo 0)"
 check "and reports the unbounded job, not the bounded one" 0 \
 	"$(printf '%s' "$out" | grep -cE '(^|/)(bounded|caller)\.yml')"
 check "and the caller is exempt, not reported" 0 \
