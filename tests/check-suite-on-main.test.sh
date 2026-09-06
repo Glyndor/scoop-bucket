@@ -198,4 +198,5 @@ check "the watcher has a test in tests/" "1" \
 	"$(test -f "$HERE/tests/check-suite-on-main.test.sh" && echo 1 || echo 0)"
 
 echo "$pass passed, $fail failed"
+printf 'DONE %s %d %d\n' "${BASH_SOURCE[0]##*/}" "$pass" "$fail"
 [ "$fail" -eq 0 ]

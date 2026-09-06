@@ -518,4 +518,5 @@ check "a DECLARED architecture that is missing still fails" "3" "$rc"
 
 echo
 echo "$pass passed, $fail failed"
+printf 'DONE %s %d %d\n' "${BASH_SOURCE[0]##*/}" "$pass" "$fail"
 [ "$fail" -eq 0 ]
