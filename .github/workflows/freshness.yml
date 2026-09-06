@@ -93,6 +93,26 @@ jobs:
       workflow: freshness.yml
       max-age-days: 2
 
+  # The drift comparison runs from a cron and from nowhere else. Its own file
+  # says why: on pull_request the three channels block each other, and on push
+  # to main the sibling copies are read from a CDN that is still serving the
+  # pre-merge file. So a cron that stops firing takes the comparison with it,
+  # silently, which is exactly the shape of failure the jobs above catch for
+  # other workflows.
+  #
+  # Three days, from measurement rather than from the period: the cron asks for
+  # 09:41Z and the last five runs started between 13:00Z and 13:50Z. Lateness
+  # of a few hours is routine, so a one-day limit on a daily job would report
+  # GitHub's queue rather than a fault.
+  freshness-drift:
+    permissions:
+      contents: read
+      actions: read
+    uses: ./.github/workflows/reusable-schedule-freshness.yml
+    with:
+      workflow: drift.yml
+      max-age-days: 3
+
   # Report when `main` is red, not just when the workflow stopped firing.
   #
   # reusable-schedule-freshness reads the newest SUCCESSFUL scheduled
