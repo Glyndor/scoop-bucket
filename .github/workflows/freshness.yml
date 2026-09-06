@@ -14,17 +14,21 @@ name: Freshness
 # Separate from the suite on purpose. These fail because something did not
 # happen elsewhere, never because this pull request is wrong.
 
-# Pull request and push to main, no schedule, by design. This is a
-# watcher on the ordinary CI path: a quiet repository stops checking
-# its own freshness, and that matters here because update.yml commits
-# straight to main, so main can move on its own.
+# Pull request, push to main, and a schedule too. The first two put this on
+# the ordinary CI path; the third exists because a quiet repository stops
+# checking its own freshness, and that matters here because update.yml
+# commits straight to main, so main can move on its own.
+#
+# Never promote one of these to a required check. What they measure lives
+# outside the pull request, so an author who did nothing wrong could not
+# clear it, and the whole repository would wait on an unrelated repair.
 
 on:
   # A watcher with no schedule only watches while somebody is already looking.
   # Until this was added, these checks fired on pull_request and push and
-  # nothing else, and apt writes nothing to its own git, so a publish that
-  # stopped would have gone unreported until a human next visited the
-  # repository. The freshness thresholds below are measured in days; a watcher
+  # nothing else, so a cron that stopped firing between two pull requests
+  # would have gone unreported until a person next visited the repository.
+  # The freshness thresholds below are measured in days; a watcher
   # that runs only when a person happens to push cannot honour a one-day one.
   #
   # Twice a day rather than daily, because the tightest threshold declared
