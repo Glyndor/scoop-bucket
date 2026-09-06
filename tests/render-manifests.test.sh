@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 #
-# Tests for scripts/render-manifests.sh — the generator that turns a product's
+# Tests for scripts/render-manifests.sh, the generator that turns a product's
 # signed release into the manifest `scoop install` uses.
 #
 # Why this is worth testing at all: update.yml commits this generator's output
 # straight to `main`, so there is no pull request between a bug here and a user
-# installing its result. The properties below are the ones that keep that safe —
+# installing its result. The properties below are the ones that keep that safe:
 # the signature gate is fail-closed, one product's broken release cannot remove
 # or hold back another's, and the hashes written are the ones the verified
 # manifest declared.

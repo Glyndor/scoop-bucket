@@ -4,7 +4,7 @@
 # Pull-based, mirroring Glyndor/apt: no product pushes into this repository. This
 # reads each product's public GitHub release, verifies its signed SHA256SUMS
 # against the org release-signing key, and renders a Scoop manifest that installs
-# the Windows binary with the verified checksum. Windows only — Linux is served
+# the Windows binary with the verified checksum. Windows only: Linux is served
 # by the apt repo and macOS by the Homebrew tap.
 #
 # Run by .github/workflows/update.yml on a schedule and on demand.
@@ -38,7 +38,7 @@ RELEASE_PUBKEY2_B64=""
 
 # The only way to override it is --pubkey, which tests/render-manifests.test.sh
 # uses to sign a synthetic release with an ephemeral key. A run with no
-# arguments trusts the constant above and nothing else — there is deliberately
+# arguments trusts the constant above and nothing else, and there is deliberately
 # no environment variable that could swap the trust anchor from outside. This is
 # the shape Glyndor/apt's verify-debs.sh already uses, where the key is an
 # argument for the same reason.
@@ -314,8 +314,8 @@ for entry in "${PRODUCTS[@]}"; do
 	declared+=("$manifest")
 
 	# Render each product on its own. Before this, one product's broken release
-	# aborted the whole script under `set -e`, so a missing Windows binary — or a
-	# signature that stopped verifying — held back every other product's update
+	# aborted the whole script under `set -e`, so a missing Windows binary, or a
+	# signature that stopped verifying, held back every other product's update
 	# too. A failure now leaves that product's existing manifest exactly as it is,
 	# which still points at its last verified release.
 	if ! render_product "$entry"; then
