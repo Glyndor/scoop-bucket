@@ -19,135 +19,19 @@
 
 set -euo pipefail
 
-HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-GENERATOR="$HERE/scripts/render-manifests.sh"
-WORK="$(mktemp -d)"
-RELEASES="$WORK/releases"
-BIN="$WORK/bin"
-
-cleanup() { rm -rf "$WORK"; }
-trap cleanup EXIT
-
+HERE_FIXTURE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# The linter cannot follow a sourced path built at run time, and the fixture
+# is where check() and the counters live. The disable is on the source line
+# alone; the counters are re-declared here so nothing downstream has to be
+# excused for reading them.
+# shellcheck disable=SC1091
+. "$HERE_FIXTURE/render-fixture.sh"
 pass=0
 fail=0
 
-check() { # <description> <expected> <actual>
-	if [ "$2" = "$3" ]; then
-		echo "ok    $1"
-		pass=$((pass + 1))
-	else
-		echo "FAIL  $1"
-		echo "        expected: $2"
-		echo "        actual:   $3"
-		fail=$((fail + 1))
-	fi
-}
-
-# --- an ephemeral signing key, and a stub gh that serves fixtures ------------
-
-mkdir -p "$BIN" "$RELEASES"
-PUBKEY="$(python3 - "$WORK" <<'PY'
-import base64, os, sys
-from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
-from cryptography.hazmat.primitives import serialization
-key = Ed25519PrivateKey.generate()
-open(os.path.join(sys.argv[1], "signing.key"), "wb").write(
-    key.private_bytes(encoding=serialization.Encoding.Raw,
-                      format=serialization.PrivateFormat.Raw,
-                      encryption_algorithm=serialization.NoEncryption()))
-pub = key.public_key().public_bytes(encoding=serialization.Encoding.Raw,
-                                    format=serialization.PublicFormat.Raw)
-# Unpadded, the way the generator stores and re-pads it.
-print(base64.b64encode(pub).decode().rstrip("="))
-PY
-)"
-
-cat > "$BIN/gh" <<'SH'
-#!/usr/bin/env bash
-set -euo pipefail
-sub="${1:-}"; shift || true
-repo=""; dir=""
-args=("$@")
-for ((i = 0; i < ${#args[@]}; i++)); do
-	case "${args[i]}" in
-		--repo) repo="${args[i+1]}" ;;
-		--dir)  dir="${args[i+1]}" ;;
-	esac
-done
-base="$RELEASES/${repo//\//__}"
-case "$sub" in
-	release)
-		[ -d "$base" ] || { echo "release not found" >&2; exit 1; }
-		if [ "${args[0]}" = "view" ]; then
-			cat "$base/tag"
-		else
-			cp "$base/SHA256SUMS" "$dir/SHA256SUMS" 2>/dev/null || exit 1
-			cp "$base/SHA256SUMS.sig" "$dir/SHA256SUMS.sig" 2>/dev/null || exit 1
-		fi
-		;;
-	*) echo "stub gh: unexpected subcommand $sub" >&2; exit 90 ;;
-esac
-SH
-chmod +x "$BIN/gh"
-export RELEASES
-export PATH="$BIN:$PATH"
-
-publish() { # $1=repo $2=tag $3...=asset names
-	local repo="$1" tag="$2"; shift 2
-	local base="$RELEASES/${repo//\//__}"
-	rm -rf "$base"; mkdir -p "$base"
-	printf '%s' "$tag" > "$base/tag"
-	: > "$base/SHA256SUMS"
-	local i=0 asset
-	for asset in "$@"; do
-		i=$((i + 1))
-		printf '%064d  %s\n' "$i" "$asset" >> "$base/SHA256SUMS"
-	done
-	python3 - "$WORK/signing.key" "$base/SHA256SUMS" "$base/SHA256SUMS.sig" <<'PY'
-import sys
-from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
-key = Ed25519PrivateKey.from_private_bytes(open(sys.argv[1], "rb").read())
-open(sys.argv[3], "wb").write(key.sign(open(sys.argv[2], "rb").read()))
-PY
-}
-
-# Re-sign a hand-built SHA256SUMS so the generator still sees a valid signature.
-# The point of these cases is malformed CONTENT behind a good signature.
-resign() { # $1=sums file $2=repo
-	local base="$RELEASES/${2//\//__}"
-	cp "$1" "$base/SHA256SUMS"
-	python3 - "$WORK/signing.key" "$base/SHA256SUMS" "$base/SHA256SUMS.sig" <<'SIGN'
-import sys
-from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
-key = Ed25519PrivateKey.from_private_bytes(open(sys.argv[1], "rb").read())
-open(sys.argv[3], "wb").write(key.sign(open(sys.argv[2], "rb").read()))
-SIGN
-}
-
-# A copy of the generator whose PRODUCTS table is replaced wholesale. Replacing
-# the block rather than editing fields keeps these tests working when the table
-# gains a column, which is what happened to the Homebrew tap's.
-generator_with() { # $1=destination $2...=table rows
-	local dest="$1"; shift
-	local rows
-	rows="$(printf '\t"%s"\n' "$@")"
-	awk -v rows="$rows" '
-		/^PRODUCTS=\(/ { print; print rows; inside = 1; next }
-		inside && /^\)/ { print; inside = 0; next }
-		!inside        { print }
-	' "$GENERATOR" > "$dest"
-	chmod +x "$dest"
-}
-
-run() { # $1=script $2=repo root
-	( cd "$2" && "$1" --pubkey "$PUBKEY" ) > "$WORK/out" 2>&1
-}
-
-new_root() { rm -rf "$1"; mkdir -p "$1/scripts" "$1/bucket"; }
-
-PODUP="Glyndor/podup|podup|Docker-compose translator|podup-windows-x86_64.exe|podup-windows-arm64.exe"
-H64="0000000000000000000000000000000000000000000000000000000000000001"
-HARM="0000000000000000000000000000000000000000000000000000000000000002"
+# The SHA-256 of the deterministic content publish writes for each
+# asset. Computing them from the same string publish uses keeps the
+# rendered-hash assertions exact: whatever publish writes into
 
 # --- the happy path ---------------------------------------------------------
 
