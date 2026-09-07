@@ -39,6 +39,7 @@ jobs:
       test-command: >-
         ./tests/check-suite-completeness.test.sh
         ./tests/render-manifests.test.sh
+        ./tests/render-manifests-attestation.test.sh
         ./tests/update-workflow.test.sh
         ./tests/check-products-consistent.test.sh
         ./tests/check-manifests.test.sh
