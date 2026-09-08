@@ -67,16 +67,24 @@ PY
 
 # A repository the step can run in: a git repo with a committed manifest/ and a
 # stub generator whose behaviour each case chooses.
-sandbox() { # $1=path $2=generator exit code $3=writes? (yes|no|empty|new)
+sandbox() { # $1=path $2=code $3=writes? (yes|no|empty|new|del|del-multi)
 	local dir="$1" code="$2" mode="$3"
 	rm -rf "$dir"; mkdir -p "$dir/scripts" "$dir/bucket"
 	printf '{"version":"1"}\n' > "$dir/bucket/podup.json"
+	# del-multi starts with a second tracked manifest so a deletion can leave
+	# the channel with one left, which exercises the deletion-only path
+	# without also tripping the empty-bucket refusal.
+	if [ "$mode" = "del-multi" ]; then
+		printf '{"version":"1"}\n' > "$dir/bucket/zzz.json"
+	fi
 	cat > "$dir/scripts/render-manifests.sh" <<SH
 #!/usr/bin/env bash
 case "$mode" in
-	yes)   printf '{"version":"2"}\n' > "$dir/bucket/podup.json" ;;
-	empty) rm -f "$dir"/bucket/*.json ;;
-	new)   printf '{"version":"1"}\n' > "$dir/bucket/newproduct.json" ;;
+	yes)       printf '{"version":"2"}\n' > "$dir/bucket/podup.json" ;;
+	empty)     rm -f "$dir"/bucket/*.json ;;
+	new)       printf '{"version":"1"}\n' > "$dir/bucket/newproduct.json" ;;
+	del)       rm -f "$dir/bucket/podup.json" ;;
+	del-multi) rm -f "$dir/bucket/podup.json" ;;
 esac
 exit $code
 SH
@@ -286,6 +294,50 @@ check "an untracked first manifest reports changed=1" "1" "$(output changed)"
 # while leaving the payload on ACMR alone would still lose the manifest.
 check "and the commit step lists it under additions" "1" \
 	"$(jq '.variables.changes.additions | map(select(.path == "bucket/newproduct.json")) | length' "$WORK/gh/.stdin" 2>/dev/null || echo 0)"
+
+# --- a deletion-only render --------------------------------------------------
+#
+# A deletion-only render is one whose only effect is removing a tracked
+# manifest. The gate counted modifications and additions only
+# (`--diff-filter=ACMR` plus untracked), so it reported no change, the commit
+# step never ran, and the manifest for a product the bucket no longer carries
+# stayed published.
+#
+# The gate and the payload are separate steps, so they are asserted separately:
+# a fix that flips the gate while the payload still drops the deletion would
+# pass a single combined assertion. The payload half needs no change here,
+# because the commit step already derives its own deletions with
+# `--diff-filter=D`; asserting it is what proves that.
+#
+# `del-multi` starts with two tracked manifests and removes one, so the bucket
+# survives and this case does not also trip the empty-bucket refusal below.
+sandbox "$WORK/j" 0 del-multi
+rc=0; run_step "$RENDER" "$WORK/j" || rc=$?
+check "a deletion-only render reports changed=1" "1" "$(output changed)"
+
+mkdir -p "$WORK/gh-del"
+cp "$WORK/gh/gh" "$WORK/gh-del/gh" 2>/dev/null || true
+( cd "$WORK/j" && \
+	PATH="$WORK/gh-del:$PATH" \
+	STUB_DIR="$WORK/gh-del" \
+	REPO="Glyndor/scoop-bucket" \
+	GH_TOKEN="dummy" \
+	bash "$COMMIT" ) > "$WORK/out" 2>&1 || true
+check "and the commit payload lists the removed manifest under deletions" "1" \
+	"$(jq '.variables.changes.deletions | map(select(.path == "bucket/podup.json")) | length' "$WORK/gh-del/.stdin" 2>/dev/null || echo 0)"
+
+# --- a deletion that would empty the bucket is refused by name ---------------
+#
+# Counting deletions and stopping there turns "remove the last product" into a
+# render step that succeeds and a validation step that fails, every hour, on a
+# cron, with no pull request to fix it. A red nobody can clear is worse than
+# the defect it reports.
+sandbox "$WORK/k" 0 del
+rc=0; run_step "$RENDER" "$WORK/k" || rc=$?
+check "a render that would empty the bucket fails the render step" "1" "$rc"
+check "and the error names the empty-bucket cause" "1" \
+	"$(grep -c 'would empty the bucket' "$WORK/out" 2>/dev/null || echo 0)"
+check "and sets no changed output" "" "$(output changed)"
 
 # --- the wiring, asserted by reading the workflow ---------------------------
 # These conditions are evaluated by the Actions engine, so they can be read but

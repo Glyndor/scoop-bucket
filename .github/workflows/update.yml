@@ -103,17 +103,43 @@ jobs:
             3) echo "partial=1" >> "$GITHUB_OUTPUT" ;;
             *) exit "$rc" ;;
           esac
-          # changed merges the diff of tracked bucket/ files (ACMR) with the
+          # adds merges the diff of tracked bucket/ files (ACMR) with the
           # untracked ones under bucket/. A product's first manifest is
           # untracked until this commit lands, so the diff alone reports no
           # change for it and the additions payload below would also be empty:
           # the new product would never reach `main`, and the bucket would not
           # learn it exists until somebody committed the manifest by hand.
-          changes="$(
+          #
+          # dels is the third kind, and leaving it out meant removing a product
+          # never landed either. `--diff-filter=ACMR` names added, copied,
+          # modified and renamed paths and not deleted ones, so the renderer
+          # dropped the manifest, this gate reported no change, and the commit
+          # step never ran. That step was never the problem: it already derives
+          # its own `dels` with `--diff-filter=D` and sends them as deletions,
+          # so the capability was built and unreachable from one filter chain
+          # above it. Adds and dels stay separate because an untracked path can
+          # never be a deletion.
+          adds="$(
             { git diff --name-only --diff-filter=ACMR -- bucket
               git ls-files -o --exclude-standard -- bucket; } | sort -u
           )"
-          if [ -z "$changes" ]; then
+          dels="$(git diff --name-only --diff-filter=D -- bucket)"
+          # Refuse a deletion-only render that would empty the bucket. The
+          # validation step's own empty-bucket guard would catch it, but only
+          # after this step has run, and on the cron that is a red nobody can
+          # clear with no pull request to fix. Refusing here is the only place
+          # the message can name the cause.
+          if [ -n "$dels" ] && [ -z "$adds" ]; then
+            # What survives the deletion: the tracked set minus the deleted
+            # paths. `grep` exits 1 when nothing matches, and under `set -e` a
+            # failed assignment would leave the script before the check below.
+            remaining="$(git ls-files -- bucket | grep -Fxvf <(printf '%s\n' "$dels") || true)"
+            if [ -z "$remaining" ]; then
+              echo "::error::the render would empty the bucket; refusing to commit an empty channel"
+              exit 1
+            fi
+          fi
+          if [ -z "$adds" ] && [ -z "$dels" ]; then
             echo "changed=0" >> "$GITHUB_OUTPUT"
             echo "No manifest changed."
           else
