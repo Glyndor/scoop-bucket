@@ -94,20 +94,47 @@ case "$sub" in
 		# from the fixture's attestation.json. Each failure shape
 		# prints a message matching one of the three regexes the
 		# renderer uses to pick its error branch.
+		# The two pins that close the gap the SHA256SUMS signature does
+		# not cover: --source-ref names the tag the artifact was built
+		# from, --signer-workflow names the workflow allowed to have
+		# signed the attestation. Both were parsed above and used only
+		# in the messages below, so deleting either from the renderer
+		# changed nothing this suite could see. Refuse on that fault
+		# BEFORE honouring ATTEST_STUB_OUTCOME, or a stub steered
+		# entirely by an environment variable proves nothing about what
+		# the renderer passed.
+		expected_ref="refs/tags/$(cat "$base/tag")"
+		expected_signer="$repo/.github/workflows/release.yml"
+		if [ -z "$source_ref" ]; then
+			echo "stub gh: refusing attestation verify, --source-ref pin missing; an artifact from another tag would verify against this release" >&2
+			exit 1
+		fi
+		if [ "$source_ref" != "$expected_ref" ]; then
+			echo "stub gh: refusing attestation verify, --source-ref is $source_ref, expected $expected_ref" >&2
+			exit 1
+		fi
+		if [ -z "$signer" ]; then
+			echo "stub gh: refusing attestation verify, the trusted-workflow pin is missing; a foreign signing identity's provenance would verify against this release" >&2
+			exit 1
+		fi
+		if [ "$signer" != "$expected_signer" ]; then
+			echo "stub gh: refusing attestation verify, the trusted-workflow pin does not match; passed $signer, expected $expected_signer" >&2
+			exit 1
+		fi
 		case "${ATTEST_STUB_OUTCOME:-ok}" in
 			ok)
 				cat "$base/attestation.json"
 				;;
 			no-attestation)
-				echo "no attestations found for $repo at ${source_ref:-${args[5]}} (HTTP 404)" >&2
+				echo "no attestations found for $repo at $source_ref (HTTP 404)" >&2
 				exit 1
 				;;
 			wrong-tag)
-				echo "the attestation source ref does not match expected ${source_ref:-${args[5]}}; the artifact was built from another tag" >&2
+				echo "the attestation source ref does not match expected $source_ref; the artifact was built from another tag" >&2
 				exit 1
 				;;
 			wrong-signer)
-				echo "the signer workflow does not match ${signer:-${args[7]}}; cert-identity check failed" >&2
+				echo "the signer workflow does not match $signer; cert-identity check failed" >&2
 				exit 1
 				;;
 			*)
