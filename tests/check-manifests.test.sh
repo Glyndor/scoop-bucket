@@ -121,22 +121,52 @@ rc=0; run "$B" || rc=$?
 check "a hash that is not 64 lowercase hex chars is refused" "1" "$rc"
 check "and the error names the expected hash shape" "1" "$(said 'must match ^[0-9a-f]{64}$')"
 
-# --- bin must be a non-empty array -----------------------------------------
+# --- bin shape --------------------------------------------------------------
 #
-# The previous rule was "bin must be an array". The renderer always writes
-# a non-empty array, so the rule tightens to match: an empty array would
-# leave Scoop with no command to expose.
+# Scoop's bin is a string, or an array whose entries are each a string or an
+# array of strings in [exe, alias, args] form. The check used to test only the
+# outer shape -- anything that passed `bin is a non-empty array` was accepted,
+# so [42, true] and [[]] slipped through. Each case below is a bin value the
+# renderer would never produce; the first two are the bug, the last three are
+# what stop the fix from becoming "refuse every bin".
 B="$(mkbucket empty-bin '.architecture["64bit"].bin = []')"
 rc=0; run "$B" || rc=$?
 check "an empty bin array is refused" "1" "$rc"
 check "and the error names the expected bin shape" "1" "$(said 'must be a non-empty array')"
 
-# bin must be an array; a hand edit could put a string where the renderer
-# writes an array of arrays.
-B="$(mkbucket bin-string '.architecture["64bit"].bin = "x.exe"')"
+# bin entries that are numbers or booleans are not shims; the gate must refuse
+# them, and the message must name the manifest so the operator reading CI knows
+# which file to look at.
+B="$(mkbucket bin-numbers '.architecture["64bit"].bin = [42, true]')"
 rc=0; run "$B" || rc=$?
-check "a bin that is a string is refused" "1" "$rc"
-check "and the error names the expected bin shape" "1" "$(said 'must be a non-empty array')"
+check "a bin of non-string entries is refused" "1" "$rc"
+check "and the error names the manifest" "1" "$(said 'podup.json')"
+check "and names the offending entry" "1" "$(said 'bin entry')"
+
+# An empty inner array is not a shim either: [exe, alias, args] needs at least
+# the exe.
+B="$(mkbucket bin-empty-inner '.architecture["64bit"].bin = [[]]')"
+rc=0; run "$B" || rc=$?
+check "a bin of empty-array entries is refused" "1" "$rc"
+check "and the error names the manifest" "1" "$(said 'podup.json')"
+check "and names the offending entry" "1" "$(said 'bin entry')"
+
+# Scoop also accepts a single shim name as a bare string. A previous version
+# of this gate refused every string bin, which was the wrong rule.
+B="$(mkbucket bin-string '.architecture["64bit"].bin = "podup.exe"')"
+rc=0; run "$B" || rc=$?
+check "a bin that is a single string is accepted" "0" "$rc"
+
+# The array-of-shim-names form Scoop accepts alongside the bare-string one.
+B="$(mkbucket bin-string-array '.architecture["64bit"].bin = ["podup.exe"]')"
+rc=0; run "$B" || rc=$?
+check "a bin that is an array of strings is accepted" "0" "$rc"
+
+# The [exe, alias, args] form Scoop's documentation shows, and the form the
+# renderer itself writes.
+B="$(mkbucket bin-args-form '.architecture["64bit"].bin = [["podup.exe", "podup"]]')"
+rc=0; run "$B" || rc=$?
+check "a bin that is an array of exe/alias/args is accepted" "0" "$rc"
 
 # --- top-level required fields are still required --------------------------
 #

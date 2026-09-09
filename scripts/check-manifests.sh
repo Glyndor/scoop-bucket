@@ -120,8 +120,22 @@ for m in "${manifests[@]}"; do
 
 					(if ($v | type) != "object" then empty
 					 elif ($v | has("bin") | not) then "architecture \"\($a)\" missing required field \"bin\""
-					 elif ($v.bin | type) != "array" then "architecture \"\($a)\" field \"bin\" must be a non-empty array"
-					 elif ($v.bin | length) == 0 then "architecture \"\($a)\" field \"bin\" must be a non-empty array"
+					 elif (($v.bin | type) != "string" and ($v.bin | type) != "array")
+						then "architecture \"\($a)\" field \"bin\" must be a string or an array"
+					 elif ($v.bin | type) == "string" and ($v.bin | length) == 0
+						then "architecture \"\($a)\" field \"bin\" must be a non-empty string"
+					 elif ($v.bin | type) == "array" and ($v.bin | length) == 0
+						then "architecture \"\($a)\" field \"bin\" must be a non-empty array"
+					 elif ($v.bin | type) == "array" then
+						# A Scoop bin entry is either a string (shim name) or a non-empty array of
+						# strings in [exe, alias, args] form. A number, a boolean, or an empty inner
+						# array is not a shim and has no place on the machine after scoop install.
+						# Report each bad entry by index.
+						$v.bin | to_entries[] |
+							if (.value | type) == "string" then empty
+							elif (.value | type) == "array" and (.value | length) > 0 and (.value | all(.[]; type == "string")) then empty
+							else "architecture \"\($a)\" bin entry \(.key) is not a string or array of strings"
+							end
 					 else empty end)
 				]
 			)[]
