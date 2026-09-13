@@ -110,10 +110,39 @@ check "and the error names the unexpected key" "1" "$(said 'pre_install')"
 check "and names the architecture it lives in" "1" "$(said '"64bit"')"
 
 # --- url must come from the org release ------------------------------------
+#
+# The check is a full regex now, not a startswith, because the org prefix is
+# text and `..` in the path normalises server-side. The cases below cover each
+# way the canonical shape can be skirted while still beginning with the org
+# prefix: a dots-only segment, a percent-encoded dots-only segment, and a
+# query string. Each must be refused with a message that names the shape the
+# renderer would have produced.
 B="$(mkbucket bad-url '.architecture["64bit"].url = "http://evil.example/payload.exe"')"
 rc=0; run "$B" || rc=$?
 check "a url not under https://github.com/Glyndor/ is refused" "1" "$rc"
-check "and the error names the expected url prefix" "1" "$(said 'must start with https://github.com/Glyndor/')"
+check "and the error names the expected url shape" "1" "$(said 'releases/download/<tag>/<asset>')"
+
+# The reproduced failure: ../attacker/payload/... begins with the org prefix
+# as text, but an HTTP client normalises `..` server-side and the bytes come
+# from attacker/payload. A startswith check accepts it; the regex refuses it.
+B="$(mkbucket url-dotdot '.architecture."64bit".url = "https://github.com/Glyndor/../attacker/payload/releases/download/v1/podup.exe"')"
+rc=0; run "$B" || rc=$?
+check "a url with a dot-dot segment inside the org prefix is refused" "1" "$rc"
+check "and the refusal names the release asset shape" "1" "$(said 'releases/download/<tag>/<asset>')"
+
+# Percent-encoding the dots does not change what the HTTP client sees after
+# decoding, so the same hijack still works. The regex must refuse the encoded
+# form on the same grounds, before any HTTP round trip.
+B="$(mkbucket url-pct-dotdot '.architecture."64bit".url = "https://github.com/Glyndor/%2e%2e/attacker/payload/releases/download/v1/podup.exe"')"
+rc=0; run "$B" || rc=$?
+check "a url with a percent-encoded dot-dot segment is refused" "1" "$rc"
+
+# The org release endpoint never takes a query string. A startswith check
+# accepts anything that begins with it, so a query-stringed asset URL slips
+# past the gate; the regex's end anchor refuses it.
+B="$(mkbucket url-query '.architecture."64bit".url = "https://github.com/Glyndor/podup/releases/download/v1.0.0/podup.exe?x=1"')"
+rc=0; run "$B" || rc=$?
+check "a url with a query string is refused" "1" "$rc"
 
 # --- hash must match the digest regex --------------------------------------
 B="$(mkbucket bad-hash '.architecture["64bit"].hash = "notahash"')"
@@ -250,16 +279,17 @@ check "and the error says what it should have been" "1" \
 	"$(said 'must be an object, not string')"
 check "and names the architecture" "1" "$(said '"64bit"')"
 
-# --- the url prefix is a literal, not a pattern -----------------------------
+# --- the url regex has literal dots, not a wildcard -------------------------
 #
-# The prefix was compared with a regex, and an unescaped `.` matches any
-# character, so a host one character away from github.com was accepted. The
-# comparison is a literal prefix now, and this is the case that says so.
+# An earlier form of the check ran the prefix through a regex with an
+# unescaped `.`, so `.` matched any character and a host one character away
+# from github.com was accepted. The regex pins the dots with `\.`, and this
+# is the case that says so.
 B="$(mkbucket urlwildcard '.architecture."64bit".url = "https://githubXcom/Glyndor/podup/releases/download/v1.0.0/podup-windows-x86_64.exe"')"
 rc=0; run "$B" || rc=$?
-check "a host that only matches the prefix as a pattern is refused" "1" "$rc"
-check "and the error names the expected url prefix" "1" \
-	"$(said 'must start with https://github.com/Glyndor/')"
+check "a host that only matches an unescaped-dot prefix is refused" "1" "$rc"
+check "and the error names the expected url shape" "1" \
+	"$(said 'releases/download/<tag>/<asset>')"
 
 # --- this repository --------------------------------------------------------
 rc=0; run "$HERE/bucket" || rc=$?
