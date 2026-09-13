@@ -439,6 +439,17 @@ rc=0
 check "every asset gets its own provenance check (2 of 2)" "2" \
 	"$(grep -c '^attestation verify ' "$ATTEST_STUB_LOG")"
 
+# --- the asset download follows https redirects only ------------------------
+#
+# github.com answers a release download with a redirect to the object store.
+# `-L` follows whatever scheme the redirect names; the installer in the apt
+# repository pins it to https with --proto-redir, and the renderer did not.
+# The digest is checked afterwards, so a tampered body is caught, but the
+# transport should not follow a plain-http hop in the first place. The unit is
+# drift-compared with the sibling repository, so both carry the same line.
+check "verify_attestation downloads the asset over https-only redirects" "1" \
+	"$(sed -n '/^verify_attestation()/,/^}/p' "$HERE/scripts/render-manifests.sh" | grep -c -- '--proto-redir =https')"
+
 echo
 echo "$pass passed, $fail failed"
 printf 'DONE %s %d %d\n' "${BASH_SOURCE[0]##*/}" "$pass" "$fail"
