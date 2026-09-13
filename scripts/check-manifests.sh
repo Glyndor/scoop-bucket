@@ -43,7 +43,14 @@ fi
 TOP_KEYS='["version","description","homepage","license","architecture"]'
 ARCH_KEYS='["64bit","32bit","arm64"]'
 SUB_KEYS='["url","hash","bin"]'
-URL_PREFIX='https://github.com/Glyndor/'
+# The url must be a Glyndor release asset, not just a string that begins
+# with the org prefix. A startswith check accepted ../attacker/payload/...:
+# the prefix was text, and an HTTP client normalises `..` server-side, so the
+# download actually came from the attacker's repo. The regex below pins
+# every segment with literal dots and slashes, and each path-segment class
+# requires at least one letter or digit so a dots-only segment like `..`
+# does not slip through either.
+URL_RE='^https://github\.com/Glyndor/[A-Za-z0-9_.-]*[A-Za-z0-9][A-Za-z0-9_.-]*/releases/download/v[0-9A-Za-z]*[A-Za-z0-9][0-9A-Za-z.+-]*/[A-Za-z0-9_.-]*[A-Za-z0-9][A-Za-z0-9_.-]*$'
 HASH_RE='^[0-9a-f]{64}$'
 
 for m in "${manifests[@]}"; do
@@ -64,7 +71,7 @@ for m in "${manifests[@]}"; do
 	problems=$(jq -r --argjson top "$TOP_KEYS" \
 	                    --argjson arch "$ARCH_KEYS" \
 	                    --argjson sub "$SUB_KEYS" \
-	                    --arg urlprefix "$URL_PREFIX" \
+	                    --arg urlre "$URL_RE" \
 	                    --arg hashre "$HASH_RE" '
 		[
 			([keys[] | select(. as $k | ($top | index($k)) == null)] |
@@ -107,8 +114,8 @@ for m in "${manifests[@]}"; do
 					(if ($v | type) != "object" then empty
 					 elif ($v | has("url") | not) then "architecture \"\($a)\" missing required field \"url\""
 					 elif ($v.url | type) != "string" then "architecture \"\($a)\" field \"url\" must be a string"
-					 elif ($v.url | startswith($urlprefix) | not)
-						then "architecture \"\($a)\" field \"url\" must start with " + $urlprefix
+					 elif ($v.url | test($urlre) | not)
+						then "architecture \"\($a)\" field \"url\" must be a Glyndor release asset URL: https://github.com/Glyndor/<repo>/releases/download/<tag>/<asset>"
 					 else empty end),
 
 					(if ($v | type) != "object" then empty
