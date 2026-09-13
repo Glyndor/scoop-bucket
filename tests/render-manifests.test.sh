@@ -400,6 +400,45 @@ generator_with "$WORK/r15/scripts/render-manifests.sh" \
 rc=0; run "$WORK/r15/scripts/render-manifests.sh" "$WORK/r15" || rc=$?
 check "a DECLARED architecture that is missing still fails" "3" "$rc"
 
+# --- every published digest gets its own provenance check ------------------
+#
+# The signature on SHA256SUMS covers the list as a whole; one attested asset
+# binds only its own digest, so checking only the first asset would let a
+# release editor replay a single architecture's old binary with the matching
+# old signed SHA256SUMS and have the older digest reach the manifest under
+# the newer tag while every other asset still passes. Each non-dash asset
+# gets its own attestation check.
+
+# A second asset whose provenance names another tag is refused, the manifest
+# on disk is left byte-identical, and the error names the failing asset.
+publish Glyndor/podup v9.9.9 podup-windows-x86_64.exe podup-windows-arm64.exe
+export ATTEST_STUB_REFUSE_ASSET=podup-windows-arm64.exe
+new_root "$WORK/r16"
+printf 'PRE-EXISTING\n' > "$WORK/r16/bucket/podup.json"
+generator_with "$WORK/r16/scripts/render-manifests.sh" "$PODUP"
+rc=0
+out="$( cd "$WORK/r16" && "$WORK/r16/scripts/render-manifests.sh" --pubkey "$PUBKEY" 2>&1 )" || rc=$?
+unset ATTEST_STUB_REFUSE_ASSET
+check "a second asset with provenance for another tag is refused" "3" "$rc"
+check "and the manifest on disk is left as it was" "PRE-EXISTING" \
+	"$(cat "$WORK/r16/bucket/podup.json")"
+check "and the refusal names that asset" "1" \
+	"$(printf '%s' "$out" | grep -cF 'podup-windows-arm64.exe build provenance is missing')"
+
+# With two assets and no refusal, the renderer checks every one of them.
+# The stub appends one `attestation verify <file>` line per call, so a
+# passing render produces exactly two.
+publish Glyndor/podup v9.9.9 podup-windows-x86_64.exe podup-windows-arm64.exe
+unset ATTEST_STUB_OUTCOME
+export ATTEST_STUB_LOG="$WORK/attest.log"
+: > "$ATTEST_STUB_LOG"
+new_root "$WORK/r17"
+generator_with "$WORK/r17/scripts/render-manifests.sh" "$PODUP"
+rc=0
+( cd "$WORK/r17" && "$WORK/r17/scripts/render-manifests.sh" --pubkey "$PUBKEY" ) >/dev/null 2>&1 || rc=$?
+check "every asset gets its own provenance check (2 of 2)" "2" \
+	"$(grep -c '^attestation verify ' "$ATTEST_STUB_LOG")"
+
 echo
 echo "$pass passed, $fail failed"
 printf 'DONE %s %d %d\n' "${BASH_SOURCE[0]##*/}" "$pass" "$fail"
