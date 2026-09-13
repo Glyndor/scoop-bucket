@@ -103,6 +103,14 @@ case "$sub" in
 		# BEFORE honouring ATTEST_STUB_OUTCOME, or a stub steered
 		# entirely by an environment variable proves nothing about what
 		# the renderer passed.
+		# Every invocation is appended to ATTEST_STUB_LOG when set, so
+		# the test can count how many assets the renderer actually
+		# verified. Without this, the assertions would have no way to
+		# distinguish "checked every asset" from "checked the first one
+		# only", because the gh stub would be silent on success.
+		if [ -n "${ATTEST_STUB_LOG:-}" ]; then
+			echo "attestation verify ${args[1]}" >> "$ATTEST_STUB_LOG"
+		fi
 		expected_ref="refs/tags/$(cat "$base/tag")"
 		expected_signer="$repo/.github/workflows/release.yml"
 		if [ -z "$source_ref" ]; then
@@ -120,6 +128,21 @@ case "$sub" in
 		if [ "$signer" != "$expected_signer" ]; then
 			echo "stub gh: refusing attestation verify, the trusted-workflow pin does not match; passed $signer, expected $expected_signer" >&2
 			exit 1
+		fi
+		# Targeted refusal: ATTEST_STUB_REFUSE_ASSET names one asset;
+		# only the call verifying that asset fails, the rest proceed.
+		# The renderer always downloads to attest.asset, so the asset
+		# is identified from the file's contents -- publish() writes
+		# `asset-<name>` as the deterministic content of each fixture.
+		# The check runs AFTER the pin checks and BEFORE the outcome
+		# case, so an attestation whose tag or signer is wrong is still
+		# reported as a pin fault, not as a refusal for that asset.
+		if [ -n "${ATTEST_STUB_REFUSE_ASSET:-}" ] && [ -f "${args[1]}" ]; then
+			target="$(sed -n 's/^asset-//p' "${args[1]}" | head -1)"
+			if [ -n "$target" ] && [ "$target" = "$ATTEST_STUB_REFUSE_ASSET" ]; then
+				echo "stub gh: refusing attestation verify for $target, its provenance names another tag" >&2
+				exit 1
+			fi
 		fi
 		case "${ATTEST_STUB_OUTCOME:-ok}" in
 			ok)
