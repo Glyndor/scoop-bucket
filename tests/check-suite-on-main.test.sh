@@ -31,6 +31,9 @@
 # Requires: bash, coreutils, jq (for STUB_JSON).
 set -u
 
+# GitHub runners export GITHUB_EVENT_NAME, GITHUB_SHA, GITHUB_REPOSITORY and the script reads REPO; unset so each case that needs one sets it explicitly.
+unset GITHUB_EVENT_NAME GITHUB_SHA GITHUB_REPOSITORY REPO
+
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SCRIPT="$HERE/scripts/check-suite-on-main.sh"
 WORK="$(mktemp -d)"
