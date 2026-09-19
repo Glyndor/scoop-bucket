@@ -129,26 +129,36 @@ jobs:
   # run of the workflow it names, so a failing run is invisible to it
   # by construction. This job covers the other half: the suite workflow
   # is firing, the run is on record, and the newest COMPLETED one
-  # concluded with something other than success. A run still in
-  # progress is not a failure; it is filtered out at the API layer.
+  # concluded with something other than success.
+  #
+  # On 2026-09-19 this job read the wrong run on push. It fired at the
+  # same moment as the `tests.yml` run for the commit being pushed,
+  # asked for the newest COMPLETED `tests.yml` run on `main` (which on
+  # a push is the previous commit's run), and a push that fixed a red
+  # main got a red cross from this gate while its own `tests.yml` was
+  # green. The script now asks for the run whose head_sha is the
+  # pushed commit and waits up to 8 minutes for it to finish, so the
+  # developer pushing the fix sees the green within minutes rather
+  # than on a later visit; the schedule keeps the verdict within hours
+  # if nobody pushes.
   #
   # DELIBERATELY NOT a required status check. A red `main` would then
   # block the pull request that repairs it, which is the failure this
   # exists to surface rather than deepen. Watching the ordinary CI path
-  # on push to main and on the schedule above is enough: a developer
-  # pushing the fix sees the red on their next visit, the schedule
-  # makes sure somebody sees it within hours either way.
+  # on push to main and on the schedule above is enough.
   #
   # Reads the API with the job's own GITHUB_TOKEN, the same shape
   # reusable-schedule-freshness uses. `actions: read` is the scope that
   # makes that call work, and `contents: read` is what the caller is
-  # already granted.
+  # already granted. GITHUB_EVENT_NAME and GITHUB_SHA are the runner's
+  # automatic env vars and reach the script without being listed here.
   suite-on-main:
     name: suite is green on main
     runs-on: ubuntu-latest
-    # Measured at 2 to 4 seconds across replays of the planted cases;
-    # one API call, network-bound by GitHub's API latency rather than
-    # by anything the script does.
+    # Bound at 8 minutes by the script's retry budget (32 attempts of
+    # 15 seconds); measured suite runs are well under that (apt about
+    # 2 minutes, homebrew-tap 1 to 4, scoop-bucket 33 seconds). Ten
+    # minutes is the slack.
     timeout-minutes: 10
     permissions:
       contents: read
@@ -158,7 +168,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Check the newest completed run of tests.yml on main
+      - name: Check tests.yml on main
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
