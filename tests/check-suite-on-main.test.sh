@@ -333,6 +333,24 @@ run_script >/dev/null
 check "S4: the URL asks for per_page=30" "1" \
 	"$(grep -acz 'per_page=30' "$WORK/gh.log" | tr -d ' ')"
 
+# --- push path: the URL filters by head_sha=GITHUB_SHA (R7) ------------
+#
+# The push path must ask the API for THIS commit's runs, so 30 or more
+# newer runs on the branch (re-runs of older commits) cannot push
+# GITHUB_SHA off the page. The jq select stays as a second guard, but
+# the URL filter is what makes the listing small enough to read. Same
+# pattern as S4: read the logged call to assert the URL is what was
+# actually asked for, not what the script source happens to contain.
+printf '%s' "$(push_response completed success b 2)" > "$WORK/resp"
+out="$(run_script_push b)"; rc=$?
+check "R7: passes on a single completed run for b" "0" "$rc"
+check "R7: the URL contains branch=main" "1" \
+	"$(grep -acz 'branch=main' "$WORK/gh.log" | tr -d ' ')"
+check "R7: the URL contains head_sha=b" "1" \
+	"$(grep -acz 'head_sha=b' "$WORK/gh.log" | tr -d ' ')"
+check "R7: the URL contains per_page=30" "1" \
+	"$(grep -acz 'per_page=30' "$WORK/gh.log" | tr -d ' ')"
+
 # --- push path ---------------------------------------------------------
 #
 # The defects of 2026-09-19 lived here. The script ran at the same

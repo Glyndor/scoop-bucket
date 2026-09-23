@@ -34,13 +34,16 @@
 # The script now branches on GITHUB_EVENT_NAME:
 #
 #   * push. The verdict is the `tests.yml` run whose head_sha is
-#     GITHUB_SHA. The page is requested without `status=completed` so
-#     an in-progress run for this commit is visible; we sort by
-#     created_at desc in the script and pick the head whose head_sha
-#     matches. If the run is missing or still in progress, sleep 15 s
-#     and look again, for at most 32 attempts (8 minutes, inside the
-#     job's 10-minute timeout; the suite finishes in well under that:
-#     apt about 2 minutes, homebrew-tap 1 to 4, scoop-bucket 33 s,
+#     GITHUB_SHA. The page is requested with `head_sha=GITHUB_SHA` as
+#     a URL filter so 30 or more newer runs on the branch (re-runs of
+#     older commits) cannot push THIS commit's run off the page, and
+#     without `status=completed` so an in-progress run for this
+#     commit is visible; we sort by created_at desc in the script and
+#     pick the head whose head_sha matches, with the jq select as a
+#     second guard. If the run is missing or still in progress, sleep
+#     15 s and look again, for at most 32 attempts (8 minutes, inside
+#     the job's 10-minute timeout; the suite finishes in well under
+#     that: apt about 2 minutes, homebrew-tap 1 to 4, scoop-bucket 33 s,
 #     measured 2026-09-19). After the last attempt the script fails
 #     with one line naming the commit, rather than reading another
 #     commit's run.
@@ -82,14 +85,16 @@ EVENT_NAME="${GITHUB_EVENT_NAME:-}"
 if [ "$EVENT_NAME" = "push" ]; then
 	: "${GITHUB_SHA:?GITHUB_SHA is required on push events}"
 	PUSH_SHA="$GITHUB_SHA"
-	base="repos/${REPO}/actions/workflows/${WORKFLOW}/runs?branch=main&per_page=30"
+	base="repos/${REPO}/actions/workflows/${WORKFLOW}/runs?branch=main&head_sha=${PUSH_SHA}&per_page=30"
 
 	# Push path: the verdict is the run for THIS commit, looked up by
-	# head_sha. The page is requested without `status=completed` so
-	# an in-progress run is visible, that is the signal to wait, not
-	# the signal that nothing happened. The sort and the head_sha
-	# filter happen in the jq filter so a one-item stale page cannot
-	# masquerade as the answer.
+	# head_sha. The page is requested with head_sha as a URL filter so
+	# the listing cannot be filled by 30 or more newer runs on the
+	# branch (re-runs of older commits), and without `status=completed`
+	# so an in-progress run for this commit is visible -- that is the
+	# signal to wait, not the signal that nothing happened. The jq
+	# select on head_sha stays as a second guard so a one-item stale
+	# page cannot masquerade as the answer either.
 	#
 	# Suite runs measured 2026-09-19: apt about 2 minutes,
 	# homebrew-tap 1 to 4, scoop-bucket 33 seconds. 32 attempts at
@@ -202,7 +207,7 @@ if [ "$body" = "EMPTY" ]; then
 	if [ "${skipped:-0}" -gt 0 ] 2>/dev/null; then
 		echo "::error::No verdict on ${WORKFLOW} on main: every completed run was cancelled (${skipped} passed over)."
 		echo "A newer push (pull_request) or an in-flight rerun (schedule) is the" >&2
-		echo "only reason a completed run is cancelled; nothing completed, so this" >&2
+		echo "only reason a completed run is cancelled; nothing completed so this" >&2
 		echo "gate cannot say the suite is green. Wait for the next scheduled fire" >&2
 		echo "or trigger ${WORKFLOW} by hand to produce a record." >&2
 		exit 1
