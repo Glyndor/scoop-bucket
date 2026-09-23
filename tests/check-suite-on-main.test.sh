@@ -333,6 +333,50 @@ run_script >/dev/null
 check "S4: the URL asks for per_page=30" "1" \
 	"$(grep -acz 'per_page=30' "$WORK/gh.log" | tr -d ' ')"
 
+# --- push path: the URL filters by head_sha=GITHUB_SHA (R7) ------------
+#
+# The push path must ask the API for THIS commit's runs, so 30 or more
+# newer runs on the branch (re-runs of older commits) cannot push
+# GITHUB_SHA off the page. The jq select stays as a second guard, but
+# the URL filter is what makes the listing small enough to read. Same
+# pattern as S4: read the logged call to assert the URL is what was
+# actually asked for, not what the script source happens to contain.
+printf '%s' "$(push_response completed success b 2)" > "$WORK/resp"
+out="$(run_script_push b)"; rc=$?
+check "R7: passes on a single completed run for b" "0" "$rc"
+check "R7: the URL contains branch=main" "1" \
+	"$(grep -acz 'branch=main' "$WORK/gh.log" | tr -d ' ')"
+check "R7: the URL contains head_sha=b" "1" \
+	"$(grep -acz 'head_sha=b' "$WORK/gh.log" | tr -d ' ')"
+check "R7: the URL contains per_page=30" "1" \
+	"$(grep -acz 'per_page=30' "$WORK/gh.log" | tr -d ' ')"
+
+# --- push path: GITHUB_SHA empty refuses, does not fall through ----------
+#
+# A push event with no SHA has nothing for the gate to answer for; the
+# schedule path would happily report a different commit's run as
+# green, so the script must refuse loudly instead. The error uses
+# ::error:: so a reader of the log sees the failure for what it is,
+# not a bash diagnostic prefixed with the script's path.
+: >"$WORK/gh.log"
+: >"$WORK/sleep.log"
+# shellcheck disable=SC1007 # GITHUB_SHA='' is set empty on purpose, so the script must refuse.
+out="$(GITHUB_EVENT_NAME=push GITHUB_SHA="" \
+	STUB_LOG="$WORK/gh.log" STUB_RESPONSES="$WORK/resp" \
+	SLEEP_LOG="$WORK/sleep.log" \
+	PATH="$WORK/bin:$PATH" \
+	GH_TOKEN=dummy REPO="$REPO" WORKFLOW="$WF" \
+	bash "$SCRIPT" 2>&1)"; rc=$?
+check "R8: push with empty GITHUB_SHA fails" "1" "$rc"
+check "R8: the failure carries an ::error:: annotation" "1" \
+	"$(printf '%s' "$out" | grep -q '^::error::' && echo 1 || echo 0)"
+check "R8: the error names GITHUB_SHA" "1" \
+	"$(printf '%s' "$out" | grep -q 'GITHUB_SHA' && echo 1 || echo 0)"
+check "R8: did not call the API at all" "0" \
+	"$(grep -acz . "$WORK/gh.log" | tr -d ' ')"
+check "R8: did not sleep either" "0" \
+	"$(grep -acz . "$WORK/sleep.log" 2>/dev/null | tr -d ' ')"
+
 # --- push path ---------------------------------------------------------
 #
 # The defects of 2026-09-19 lived here. The script ran at the same
@@ -534,15 +578,38 @@ check "S5: does not name the 10:00 run (#10)" "0" \
 check "S5: does not name the 08:00 run (#8)" "0" \
 	"$(printf '%s' "$out" | grep -c '#8')"
 
-# --- the gate covers itself: passing against this repository ------------
+# --- S6: two runs share created_at; id is the tie-break, not order ------
 #
-# The script lives in scripts/, so the test-coverage gate asserts a
-# matching test exists. The test that proves it has two halves: this
-# file is present, and the script above runs against the repo as the
-# test-coverage suite invokes it. The second half is implicit because
-# the cases above are the test.
-check "the watcher has a test in tests/" "1" \
-	"$(test -f "$HERE/tests/check-suite-on-main.test.sh" && echo 1 || echo 0)"
+# When two completed runs share the same created_at (a re-run landing
+# in the same second, or two runs the API happens to serve adjacent),
+# the verdict must not depend on which one the API happens to list
+# first. The script sorts by [created_at, id] desc and picks the head,
+# so the higher id wins regardless of page order. Both orderings are
+# tried: lower id success first, then higher id failure; and the
+# reverse. The verdict is the failure's in both cases.
+ts_tie="2026-09-19T12:00:00Z"
+page_s6_lo=$(make_json_page \
+	"$(make_json_run 100 a completed success "$ts_tie"),$(make_json_run 200 b completed failure "$ts_tie")")
+printf '%s' "$page_s6_lo" > "$WORK/s6_lo.json"
+out="$(run_script_schedule_json "$WORK/s6_lo.json")"; rc=$?
+check "S6 (lower-id first): the higher-id run wins" "1" "$rc"
+check "S6 (lower-id first): names the #200 run" "1" \
+	"$(printf '%s' "$out" | grep -q '#200' && echo 1 || echo 0)"
+check "S6 (lower-id first): does not name the #100 run" "0" \
+	"$(printf '%s' "$out" | grep -c '#100')"
+check "S6 (lower-id first): reports conclusion=failure" "1" \
+	"$(printf '%s' "$out" | grep -q 'conclusion=failure' && echo 1 || echo 0)"
+page_s6_hi=$(make_json_page \
+	"$(make_json_run 200 b completed failure "$ts_tie"),$(make_json_run 100 a completed success "$ts_tie")")
+printf '%s' "$page_s6_hi" > "$WORK/s6_hi.json"
+out="$(run_script_schedule_json "$WORK/s6_hi.json")"; rc=$?
+check "S6 (higher-id first): the higher-id run still wins" "1" "$rc"
+check "S6 (higher-id first): names the #200 run" "1" \
+	"$(printf '%s' "$out" | grep -q '#200' && echo 1 || echo 0)"
+check "S6 (higher-id first): does not name the #100 run" "0" \
+	"$(printf '%s' "$out" | grep -c '#100')"
+check "S6 (higher-id first): reports conclusion=failure" "1" \
+	"$(printf '%s' "$out" | grep -q 'conclusion=failure' && echo 1 || echo 0)"
 
 echo "$pass passed, $fail failed"
 printf 'DONE %s %d %d\n' "${BASH_SOURCE[0]##*/}" "$pass" "$fail"
