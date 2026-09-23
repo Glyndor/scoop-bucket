@@ -49,14 +49,17 @@
 #     commit's run.
 #
 #   * schedule, pull_request. The newest completed run on `main`, from
-#     a page of `per_page=30` sorted by created_at desc in the script
-#     so it does not trust the order of the page. `cancelled` runs
-#     are passed over and the count is reported, because a cancelled
-#     run only means a newer push superseded it (pull_request) or an
-#     in-flight rerun happened (schedule). A page where every
-#     completed run was cancelled fails with a no-verdict message,
-#     distinct from the empty-history failure below because the
-#     history is non-empty: it just says nothing.
+#     a page of `per_page=30` with `status=completed` in the URL so
+#     in-flight runs cannot fill the 30-item page, sorted by created_at
+#     desc then id desc in the script so the verdict does not depend
+#     on page order and a same-second tie between two runs picks the
+#     newer one. `cancelled` runs are passed over and the count is
+#     reported, because a cancelled run only means a newer push
+#     superseded it (pull_request) or an in-flight rerun happened
+#     (schedule). A page where every completed run was cancelled fails
+#     with a no-verdict message, distinct from the empty-history
+#     failure below because the history is non-empty: it just says
+#     nothing.
 #
 # Empty history on the schedule/pull_request path is reported, not
 # passed. A workflow whose first run on main is still queued is not a
@@ -107,9 +110,14 @@ if [ "$EVENT_NAME" = "push" ]; then
 	# GITHUB_SHA is a 40-character hex string and contains no
 	# jq-special characters, so interpolating it into the filter is
 	# safe.
+	#
+	# The sort key is [created_at, id] descending so two runs for the
+	# same commit that share created_at (a same-second re-run, or two
+	# attempts that the API paginated in the wrong order) pick the
+	# higher id, instead of the verdict flipping with page order.
 	filter=$(cat <<EOF
 .workflow_runs
-| sort_by(.created_at) | reverse
+| sort_by([.created_at, .id]) | reverse
 | map(select(.head_sha == "$PUSH_SHA"))
 | .[0]
 | if . == null then "EMPTY"
@@ -171,8 +179,10 @@ fi
 # Schedule and pull_request path. Newest completed run on `main`,
 # never trusting the order of the page. per_page=30 so a flurry of
 # runs from one push does not push the next push's verdict out of
-# view; the sort by created_at desc happens here so a one-item stale
-# page cannot masquerade as the answer either.
+# view; the sort by created_at desc then id desc happens here so a
+# one-item stale page cannot masquerade as the answer, and a
+# same-second tie between two runs picks the higher id instead of
+# flipping with page order.
 #
 # `cancelled` is passed over, a newer push superseded it on
 # pull_request, an in-flight rerun on schedule, and the count is
@@ -187,10 +197,14 @@ base="repos/${REPO}/actions/workflows/${WORKFLOW}/runs?branch=main&status=comple
 # created_at, html_url, event) or the literal "EMPTY", followed by a
 # tab and the count of cancelled runs skipped. The split happens in
 # shell with ${var%tab*} / ${var##*tab} so this stays one API call.
+#
+# The sort key is [created_at, id] descending so two runs that share
+# created_at pick the higher id; without the id in the key the
+# verdict flips with page order, which the API makes no promise about.
 # shellcheck disable=SC2016 # $kept and $skipped are jq variables, not bash
 filter='
 .workflow_runs
-| sort_by(.created_at) | reverse
+| sort_by([.created_at, .id]) | reverse
 | map(select(.conclusion != "cancelled")) as $kept
 | (length - ($kept | length)) as $skipped
 | if ($kept | length) == 0

@@ -552,6 +552,39 @@ check "S5: does not name the 10:00 run (#10)" "0" \
 check "S5: does not name the 08:00 run (#8)" "0" \
 	"$(printf '%s' "$out" | grep -c '#8')"
 
+# --- S6: two runs share created_at; id is the tie-break, not order ------
+#
+# When two completed runs share the same created_at (a re-run landing
+# in the same second, or two runs the API happens to serve adjacent),
+# the verdict must not depend on which one the API happens to list
+# first. The script sorts by [created_at, id] desc and picks the head,
+# so the higher id wins regardless of page order. Both orderings are
+# tried: lower id success first, then higher id failure; and the
+# reverse. The verdict is the failure's in both cases.
+ts_tie="2026-09-19T12:00:00Z"
+page_s6_lo=$(make_json_page \
+	"$(make_json_run 100 a completed success "$ts_tie"),$(make_json_run 200 b completed failure "$ts_tie")")
+printf '%s' "$page_s6_lo" > "$WORK/s6_lo.json"
+out="$(run_script_schedule_json "$WORK/s6_lo.json")"; rc=$?
+check "S6 (lower-id first): the higher-id run wins" "1" "$rc"
+check "S6 (lower-id first): names the #200 run" "1" \
+	"$(printf '%s' "$out" | grep -q '#200' && echo 1 || echo 0)"
+check "S6 (lower-id first): does not name the #100 run" "0" \
+	"$(printf '%s' "$out" | grep -c '#100')"
+check "S6 (lower-id first): reports conclusion=failure" "1" \
+	"$(printf '%s' "$out" | grep -q 'conclusion=failure' && echo 1 || echo 0)"
+page_s6_hi=$(make_json_page \
+	"$(make_json_run 200 b completed failure "$ts_tie"),$(make_json_run 100 a completed success "$ts_tie")")
+printf '%s' "$page_s6_hi" > "$WORK/s6_hi.json"
+out="$(run_script_schedule_json "$WORK/s6_hi.json")"; rc=$?
+check "S6 (higher-id first): the higher-id run still wins" "1" "$rc"
+check "S6 (higher-id first): names the #200 run" "1" \
+	"$(printf '%s' "$out" | grep -q '#200' && echo 1 || echo 0)"
+check "S6 (higher-id first): does not name the #100 run" "0" \
+	"$(printf '%s' "$out" | grep -c '#100')"
+check "S6 (higher-id first): reports conclusion=failure" "1" \
+	"$(printf '%s' "$out" | grep -q 'conclusion=failure' && echo 1 || echo 0)"
+
 # --- the gate covers itself: passing against this repository ------------
 #
 # The script lives in scripts/, so the test-coverage gate asserts a
