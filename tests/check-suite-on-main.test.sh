@@ -360,7 +360,8 @@ check "R7: the URL contains per_page=30" "1" \
 # not a bash diagnostic prefixed with the script's path.
 : >"$WORK/gh.log"
 : >"$WORK/sleep.log"
-out="$(GITHUB_EVENT_NAME=push GITHUB_SHA= \
+# shellcheck disable=SC1007 # GITHUB_SHA='' is set empty on purpose, so the script must refuse.
+out="$(GITHUB_EVENT_NAME=push GITHUB_SHA="" \
 	STUB_LOG="$WORK/gh.log" STUB_RESPONSES="$WORK/resp" \
 	SLEEP_LOG="$WORK/sleep.log" \
 	PATH="$WORK/bin:$PATH" \
