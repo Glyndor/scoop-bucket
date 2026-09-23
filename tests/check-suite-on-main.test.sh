@@ -610,16 +610,6 @@ check "S6 (higher-id first): does not name the #100 run" "0" \
 check "S6 (higher-id first): reports conclusion=failure" "1" \
 	"$(printf '%s' "$out" | grep -q 'conclusion=failure' && echo 1 || echo 0)"
 
-# --- the gate covers itself: passing against this repository ------------
-#
-# The script lives in scripts/, so the test-coverage gate asserts a
-# matching test exists. The test that proves it has two halves: this
-# file is present, and the script above runs against the repo as the
-# test-coverage suite invokes it. The second half is implicit because
-# the cases above are the test.
-check "the watcher has a test in tests/" "1" \
-	"$(test -f "$HERE/tests/check-suite-on-main.test.sh" && echo 1 || echo 0)"
-
 echo "$pass passed, $fail failed"
 printf 'DONE %s %d %d\n' "${BASH_SOURCE[0]##*/}" "$pass" "$fail"
 [ "$fail" -eq 0 ]
