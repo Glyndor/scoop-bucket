@@ -351,6 +351,31 @@ check "R7: the URL contains head_sha=b" "1" \
 check "R7: the URL contains per_page=30" "1" \
 	"$(grep -acz 'per_page=30' "$WORK/gh.log" | tr -d ' ')"
 
+# --- push path: GITHUB_SHA empty refuses, does not fall through ----------
+#
+# A push event with no SHA has nothing for the gate to answer for; the
+# schedule path would happily report a different commit's run as
+# green, so the script must refuse loudly instead. The error uses
+# ::error:: so a reader of the log sees the failure for what it is,
+# not a bash diagnostic prefixed with the script's path.
+: >"$WORK/gh.log"
+: >"$WORK/sleep.log"
+out="$(GITHUB_EVENT_NAME=push GITHUB_SHA= \
+	STUB_LOG="$WORK/gh.log" STUB_RESPONSES="$WORK/resp" \
+	SLEEP_LOG="$WORK/sleep.log" \
+	PATH="$WORK/bin:$PATH" \
+	GH_TOKEN=dummy REPO="$REPO" WORKFLOW="$WF" \
+	bash "$SCRIPT" 2>&1)"; rc=$?
+check "R8: push with empty GITHUB_SHA fails" "1" "$rc"
+check "R8: the failure carries an ::error:: annotation" "1" \
+	"$(printf '%s' "$out" | grep -q '^::error::' && echo 1 || echo 0)"
+check "R8: the error names GITHUB_SHA" "1" \
+	"$(printf '%s' "$out" | grep -q 'GITHUB_SHA' && echo 1 || echo 0)"
+check "R8: did not call the API at all" "0" \
+	"$(grep -acz . "$WORK/gh.log" | tr -d ' ')"
+check "R8: did not sleep either" "0" \
+	"$(grep -acz . "$WORK/sleep.log" 2>/dev/null | tr -d ' ')"
+
 # --- push path ---------------------------------------------------------
 #
 # The defects of 2026-09-19 lived here. The script ran at the same

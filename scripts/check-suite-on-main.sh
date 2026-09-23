@@ -86,7 +86,14 @@ set -euo pipefail
 EVENT_NAME="${GITHUB_EVENT_NAME:-}"
 
 if [ "$EVENT_NAME" = "push" ]; then
-	: "${GITHUB_SHA:?GITHUB_SHA is required on push events}"
+	# Push events have a GITHUB_SHA that names the commit this check
+	# has to answer for. Without it the gate has nothing to look up
+	# and the schedule path would happily report a different commit's
+	# verdict, so refuse loudly rather than silently fall through.
+	if [ -z "${GITHUB_SHA:-}" ]; then
+		echo "::error::GITHUB_SHA is empty on push; refusing to read another commit's run."
+		exit 1
+	fi
 	PUSH_SHA="$GITHUB_SHA"
 	base="repos/${REPO}/actions/workflows/${WORKFLOW}/runs?branch=main&head_sha=${PUSH_SHA}&per_page=30"
 
