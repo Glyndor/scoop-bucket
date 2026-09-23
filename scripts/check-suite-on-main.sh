@@ -228,7 +228,7 @@ if [ "$body" = "EMPTY" ]; then
 	if [ "${skipped:-0}" -gt 0 ] 2>/dev/null; then
 		echo "::error::No verdict on ${WORKFLOW} on main: every completed run was cancelled (${skipped} passed over)."
 		echo "A newer push (pull_request) or an in-flight rerun (schedule) is the" >&2
-		echo "only reason a completed run is cancelled; nothing completed so this" >&2
+		echo "only reason a completed run is cancelled; nothing completed, so this" >&2
 		echo "gate cannot say the suite is green. Wait for the next scheduled fire" >&2
 		echo "or trigger ${WORKFLOW} by hand to produce a record." >&2
 		exit 1
