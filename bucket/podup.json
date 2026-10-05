@@ -1,12 +1,12 @@
 {
-  "version": "5.10.11",
+  "version": "5.10.12",
   "description": "Docker-compose translator and runner for rootless Podman",
   "homepage": "https://github.com/Glyndor/podup",
   "license": "MIT",
   "architecture": {
     "64bit": {
-      "url": "https://github.com/Glyndor/podup/releases/download/v5.10.11/podup-windows-x86_64.exe",
-      "hash": "dd958d9c6e226c3821cc389b4ad45553e377c7aca6f3f3d1aaa3e73a868193b5",
+      "url": "https://github.com/Glyndor/podup/releases/download/v5.10.12/podup-windows-x86_64.exe",
+      "hash": "0949812220a78ce891b9bf89a98ecfee0d812edeb13d0683780739eae92dd327",
       "bin": [
         [
           "podup-windows-x86_64.exe",
@@ -15,8 +15,8 @@
       ]
     },
     "arm64": {
-      "url": "https://github.com/Glyndor/podup/releases/download/v5.10.11/podup-windows-arm64.exe",
-      "hash": "5fbf1a8a9c1373ab50c0d1206aa23bab32d16b9477284e4c5561a16579163fe0",
+      "url": "https://github.com/Glyndor/podup/releases/download/v5.10.12/podup-windows-arm64.exe",
+      "hash": "6134eb1bdb6bf0aa9e8748fdbe147e1840efdb2881de30eec60dba3603cb2cfe",
       "bin": [
         [
           "podup-windows-arm64.exe",
