@@ -1,7 +1,7 @@
 name: Tests
 
 # The shell lint, this repository's own suite, and the two checks that read the
-# generated tree: that PRODUCTS/README/bucket still agree, and that every
+# generated tree: that PRODUCTS and bucket/ still agree, and that every
 # manifest is valid JSON with the fields Scoop needs.
 #
 # Split out of the former ci.yml, which carried the suite, pull request hygiene
@@ -80,7 +80,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: The README table and bucket/ must match PRODUCTS
+      - name: bucket/ must match PRODUCTS
         run: |
           set -euo pipefail
           # The check lives in scripts/ so it can be tested. Inline here it was
