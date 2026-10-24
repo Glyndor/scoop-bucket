@@ -25,7 +25,6 @@ first line if you already have it.
 | Package | What it is | On Windows |
 | --- | --- | --- |
 | [`podup`](https://github.com/Glyndor/podup) | Docker-compose translator and runner for rootless Podman | this bucket |
-| [`epistle`](https://github.com/Glyndor/epistle) | Self-hosted headless mail server: SMTP, IMAP | not built |
 | [`helmly-agent`](https://github.com/Glyndor/helmly-agent) | Hardened server agent for the Glyndor panel: signed commands over WireGuard and mTLS | not built |
 
 ## Upgrades
