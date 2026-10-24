@@ -103,7 +103,7 @@ done
 #
 # This table is the only place a product is declared. The manifest it renders,
 # the manifests pruned below, and the README's "Available manifests" table
-# (which ci.yml checks against this list) all follow from it.
+# (which tests.yml checks against this list) all follow from it.
 PRODUCTS=(
 	"Glyndor/podup|podup|Docker-compose translator and runner for rootless Podman|podup-windows-x86_64.exe|podup-windows-arm64.exe"
 )
@@ -330,7 +330,7 @@ PY
 # nothing about it being well-formed. Before this, a duplicated entry printed
 # BOTH hashes into one field and the run exited 0 -- a fail-open on
 # signature-verified input, and in the Scoop bucket's case one that passed
-# ci.yml's validation and would have been committed to main. Glyndor/apt's
+# tests.yml's validation and would have been committed to main. Glyndor/apt's
 # publish.yml states the assumption this rests on: the release assets are
 # attacker-influenced, because whoever can publish a release controls them.
 hash_of() { # $1=asset

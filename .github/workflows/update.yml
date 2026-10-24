@@ -48,7 +48,7 @@ on:
   workflow_dispatch:
   # Optional instant trigger: a product's release workflow may
   # POST /repos/Glyndor/scoop-bucket/dispatches with event_type "release".
-  # Nothing is wired to it today; the daily schedule is the baseline.
+  # Nothing is wired to it today; the hourly schedule is the baseline.
   repository_dispatch:
     types: [release]
 
@@ -152,7 +152,7 @@ jobs:
         if: steps.render.outputs.changed == '1'
         run: |
           set -euo pipefail
-          # The same gate as ci.yml, run BEFORE the commit lands. A malformed
+          # The same gate as tests.yml, run BEFORE the commit lands. A malformed
           # render must never reach `main`: here the commit is the published
           # artifact, with no PR review between it and `scoop install`. Each
           # manifest must be valid JSON with version, homepage, license, and a

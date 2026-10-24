@@ -49,16 +49,20 @@ was read on 2026-09-02; lines move, case names do not.
 - **GitHub.** Hosts the repository, the releases and the runner, and signs the
   bot's commit (`.github/workflows/update.yml:136-139`). Trusted; see out of
   scope.
-- **The update bot.** `update.yml`, hourly (`:47`), running as `GITHUB_TOKEN`
-  (`:89`, `:132`) with `contents: write` on its one job (`:68-69`) over a
-  workflow default of `contents: read` (`:55-56`). It commits through the
-  GraphQL `createCommitOnBranch` mutation (`:156`). No long-lived credential
-  exists in this repository.
-- **A human with Write.** Invitation-only (`CONTRIBUTING.md:9-10`); one owner
-  (`.github/CODEOWNERS:2`). Can merge a pull request into `main` and is not
-  stopped by a required check, because the ruleset has none
-  (`CONTRIBUTING.md:35-39`).
-- **A Windows user.** Runs the three lines in `README.md:16-20`. Scoop clones
+- **The update bot.** `update.yml`, hourly. The job itself runs on a
+  read-only `GITHUB_TOKEN` (`contents: read`). The write goes through a token
+  minted for the `glyndor-updater` GitHub App (`contents: write` on this
+  repository only) by `actions/create-github-app-token`, from a long-lived
+  private key held as the repository secret `UPDATER_APP_PRIVATE_KEY`. The app is
+  a bypass actor on the `main` ruleset. It commits through the GraphQL
+  `createCommitOnBranch` mutation. A leaked key would let its holder push to
+  `main` past the required checks, which is why the key is the credential that
+  matters here.
+- **A human with Write.** Invitation-only (`CONTRIBUTING.md`); one owner
+  (`.github/CODEOWNERS`). Has no bypass: the ruleset requires a pull request,
+  eight status checks with the branch up to date, signed commits and CodeQL, so
+  a human change reaches `main` only through a reviewed-by-CI pull request.
+- **A Windows user.** Runs the three lines in the README. Scoop clones
   `main` and refuses a download whose bytes do not match the pinned hash
   (`README.md:48-50`). That comparison is Scoop's; this repository does not
   test it.
@@ -80,19 +84,18 @@ was read on 2026-09-02; lines move, case names do not.
 
 | Threat | Control | Evidence |
 |---|---|---|
-| A human with Write commits a malicious manifest | three partial controls and a named gap. (1) `required_signatures` on `main` (`CONTRIBUTING.md:36-37`), the compensating control for having no require-PR and no required check, both of which would reject the bot's push (`CONTRIBUTING.md:30-35`). (2) The next hourly render overwrites a hand edit for any product whose release renders (`scripts/render-manifests.sh:289-302`, `CONTRIBUTING.md:17-19`). (3) `dco-on-main.yml` reports a human commit without `Signed-off-by` after it lands (`.github/workflows/dco-on-main.yml:36-38`, `scripts/check-dco-on-main.sh:84-92`); the pull request `dco` check runs but is not required (`CONTRIBUTING.md:71-73`). The gap: validation reads structure only (`scripts/check-manifests.sh:36-42`), so a signed, hand-committed manifest whose `url` points elsewhere passes, and if that product's release stops rendering the hand edit is kept (`scripts/render-manifests.sh:319-323`) | test for (3): `tests/check-dco-on-main.test.sh:72` "an unsigned human commit fails", `:112` "a commit whose author field impersonates the bot is still reported". (1) is a ruleset, not in the tree. (2): `tests/render-manifests.test.sh:213` "the skipped product keeps the manifest it had" pins the gap, not the control |
-| A manifest `url` points outside the product's GitHub release | on the rendered path the URL is built from the `PRODUCTS` repository and the verified tag, never read from the release (`scripts/render-manifests.sh:271`, `:278`, `:283`) | test: `tests/render-manifests.test.sh:163` "the 64bit url points at the tagged asset". On the human path: none, see the row above |
+| A human with Write commits a malicious manifest | three partial controls and a named gap. (1) the ruleset on `main`: pull request required, required status checks, `required_signatures`, no bypass for humans (it is a ruleset, not in the tree). (2) The next hourly render overwrites a hand edit for any product whose release renders (`scripts/render-manifests.sh:289-302`, `CONTRIBUTING.md:17-19`). (3) `dco-on-main.yml` reports a human commit without `Signed-off-by` after it lands (`.github/workflows/dco-on-main.yml:36-38`, `scripts/check-dco-on-main.sh:84-92`); the pull request `dco` check is required. The gap: validation reads structure only (`scripts/check-manifests.sh:36-42`), so a signed, hand-committed manifest whose `url` points elsewhere passes, and if that product's release stops rendering the hand edit is kept (`scripts/render-manifests.sh:319-323`) | test for (3): `tests/check-dco-on-main.test.sh:72` "an unsigned human commit fails", `:112` "a commit whose author field impersonates the bot is still reported". (1) is a ruleset, not in the tree. (2): `tests/render-manifests.test.sh:213` "the skipped product keeps the manifest it had" pins the gap, not the control |
+| A manifest `url` points outside the product's GitHub release | the validator holds every `url` to a Glyndor release URL; on the rendered path the URL is built from the `PRODUCTS` repository and the verified tag, never read from the release (`scripts/render-manifests.sh:271`, `:278`, `:283`) | test: `tests/render-manifests.test.sh:163` "the 64bit url points at the tagged asset". A hand-committed URL inside that pattern but for the wrong tag still passes, see the row above |
 | A manifest that is not JSON, lacks a field, or an emptied `bucket/` reaches `main` | `scripts/check-manifests.sh` runs inside the job before the commit (`.github/workflows/update.yml:113-127`) and on every push and pull request (`.github/workflows/tests.yml:75-89`); an empty bucket is an error, not a vacuous pass (`scripts/check-manifests.sh:30-33`) | test: `tests/check-manifests.test.sh:123` "a file that is not JSON is refused", `:132` "an empty bucket is refused rather than passing vacuously", `:101` per-architecture fields; `tests/update-workflow.test.sh:162` "an emptied bucket/ fails validation" |
 | The bot's commit lands unsigned, or on a `main` that moved since checkout | `createCommitOnBranch` with `expectedHeadOid` (`.github/workflows/update.yml:140-143`, `:156`); the concurrency group serialises runs (`:60-62`) | test: `tests/update-workflow.test.sh:244` "the payload uses createCommitOnBranch", `:246` "and pins expectedHeadOid" |
 | `bucket/` disagrees with `PRODUCTS` | `scripts/check-products-consistent.sh` on every push and pull request (`.github/workflows/tests.yml:59-73`) | test: `tests/check-products-consistent.test.sh:68` "a missing manifest file fails" |
 
-What `jq` checks in `scripts/check-manifests.sh:36-42`: a non-empty `version`
-string, `homepage` and `license` strings, a non-empty `architecture` object,
-and a truthy `url` and `hash` plus a `bin` array per architecture. What it
-cannot check: that the hash matches any bytes, that the URL is on
-`github.com`, that the version matches the tag, or that the hash is 64 hex
-characters. The renderer checks that last one (`scripts/render-manifests.sh:171-180`);
-nothing checks the other three on a hand-committed file.
+`scripts/check-manifests.sh` checks a non-empty `version` string, `homepage`
+and `license` strings, a non-empty `architecture` object, a `bin` array per
+architecture, a `url` that is a `github.com/Glyndor/.../releases/` URL and a
+`hash` of 64 hex characters. What it cannot check: that the hash matches any
+bytes, or that the version matches the tag. Nothing checks those two on a
+hand-committed file.
 
 ### The job
 
@@ -100,8 +103,8 @@ nothing checks the other three on a hand-committed file.
 |---|---|---|
 | The update job stalls (dark cron, rotated key, GitHub outage) and the bucket freezes silently | `freshness-update` fails when the newest successful scheduled run of `update.yml` is older than `max-age-days: 3` (`.github/workflows/freshness.yml:55-62`); it runs twice daily and on every push and pull request (`:40-44`), and a second watcher watches it (`:83-90`) | test: `tests/reusable-schedule-freshness.test.sh:120` "an 11-day-old run fails the 10-day limit", `:132` "no successful run on record fails". The caller's inputs are read, not tested |
 | A hung run holds the concurrency group | `timeout-minutes: 10` against a measured 13 to 20 seconds (`.github/workflows/update.yml:70-75`) | none; measurement read off `update.yml:75`, 2026-09-02 |
-| A checkout persists the job token | `persist-credentials: false` on every checkout | measurement: 12 `actions/checkout` steps, 12 with the flag, 2026-09-02; no test |
-| A third-party action runs in CI | every `uses:` is a local reusable (`./.github/workflows/reusable-*.yml`) or a GitHub-owned action pinned by full SHA: `actions/checkout`, `actions/setup-go`, `actions/cache` (`.github/workflows/reusable-workflow-lint.yml:48,66,70`). The reusables are copies taken from a named tag and compared daily with the sibling channels (`.github/workflows/drift.yml:71-80`, `scripts/check-reusable-drift.sh:6-9`) | measurement: `grep -n 'uses:' .github/workflows/*.yml`, 2026-09-02; none as a test. The tooling-isolation assertion (`reusable-workflow-lint.yml:158-272`) refuses `cargo`, `go`, `gem`, `npm` and unpinned `pip` installs in a job that references `secrets.*`; `update.yml` holds only `github.token`, which that pattern does not match, and installs `python3-cryptography` with `apt-get` from the runner's own archive (`update.yml:81-84`) |
+| A checkout persists the job token | `persist-credentials: false` on every checkout | measurement: `grep -c 'actions/checkout@' .github/workflows/*.yml` against `grep -c 'persist-credentials: false' .github/workflows/*.yml`; no test |
+| A third-party action runs in CI | one does: `actions/create-github-app-token` in `update.yml`, pinned by full SHA, and it receives the app's private key. Everything else is a local reusable (`./.github/workflows/reusable-*.yml`) or a GitHub-owned action pinned by full SHA (`actions/checkout`, `actions/setup-go`, `actions/cache`). The reusables are copies taken from a named tag and compared daily with the sibling channels (`.github/workflows/drift.yml`, `scripts/check-reusable-drift.sh`) | measurement: `grep -n 'uses:' .github/workflows/*.yml`; none as a test. The tooling-isolation assertion in `reusable-workflow-lint.yml` refuses `cargo`, `go`, `gem`, `npm` and unpinned `pip` installs in a job that references `secrets.*`; it does not look at `uses:` actions, so the app-token action is covered by the SHA pin and Dependabot alone |
 | A test exists and nothing runs it; a script exists and nothing tests it | `tests/ci-runs-every-test.test.sh` and `scripts/check-test-coverage.sh`, each including itself (`scripts/check-test-coverage.sh:4-8`) | test: `tests/ci-runs-every-test.test.sh:59` "every test in tests/ is invoked by a workflow", `:75` "this watcher is itself invoked by a workflow" |
 | A `run:` block in `update.yml` is edited and no test notices | the suite extracts the workflow's own `run:` blocks and executes them as they ship (`tests/update-workflow.test.sh:16-17`, `:50-66`) | test: `:114-119`, three "was extracted from the workflow" cases |
 
@@ -132,10 +135,10 @@ keys still fail closed".
 Accepted by the owner; recorded here so they are read as decisions rather
 than oversights.
 
-- **DCO on human commits is detection, not prevention**
-  (`.github/workflows/dco-on-main.yml:3-15`). Every route to prevention was
-  priced and declined (`CONTRIBUTING.md:45-54`). Uncovered: a human who sees
-  the red run and merges anyway.
+- **A human who merges past a red check.** `dco` and the rest are required,
+  and the ruleset gives humans no bypass, so the remaining case is the owner
+  changing the ruleset itself. `dco-on-main.yml` reports anything that lands
+  unsigned despite that.
 - **One maintainer** (`.github/CODEOWNERS:11-16`). A required check is matched
   by name, so a pull request with Write can replace a caller with a stub that
   emits the name. The mitigation, Code Owner review on `.github/workflows/`,
