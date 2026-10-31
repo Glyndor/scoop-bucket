@@ -18,6 +18,8 @@ name: Workflow lint (reusable)
 on:
   workflow_call:
     inputs:
+      # Maintain tool pins in this local copy. The inherited input description
+      # names the former upstream release process; it is not an update source.
       shellcheck-version:
         description: Exact shellcheck release tag to install from koalaman/shellcheck for actionlint's embedded shellcheck pass; bumped via .github releases
         type: string

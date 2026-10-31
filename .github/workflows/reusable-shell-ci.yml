@@ -15,6 +15,8 @@ on:
         description: Minimum shellcheck severity to report (style|info|warning|error)
         type: string
         default: "style"
+      # Maintain tool pins in this local copy. The inherited input description
+      # names the former upstream release process; it is not an update source.
       shellcheck-version:
         description: Exact shellcheck release tag to install from koalaman/shellcheck; bumped via .github releases
         type: string

@@ -172,11 +172,10 @@ sandbox "$WORK/e" 1 no
 rc=0; run_step "$RENDER" "$WORK/e" || rc=$?
 check "exit 1 also aborts rather than committing" "1" "$rc"
 
-# --- the empty-tap guard ----------------------------------------------------
+# --- the empty-bucket guard ----------------------------------------------------
 
-# The guard fires before brew is set up, which is what lets it be exercised at
-# all outside a runner: brew is not installed here, so reaching `brew style`
-# would exit 127 instead. A 1 with the message is proof the guard ran first.
+# Require the validate step to reject an empty bucket with its own diagnostic.
+# This exercises the real manifest gate extracted from the publication workflow.
 sandbox "$WORK/f" 0 no
 # The validate step runs after the generator, so empty the directory here
 # rather than through the stub, because this step never invokes it.
