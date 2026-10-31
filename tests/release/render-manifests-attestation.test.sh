@@ -137,6 +137,26 @@ check "and it is NOT reported as a failed attestation" "0" \
 check "and no manifest is written from it" "0" \
 	"$(find "$WORK/p5/bucket" -name '*.json' | wc -l)"
 
+# T5: mutate actual payload bytes AFTER signing, keeping the same byte count.
+# A structural manifest gate cannot detect this; the renderer must compare the
+# downloaded digest before provenance verification or publication.
+publish Glyndor/podup v9.9.9 podup-windows-x86_64.exe podup-windows-arm64.exe
+new_root "$WORK/tampered-payload"
+generator_with "$WORK/tampered-payload/scripts/release/render-manifests.sh" "$PODUP"
+run "$WORK/tampered-payload/scripts/release/render-manifests.sh" "$WORK/tampered-payload"
+cp "$WORK/tampered-payload/bucket/podup.json" "$WORK/payload-before.json"
+asset_path="$RELEASES/Glyndor__podup/asset_podup-windows-x86_64.exe"
+original_size="$(stat -c%s "$asset_path")"
+printf X | dd of="$asset_path" bs=1 count=1 conv=notrunc status=none
+check "payload tampering preserves its byte count" "$original_size" "$(stat -c%s "$asset_path")"
+rc=0; run "$WORK/tampered-payload/scripts/release/render-manifests.sh" "$WORK/tampered-payload" || rc=$?
+check "post-signature payload tampering is refused" "3" "$rc"
+check "payload refusal names the digest mismatch" "1" \
+	"$(grep -c 'not the .* that SHA256SUMS declares' "$WORK/out" || true)"
+check "payload tampering preserves the published manifest" "0" \
+	"$(cmp -s "$WORK/payload-before.json" "$WORK/tampered-payload/bucket/podup.json"; echo $?)"
+check "payload tampering reports no publication" "0" "$(grep -c '^rendered ' "$WORK/out" || true)"
+
 # The whole render fails closed on any of the above rather than skipping
 # the product and committing partial output. A product whose attestation
 # failed verification must leave bucket/ exactly as it was: an existing

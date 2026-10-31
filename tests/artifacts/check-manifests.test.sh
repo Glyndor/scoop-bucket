@@ -78,6 +78,22 @@ rc=0; run "$B" || rc=$?
 check "a complete manifest passes" "0" "$rc"
 check "and it names the file it accepted" "1" "$(said 'podup.json')"
 
+# --- T5: accepted structural shapes do not establish release identity --------
+# Each edit keeps the types and global URL/hash shapes valid. The gate accepts
+# these hand edits; only the renderer's signed sums and per-asset provenance
+# checks establish a release binding on generated output.
+while IFS="|" read -r label filter; do
+	B="$(mkbucket "identity-$label" "$filter")"
+	rc=0; run "$B" || rc=$?
+	check "$label is accepted by the structural gate, not authenticated" "0" "$rc"
+	check "$label acceptance names podup.json" "1" "$(said "ok  $B/podup.json")"
+done <<'CASES'
+other-repo|.architecture."64bit".url = "https://github.com/Glyndor/other/releases/download/v1.0.0/podup-windows-x86_64.exe"
+other-version|.version = "9.9.9"
+other-bin|.architecture."64bit".bin = [["other-windows-x86_64.exe", "podup"]]
+other-hash|.architecture."64bit".hash = "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+CASES
+
 # --- top-level allowlist ----------------------------------------------------
 #
 # The renderer never emits pre_install, so the field's presence is a hand edit
