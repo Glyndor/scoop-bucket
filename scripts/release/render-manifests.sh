@@ -480,11 +480,17 @@ render_product() { # $1=table entry
 		}
 	done
 
+	# The candidate is validated even when nothing is served yet: published as
+	# is, an invalid first version would make the next valid release abort on a
+	# served version that cannot be parsed.
+	served="-"
 	if [ -f "$root/bucket/$manifest.json" ]; then
 		served="$(jq -er '.version | select(type == "string" and length > 0)' "$root/bucket/$manifest.json")" || {
 			echo "::error::$repo: cannot read the served version; refusing to replace the manifest" >&2
 			exit 1
 		}
+	fi
+	{
 		# SemVer precedence: compare numeric major/minor/patch, then dotted
 		# pre-release identifiers (numeric before lexical); stable beats any
 		# pre-release. Ignore +build metadata. Invalid versions fail closed.
@@ -511,14 +517,22 @@ def parse(value):
     return (int(major), int(minor), int(patch), prerelease is None, identifiers)
 
 try:
-    candidate, served = map(parse, sys.argv[1:])
-    print((candidate > served) - (candidate < served))
+    candidate = parse(sys.argv[1])
+    if sys.argv[2] == "-":
+        print(0)
+    else:
+        served = parse(sys.argv[2])
+        print((candidate > served) - (candidate < served))
 except ValueError as error:
     print(error, file=sys.stderr)
     sys.exit(1)
 PY
 )" || {
-			echo "::error::$repo: cannot compare served version $served with candidate $version" >&2
+			if [ "$served" = "-" ]; then
+				echo "::error::$repo: '$version' is not a valid SemVer release version" >&2
+			else
+				echo "::error::$repo: cannot compare served version $served with candidate $version (both must be valid SemVer)" >&2
+			fi
 			exit 1
 		}
 		if [ "$order" = "-1" ]; then
@@ -529,7 +543,7 @@ PY
 				exit 1
 			fi
 		fi
-	fi
+	}
 
 	# Build the architecture object from only what the product ships, with jq so
 	# the result is valid JSON either way.

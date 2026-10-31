@@ -469,6 +469,20 @@ check "every asset gets its own provenance check (2 of 2)" "2" \
 check "verify_attestation downloads the asset over https-only redirects" "1" \
 	"$(sed -n '/^verify_attestation()/,/^}/p' "$HERE/scripts/release/render-manifests.sh" | grep -c -- '--proto-redir =https')"
 
+# A candidate that is not SemVer is refused even on a first publication, when no
+# manifest is served yet: published, it would make the next valid release abort
+# on a served version that cannot be parsed.
+publish Glyndor/podup v01.0.0 podup-windows-x86_64.exe podup-windows-arm64.exe
+unset ATTEST_STUB_LOG
+new_root "$WORK/first"
+generator_with "$WORK/first/scripts/release/render-manifests.sh" "$PODUP"
+rc=0
+out="$( cd "$WORK/first" && "$WORK/first/scripts/release/render-manifests.sh" --pubkey "$PUBKEY" 2>&1 )" || rc=$?
+check "a first publication with a leading-zero version is refused" "1" "$rc"
+check "and the error names the version" "1" \
+	"$(printf '%s' "$out" | grep -c "'01.0.0' is not a valid SemVer release version")"
+check "and no manifest was written" "0" "$([ -f "$WORK/first/bucket/podup.json" ] && echo 1 || echo 0)"
+
 echo
 echo "$pass passed, $fail failed"
 printf 'DONE %s %d %d\n' "${BASH_SOURCE[0]##*/}" "$pass" "$fail"
