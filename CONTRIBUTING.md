@@ -146,8 +146,9 @@ after staging or it will tell you a new file is fine when it is not.
 | `drift.yml` | this repository's copy of a reusable workflow, or of the renderer's verification logic, no longer agrees with its sibling channels |
 | `dco-on-main.yml` | a human commit reached `main` without a `Signed-off-by` trailer; detection after the push, not prevention |
 
-Every reusable lives in `.github/workflows/reusable-*.yml` as a copy taken from
-a named `Glyndor/.github` tag. Nothing is pulled remotely.
+Every reusable lives in `.github/workflows/reusable-*.yml` as a copy kept identical in logic to the
+copies in the sibling channels (`scripts/monitoring/check-reusable-drift.sh` compares
+them). Nothing is pulled remotely.
 
 **Job ids are load-bearing.** A required status check is named
 `<caller job id> / <inner job name>`, so renaming a job renames its check.
