@@ -14,7 +14,7 @@ welcome; unsolicited pull requests are not accepted.
 It is the Scoop bucket for Glyndor's products. It carries no product source:
 `bucket/*.json` is generated from each product's latest signed release, with
 the release signature verified before anything is written. Edit
-`scripts/render-manifests.sh`, never the manifests themselves: the next
+`scripts/release/render-manifests.sh`, never the manifests themselves: the next
 scheduled run overwrites them, so a hand edit survives until the next hourly
 run and then disappears without a trace.
 
@@ -46,7 +46,7 @@ through `createCommitOnBranch` are GitHub-signed, which is how they satisfy
 
 **The validation that runs INSIDE `update.yml` before the commit is the only
 gate between a bad render and `scoop install`**, because the bot's push skips
-the required checks. It is covered by `tests/update-workflow.test.sh`, which
+the required checks. It is covered by `tests/publication/update-workflow.test.sh`, which
 extracts the workflow's own `run:` blocks and executes them as they ship
 rather than against a copy.
 
@@ -58,8 +58,8 @@ request: an unsigned human commit would be a red run within a minute.
 The renderer refuses versions below the served version using SemVer precedence
 (pre-releases precede stable releases; build metadata does not affect ordering).
 For a reviewed rollback, run
-`ALLOW_RELEASE_DOWNGRADE=1 ./scripts/render-manifests.sh` manually, validate with
-`./scripts/check-manifests.sh`, and submit the generated diff through a pull request.
+`ALLOW_RELEASE_DOWNGRADE=1 ./scripts/release/render-manifests.sh` manually, validate with
+`./scripts/artifacts/check-manifests.sh`, and submit the generated diff through a pull request.
 The override logs a warning naming the product and both versions; signature and
 provenance checks still apply. `update.yml` never sets this variable, including
 on `workflow_dispatch`, so dispatching the scheduled updater cannot enable it.
@@ -103,11 +103,11 @@ back into something a script can read. Compare the workflow, where the same
 scripts are joined with `&&` and the first failure ends the job.
 
 **Every script in `scripts/` needs a test.**
-`scripts/check-test-coverage.sh` fails when one does not, itself included --
+`scripts/quality/check-test-coverage.sh` fails when one does not, itself included --
 it lives in `scripts/`, so deleting its test makes it report itself.
 
 **Every test must be wired into a workflow.**
-`tests/ci-runs-every-test.test.sh` fails when one is not. An unregistered test
+`tests/ci/suites/ci-runs-every-test.test.sh` fails when one is not. An unregistered test
 sits in `tests/`, passes by hand, and reads as coverage while CI never runs
 it. That happened in the sibling `apt` repository and went unnoticed for a day.
 

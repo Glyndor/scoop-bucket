@@ -24,7 +24,7 @@ was read on 2026-09-02; lines move, case names do not.
 - **No binary lives here.** Each manifest points at the product's own GitHub
   release (`bucket/podup.json:8,18`) and carries a version, a URL and a hash per
   architecture, and a `bin` mapping (`bucket/podup.json:1-28`).
-- **Windows only** (`scripts/render-manifests.sh:7-8`). There is no winget
+- **Windows only** (`scripts/release/render-manifests.sh:7-8`). There is no winget
   manifest and none is planned: winget means a pull request into
   `microsoft/winget-pkgs` on every release, and the owner declined that.
 - **Pull-based.** No product pushes here and none holds a credential on this
@@ -34,16 +34,16 @@ was read on 2026-09-02; lines move, case names do not.
 
 | Asset | Where | Why it matters |
 |---|---|---|
-| The manifests | `bucket/*.json`, one per row of `PRODUCTS` (`scripts/render-manifests.sh:75-77`) | what `scoop install` reads; the commit is the release |
-| The rendered hashes | `architecture.<arch>.hash` (`bucket/podup.json:9,19`) | the only thing binding a download to the verified release; copied from a signed `SHA256SUMS`, never computed from the asset (`scripts/render-manifests.sh:161-182`) |
-| The organization's Ed25519 release public key | `RELEASE_PUBKEY_B64` (`scripts/render-manifests.sh:25`), with a second slot (`:37`) | the trust anchor; a wrong value fails every render closed (`:22-24`) |
+| The manifests | `bucket/*.json`, one per row of `PRODUCTS` (`scripts/release/render-manifests.sh:75-77`) | what `scoop install` reads; the commit is the release |
+| The rendered hashes | `architecture.<arch>.hash` (`bucket/podup.json:9,19`) | the only thing binding a download to the verified release; copied from a signed `SHA256SUMS`, never computed from the asset (`scripts/release/render-manifests.sh:161-182`) |
+| The organization's Ed25519 release public key | `RELEASE_PUBKEY_B64` (`scripts/release/render-manifests.sh:25`), with a second slot (`:37`) | the trust anchor; a wrong value fails every render closed (`:22-24`) |
 | `main` | the branch the bot commits to (`.github/workflows/update.yml:129-166`) and Scoop clones | it is the published artifact; no build and no review stand between a commit and `scoop install` |
 
 ## Trust boundaries and actors
 
 - **A product's GitHub release.** Untrusted. The tag, `SHA256SUMS` and the
   assets are attacker-influenced until `SHA256SUMS.sig` verifies against the
-  release key (`scripts/render-manifests.sh:159-160`, `:244-247`). The tag stays
+  release key (`scripts/release/render-manifests.sh:159-160`, `:244-247`). The tag stays
   untrusted after that, because it travels beside the signature rather than
   inside it (`:213-216`).
 - **GitHub.** Hosts the repository, the releases and the runner, and signs the
@@ -73,24 +73,24 @@ was read on 2026-09-02; lines move, case names do not.
 
 | Threat | Control | Evidence |
 |---|---|---|
-| A release asset is tampered with (the bytes differ from what the product signed) | the manifest hash comes from `SHA256SUMS` after its signature verified, so the tampered download fails Scoop's hash check | test: `tests/render-manifests.test.sh:166` "the 64bit hash is the one the signed manifest declares" |
-| `SHA256SUMS.sig` is missing, altered or signed by someone else | `verify_sha256sums` fails closed (`scripts/render-manifests.sh:83-149`): the product is skipped, its manifest untouched, and the job ends red (`.github/workflows/update.yml:168-176`) | test: `tests/render-manifests.test.sh:186` "an unverifiable signature skips the product", `:187` "and writes no manifest", `:212` "the run still fails, so the skip is not silent" |
-| The signing key is wrong, stale or rotated under the bucket | a key that did not sign the release fails every render; no environment variable can replace the constant (`scripts/render-manifests.sh:39-44`) | test: `:238` "the environment cannot swap the trust anchor", `:353` "a well-formed key that did not sign it fails as a signature", `:269` "two wrong keys still fail closed" |
-| `SHA256SUMS` is well signed but malformed (an asset listed twice, a non-hex or short digest) | `hash_of` demands exactly one 64-character hex entry per asset (`scripts/render-manifests.sh:161-182`) | test: `:363` "an asset listed twice is rejected", `:377` "a non-hexadecimal checksum is rejected", `:389` "a short digest is rejected" |
-| A release tag carries code or a path | the version is held to a fixed character set before it is interpolated (`scripts/render-manifests.sh:229-241`) | test: `:286` "a release tag carrying code is refused" |
-| A compromised product repository publishes a malicious release under a valid signature | **none.** The bucket proves the release is the one the product signed, not that it is safe. The signing key lives in the product's release job (`.github/workflows/update.yml:38-39`), so whoever controls that job signs what they like; the bucket renders it within the hour and validation passes it. It also compares no versions, so an older release re-signed and published as latest is rendered as is. What the bucket does refuse: a tag outside the version alphabet, a `SHA256SUMS` that does not verify, a listed-twice or malformed digest. The rest is the product's threat model | measurement: `scripts/render-manifests.sh` contains no version comparison, 2026-09-02 |
+| A release asset is tampered with (the bytes differ from what the product signed) | the manifest hash comes from `SHA256SUMS` after its signature verified, so the tampered download fails Scoop's hash check | test: `tests/release/render-manifests.test.sh:166` "the 64bit hash is the one the signed manifest declares" |
+| `SHA256SUMS.sig` is missing, altered or signed by someone else | `verify_sha256sums` fails closed (`scripts/release/render-manifests.sh:83-149`): the product is skipped, its manifest untouched, and the job ends red (`.github/workflows/update.yml:168-176`) | test: `tests/release/render-manifests.test.sh:186` "an unverifiable signature skips the product", `:187` "and writes no manifest", `:212` "the run still fails, so the skip is not silent" |
+| The signing key is wrong, stale or rotated under the bucket | a key that did not sign the release fails every render; no environment variable can replace the constant (`scripts/release/render-manifests.sh:39-44`) | test: `:238` "the environment cannot swap the trust anchor", `:353` "a well-formed key that did not sign it fails as a signature", `:269` "two wrong keys still fail closed" |
+| `SHA256SUMS` is well signed but malformed (an asset listed twice, a non-hex or short digest) | `hash_of` demands exactly one 64-character hex entry per asset (`scripts/release/render-manifests.sh:161-182`) | test: `:363` "an asset listed twice is rejected", `:377` "a non-hexadecimal checksum is rejected", `:389` "a short digest is rejected" |
+| A release tag carries code or a path | the version is held to a fixed character set before it is interpolated (`scripts/release/render-manifests.sh:229-241`) | test: `:286` "a release tag carrying code is refused" |
+| A compromised product repository publishes a malicious release under a valid signature | **none.** The bucket proves the release is the one the product signed, not that it is safe. The signing key lives in the product's release job (`.github/workflows/update.yml:38-39`), so whoever controls that job signs what they like; the bucket renders it within the hour and validation passes it. It also compares no versions, so an older release re-signed and published as latest is rendered as is. What the bucket does refuse: a tag outside the version alphabet, a `SHA256SUMS` that does not verify, a listed-twice or malformed digest. The rest is the product's threat model | measurement: `scripts/release/render-manifests.sh` contains no version comparison, 2026-09-02 |
 
 ### `main`
 
 | Threat | Control | Evidence |
 |---|---|---|
-| A human with Write commits a malicious manifest | three partial controls and a named gap. (1) the ruleset on `main`: pull request required, required status checks, `required_signatures`, no bypass for humans (it is a ruleset, not in the tree). (2) The next hourly render overwrites a hand edit for any product whose release renders (`scripts/render-manifests.sh:289-302`, `CONTRIBUTING.md:17-19`). (3) `dco-on-main.yml` reports a human commit without `Signed-off-by` after it lands (`.github/workflows/dco-on-main.yml:36-38`, `scripts/check-dco-on-main.sh:84-92`); the pull request `dco` check is required. The gap: validation reads structure only (`scripts/check-manifests.sh:36-42`), so a signed, hand-committed manifest whose `url` points elsewhere passes, and if that product's release stops rendering the hand edit is kept (`scripts/render-manifests.sh:319-323`) | test for (3): `tests/check-dco-on-main.test.sh:72` "an unsigned human commit fails", `:112` "a commit whose author field impersonates the bot is still reported". (1) is a ruleset, not in the tree. (2): `tests/render-manifests.test.sh:213` "the skipped product keeps the manifest it had" pins the gap, not the control |
-| A manifest `url` points outside the product's GitHub release | the validator holds every `url` to a Glyndor release URL; on the rendered path the URL is built from the `PRODUCTS` repository and the verified tag, never read from the release (`scripts/render-manifests.sh:271`, `:278`, `:283`) | test: `tests/render-manifests.test.sh:163` "the 64bit url points at the tagged asset". A hand-committed URL inside that pattern but for the wrong tag still passes, see the row above |
-| A manifest that is not JSON, lacks a field, or an emptied `bucket/` reaches `main` | `scripts/check-manifests.sh` runs inside the job before the commit (`.github/workflows/update.yml:113-127`) and on every push and pull request (`.github/workflows/tests.yml:75-89`); an empty bucket is an error, not a vacuous pass (`scripts/check-manifests.sh:30-33`) | test: `tests/check-manifests.test.sh:123` "a file that is not JSON is refused", `:132` "an empty bucket is refused rather than passing vacuously", `:101` per-architecture fields; `tests/update-workflow.test.sh:162` "an emptied bucket/ fails validation" |
-| The bot's commit lands unsigned, or on a `main` that moved since checkout | `createCommitOnBranch` with `expectedHeadOid` (`.github/workflows/update.yml:140-143`, `:156`); the concurrency group serialises runs (`:60-62`) | test: `tests/update-workflow.test.sh:244` "the payload uses createCommitOnBranch", `:246` "and pins expectedHeadOid" |
-| `bucket/` disagrees with `PRODUCTS` | `scripts/check-products-consistent.sh` on every push and pull request (`.github/workflows/tests.yml:59-73`) | test: `tests/check-products-consistent.test.sh:68` "a missing manifest file fails" |
+| A human with Write commits a malicious manifest | three partial controls and a named gap. (1) the ruleset on `main`: pull request required, required status checks, `required_signatures`, no bypass for humans (it is a ruleset, not in the tree). (2) The next hourly render overwrites a hand edit for any product whose release renders (`scripts/release/render-manifests.sh:289-302`, `CONTRIBUTING.md:17-19`). (3) `dco-on-main.yml` reports a human commit without `Signed-off-by` after it lands (`.github/workflows/dco-on-main.yml:36-38`, `scripts/governance/check-dco-on-main.sh:84-92`); the pull request `dco` check is required. The gap: validation reads structure only (`scripts/artifacts/check-manifests.sh:36-42`), so a signed, hand-committed manifest whose `url` points elsewhere passes, and if that product's release stops rendering the hand edit is kept (`scripts/release/render-manifests.sh:319-323`) | test for (3): `tests/governance/check-dco-on-main.test.sh:72` "an unsigned human commit fails", `:112` "a commit whose author field impersonates the bot is still reported". (1) is a ruleset, not in the tree. (2): `tests/release/render-manifests.test.sh:213` "the skipped product keeps the manifest it had" pins the gap, not the control |
+| A manifest `url` points outside the product's GitHub release | the validator holds every `url` to a Glyndor release URL; on the rendered path the URL is built from the `PRODUCTS` repository and the verified tag, never read from the release (`scripts/release/render-manifests.sh:271`, `:278`, `:283`) | test: `tests/release/render-manifests.test.sh:163` "the 64bit url points at the tagged asset". A hand-committed URL inside that pattern but for the wrong tag still passes, see the row above |
+| A manifest that is not JSON, lacks a field, or an emptied `bucket/` reaches `main` | `scripts/artifacts/check-manifests.sh` runs inside the job before the commit (`.github/workflows/update.yml:113-127`) and on every push and pull request (`.github/workflows/tests.yml:75-89`); an empty bucket is an error, not a vacuous pass (`scripts/artifacts/check-manifests.sh:30-33`) | test: `tests/artifacts/check-manifests.test.sh:123` "a file that is not JSON is refused", `:132` "an empty bucket is refused rather than passing vacuously", `:101` per-architecture fields; `tests/publication/update-workflow.test.sh:162` "an emptied bucket/ fails validation" |
+| The bot's commit lands unsigned, or on a `main` that moved since checkout | `createCommitOnBranch` with `expectedHeadOid` (`.github/workflows/update.yml:140-143`, `:156`); the concurrency group serialises runs (`:60-62`) | test: `tests/publication/update-workflow.test.sh:244` "the payload uses createCommitOnBranch", `:246` "and pins expectedHeadOid" |
+| `bucket/` disagrees with `PRODUCTS` | `scripts/artifacts/check-products-consistent.sh` on every push and pull request (`.github/workflows/tests.yml:59-73`) | test: `tests/artifacts/check-products-consistent.test.sh:68` "a missing manifest file fails" |
 
-`scripts/check-manifests.sh` checks a non-empty `version` string, `homepage`
+`scripts/artifacts/check-manifests.sh` checks a non-empty `version` string, `homepage`
 and `license` strings, a non-empty `architecture` object, a `bin` array per
 architecture, a `url` that is a `github.com/Glyndor/.../releases/` URL and a
 `hash` of 64 hex characters. What it cannot check: that the hash matches any
@@ -101,16 +101,16 @@ hand-committed file.
 
 | Threat | Control | Evidence |
 |---|---|---|
-| The update job stalls (dark cron, rotated key, GitHub outage) and the bucket freezes silently | `freshness-update` fails when the newest successful scheduled run of `update.yml` is older than `max-age-days: 3` (`.github/workflows/freshness.yml:55-62`); it runs twice daily and on every push and pull request (`:40-44`), and a second watcher watches it (`:83-90`) | test: `tests/reusable-schedule-freshness.test.sh:120` "an 11-day-old run fails the 10-day limit", `:132` "no successful run on record fails". The caller's inputs are read, not tested |
+| The update job stalls (dark cron, rotated key, GitHub outage) and the bucket freezes silently | `freshness-update` fails when the newest successful scheduled run of `update.yml` is older than `max-age-days: 3` (`.github/workflows/freshness.yml:55-62`); it runs twice daily and on every push and pull request (`:40-44`), and a second watcher watches it (`:83-90`) | test: `tests/ci/reusable/reusable-schedule-freshness.test.sh:120` "an 11-day-old run fails the 10-day limit", `:132` "no successful run on record fails". The caller's inputs are read, not tested |
 | A hung run holds the concurrency group | `timeout-minutes: 10` against a measured 13 to 20 seconds (`.github/workflows/update.yml:70-75`) | none; measurement read off `update.yml:75`, 2026-09-02 |
 | A checkout persists the job token | `persist-credentials: false` on every checkout | measurement: `grep -c 'actions/checkout@' .github/workflows/*.yml` against `grep -c 'persist-credentials: false' .github/workflows/*.yml`; no test |
-| A third-party action runs in CI | one does: `actions/create-github-app-token` in `update.yml`, pinned by full SHA, and it receives the app's private key. Everything else is a local reusable (`./.github/workflows/reusable-*.yml`) or a GitHub-owned action pinned by full SHA (`actions/checkout`, `actions/setup-go`, `actions/cache`). The reusables are copies taken from a named tag and compared daily with the sibling channels (`.github/workflows/drift.yml`, `scripts/check-reusable-drift.sh`) | measurement: `grep -n 'uses:' .github/workflows/*.yml`; none as a test. The tooling-isolation assertion in `reusable-workflow-lint.yml` refuses `cargo`, `go`, `gem`, `npm` and unpinned `pip` installs in a job that references `secrets.*`; it also refuses a `uses:` action from any owner other than `actions` or `github` in a job that references `secrets.*`, so the first-party app-token action passes and a third-party one would not |
-| A test exists and nothing runs it; a script exists and nothing tests it | `tests/ci-runs-every-test.test.sh` and `scripts/check-test-coverage.sh`, each including itself (`scripts/check-test-coverage.sh:4-8`) | test: `tests/ci-runs-every-test.test.sh:59` "every test in tests/ is invoked by a workflow", `:75` "this watcher is itself invoked by a workflow" |
-| A `run:` block in `update.yml` is edited and no test notices | the suite extracts the workflow's own `run:` blocks and executes them as they ship (`tests/update-workflow.test.sh:16-17`, `:50-66`) | test: `:114-119`, three "was extracted from the workflow" cases |
+| A third-party action runs in CI | one does: `actions/create-github-app-token` in `update.yml`, pinned by full SHA, and it receives the app's private key. Everything else is a local reusable (`./.github/workflows/reusable-*.yml`) or a GitHub-owned action pinned by full SHA (`actions/checkout`, `actions/setup-go`, `actions/cache`). The reusables are copies taken from a named tag and compared daily with the sibling channels (`.github/workflows/drift.yml`, `scripts/monitoring/check-reusable-drift.sh`) | measurement: `grep -n 'uses:' .github/workflows/*.yml`; none as a test. The tooling-isolation assertion in `reusable-workflow-lint.yml` refuses `cargo`, `go`, `gem`, `npm` and unpinned `pip` installs in a job that references `secrets.*`; it also refuses a `uses:` action from any owner other than `actions` or `github` in a job that references `secrets.*`, so the first-party app-token action passes and a third-party one would not |
+| A test exists and nothing runs it; a script exists and nothing tests it | `tests/ci/suites/ci-runs-every-test.test.sh` and `scripts/quality/check-test-coverage.sh`, each including itself (`scripts/quality/check-test-coverage.sh:4-8`) | test: `tests/ci/suites/ci-runs-every-test.test.sh:59` "every test in tests/ is invoked by a workflow", `:75` "this watcher is itself invoked by a workflow" |
+| A `run:` block in `update.yml` is edited and no test notices | the suite extracts the workflow's own `run:` blocks and executes them as they ship (`tests/publication/update-workflow.test.sh:16-17`, `:50-66`) | test: `:114-119`, three "was extracted from the workflow" cases |
 
 ## Key rotation
 
-The renderer carries two key slots (`scripts/render-manifests.sh:25`, `:37`),
+The renderer carries two key slots (`scripts/release/render-manifests.sh:25`, `:37`),
 and a release verifies if any configured key signed it; an empty slot is not a
 key, and exhausting both is an error (`:98-101`, `:140-147`). The organization's
 rotation is make-before-break (`:27-36`):
@@ -126,7 +126,7 @@ signature verification, no manifest changes, the job is red every hour, and
 the bucket stays on the last version it could verify until the freshness
 watcher goes red at three days. Nothing wrong ships; the channel stops.
 
-Tests: `tests/render-manifests.test.sh:258` "a release signed by the second key
+Tests: `tests/release/render-manifests.test.sh:258` "a release signed by the second key
 still verifies", `:262` "the first key alone still verifies", `:269` "two wrong
 keys still fail closed".
 
@@ -167,14 +167,14 @@ than oversights.
 
 ```sh
 git clone https://github.com/Glyndor/scoop-bucket && cd scoop-bucket
-grep -n 'RELEASE_PUBKEY' scripts/render-manifests.sh             # the two slots
+grep -n 'RELEASE_PUBKEY' scripts/release/render-manifests.sh             # the two slots
 grep -n 'timeout-minutes\|group:\|contents:' .github/workflows/update.yml
 grep -c 'persist-credentials: false' .github/workflows/*.yml     # one per checkout
 grep -n 'uses:' .github/workflows/*.yml                          # no third-party action
-./tests/render-manifests.test.sh                                 # signature, slots, tag, digests
-./tests/update-workflow.test.sh                                  # the job's own run: blocks
-./tests/check-manifests.test.sh                                  # what jq refuses
-./tests/check-dco-on-main.test.sh                                # detection on main
+./tests/release/render-manifests.test.sh                                 # signature, slots, tag, digests
+./tests/publication/update-workflow.test.sh                                  # the job's own run: blocks
+./tests/artifacts/check-manifests.test.sh                                  # what jq refuses
+./tests/governance/check-dco-on-main.test.sh                                # detection on main
 ```
 
 A control is only as real as its red. Delete it from the file the row names,
