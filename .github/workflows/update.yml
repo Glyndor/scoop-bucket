@@ -99,7 +99,7 @@ jobs:
           # broken is exactly what this replaced. Any other non-zero is a failure
           # before any product was reached, and stops the run here.
           rc=0
-          ./scripts/render-manifests.sh || rc=$?
+          ./scripts/release/render-manifests.sh || rc=$?
           case "$rc" in
             0) echo "partial=0" >> "$GITHUB_OUTPUT" ;;
             3) echo "partial=1" >> "$GITHUB_OUTPUT" ;;
@@ -162,7 +162,7 @@ jobs:
           # succeeds, so "every manifest is valid" would be true of a bucket
           # that serves nobody -- which is how an emptied bucket reaches
           # `scoop install` with nothing between it and the user.
-          ./scripts/check-manifests.sh
+          ./scripts/artifacts/check-manifests.sh
 
       # main now has required status checks, and a direct push has none, so
       # the commit below needs a bypass actor. github-actions[bot] cannot be

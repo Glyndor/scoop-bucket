@@ -175,4 +175,4 @@ jobs:
           WORKFLOW: tests.yml
         run: |
           set -euo pipefail
-          ./scripts/check-suite-on-main.sh
+          ./scripts/monitoring/check-suite-on-main.sh
