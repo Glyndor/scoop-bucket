@@ -154,6 +154,76 @@ check "the whole render fails closed, not just the asset" "3" "$rc"
 check "and the existing manifest is left byte-identical" "PRE-EXISTING" \
 	"$(cat "$WORK/p6/bucket/podup.json")"
 
+# A valid signature and provenance for an older latest tag cannot roll the
+# channel back. Removing the version comparison must make these cases fail.
+unset ALLOW_RELEASE_DOWNGRADE
+while IFS='|' read -r served candidate; do
+	new_root "$WORK/rollback"
+	generator_with "$WORK/rollback/scripts/render-manifests.sh" "$PODUP"
+	publish Glyndor/podup "v$served" podup-windows-x86_64.exe podup-windows-arm64.exe
+	run "$WORK/rollback/scripts/render-manifests.sh" "$WORK/rollback"
+	cp "$WORK/rollback/bucket/podup.json" "$WORK/before.json"
+	# Pruning would be a publication too; a fatal rejection must stop it.
+	cp "$WORK/before.json" "$WORK/rollback/bucket/retired.json"
+	publish Glyndor/podup "v$candidate" podup-windows-x86_64.exe podup-windows-arm64.exe
+	rc=0; run "$WORK/rollback/scripts/render-manifests.sh" "$WORK/rollback" || rc=$?
+	check "$served -> $candidate is a fatal downgrade, not a partial render" "1" "$rc"
+	check "the downgrade error names the product and both versions" "1" \
+		"$(grep -Fc "::error::Glyndor/podup: refusing release downgrade from $served to $candidate" "$WORK/out" || true)"
+	check "the served manifest stays byte-identical" "0" \
+		"$(cmp -s "$WORK/before.json" "$WORK/rollback/bucket/podup.json"; echo $?)"
+	check "the downgrade reports no publication" "0" "$(grep -c '^rendered ' "$WORK/out" || true)"
+	check "the downgrade does not prune published files" "1" \
+		"$(find "$WORK/rollback/bucket" -name retired.json | wc -l)"
+done <<'CASES'
+9.9.9|1.0.0
+1.0.0|1.0.0-rc1
+1.0.0-rc.10|1.0.0-rc.2
+1.0.0-alpha|1.0.0-1
+1.0.0-rc.1|1.0.0-rc
+CASES
+
+# Only the explicit value 1 authorizes a rollback, and it must be logged.
+new_root "$WORK/override"
+generator_with "$WORK/override/scripts/render-manifests.sh" "$PODUP"
+publish Glyndor/podup v9.9.9 podup-windows-x86_64.exe podup-windows-arm64.exe
+run "$WORK/override/scripts/render-manifests.sh" "$WORK/override"
+publish Glyndor/podup v1.0.0 podup-windows-x86_64.exe podup-windows-arm64.exe
+rc=0; ALLOW_RELEASE_DOWNGRADE=0 run "$WORK/override/scripts/render-manifests.sh" "$WORK/override" || rc=$?
+check "an inactive bypass still refuses the downgrade" "1" "$rc"
+rc=0; ALLOW_RELEASE_DOWNGRADE=1 run "$WORK/override/scripts/render-manifests.sh" "$WORK/override" || rc=$?
+check "an explicit rollback succeeds" "0" "$rc"
+check "the rollback publishes the older version" "1.0.0" "$(jq -r .version "$WORK/override/bucket/podup.json")"
+check "the rollback is visible in the log" "1" \
+	"$(grep -Fc '::warning::Glyndor/podup: allowing release downgrade from 9.9.9 to 1.0.0 (ALLOW_RELEASE_DOWNGRADE=1)' "$WORK/out" || true)"
+check "the scheduled workflow never sets the bypass" "0" \
+	"$(grep -c ALLOW_RELEASE_DOWNGRADE "$HERE/.github/workflows/update.yml" || true)"
+
+# Build metadata has no precedence.
+for candidate in 1.0.0+build.2 1.0.0+build.1; do
+	publish Glyndor/podup "v$candidate" podup-windows-x86_64.exe podup-windows-arm64.exe
+	cp "$WORK/override/bucket/podup.json" "$WORK/before.json"
+	rc=0; run "$WORK/override/scripts/render-manifests.sh" "$WORK/override" || rc=$?
+	check "$candidate has equal precedence" "0" "$rc"
+	check "equal build precedence is rendered for the new tag, not refused (one URL per architecture)" "2" \
+		"$(grep -c "/releases/download/v$candidate/" "$WORK/override/bucket/podup.json")"
+done
+
+# Advancing pre-release identifiers and promoting to stable both publish.
+while IFS='|' read -r served candidate; do
+	new_root "$WORK/advance"
+	generator_with "$WORK/advance/scripts/render-manifests.sh" "$PODUP"
+	publish Glyndor/podup "v$served" podup-windows-x86_64.exe podup-windows-arm64.exe
+	run "$WORK/advance/scripts/render-manifests.sh" "$WORK/advance"
+	publish Glyndor/podup "v$candidate" podup-windows-x86_64.exe podup-windows-arm64.exe
+	rc=0; run "$WORK/advance/scripts/render-manifests.sh" "$WORK/advance" || rc=$?
+	check "$served -> $candidate succeeds" "0" "$rc"
+	check "the advancing version is published" "$candidate" "$(jq -r .version "$WORK/advance/bucket/podup.json")"
+done <<'CASES'
+1.0.0-rc.2|1.0.0-rc.10
+1.0.0-rc1|1.0.0
+CASES
+
 echo
 echo "$pass passed, $fail failed"
 printf 'DONE %s %d %d\n' "${BASH_SOURCE[0]##*/}" "$pass" "$fail"

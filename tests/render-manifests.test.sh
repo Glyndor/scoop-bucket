@@ -60,6 +60,20 @@ check "every field ci.yml requires is present" "true" \
 	          and (.license|type=="string")
 	          and (.architecture|to_entries|all(.value.url and .value.hash and (.value.bin|type=="array")))' "$M")"
 
+# An equal release is not a downgrade: it renders as before.
+rc=0; run "$WORK/r1/scripts/render-manifests.sh" "$WORK/r1" || rc=$?
+check "the served version is not refused" "0" "$rc"
+check "and it is rendered as before, not skipped" "1" "$(grep -c '^rendered ' "$WORK/out" || true)"
+
+publish Glyndor/podup v10.0.0 podup-windows-x86_64.exe podup-windows-arm64.exe
+new_root "$WORK/upgrade"
+generator_with "$WORK/upgrade/scripts/render-manifests.sh" "$PODUP"
+cp "$M" "$WORK/upgrade/bucket/podup.json"
+rc=0; run "$WORK/upgrade/scripts/render-manifests.sh" "$WORK/upgrade" || rc=$?
+check "a numerically higher release renders" "0" "$rc"
+check "the higher release reaches the channel" "10.0.0" "$(jq -r .version "$WORK/upgrade/bucket/podup.json")"
+check "the higher release reports publication" "1" "$(grep -c '^rendered bucket/podup.json -> 10.0.0$' "$WORK/out" || true)"
+
 # --- fail closed ------------------------------------------------------------
 
 publish Glyndor/podup v9.9.9 podup-windows-x86_64.exe podup-windows-arm64.exe
@@ -186,6 +200,9 @@ check "the environment cannot swap the trust anchor" "3" "$rc"
 # phase and starts failing when the second lands -- silently, because the
 # channel is pull-based and a failed render just stops updating the bucket.
 
+# These cases test keys independently of the previously served version.
+rm -f "$M"
+
 rc=0
 ( cd "$WORK/r1" && "$WORK/r1/scripts/render-manifests.sh" --pubkey2 ) >/dev/null 2>&1 || rc=$?
 check "--pubkey2 without a value is a usage error" "2" "$rc"
@@ -237,6 +254,7 @@ check "and no manifest was written from it" "0" \
 # Tags that are merely unusual must still render, or the guard is a version
 # policy rather than an injection guard.
 for good in "v1.0.0-rc.1" "v1.0.0+build.5" "v10.20.30"; do
+	rm -f "$M"
 	publish "Glyndor/podup" "$good" podup-windows-x86_64.exe podup-windows-arm64.exe
 	rc=0
 	( cd "$WORK/r1" && "$WORK/r1/scripts/render-manifests.sh" --pubkey "$PUBKEY" ) >/dev/null 2>&1 || rc=$?
@@ -244,6 +262,7 @@ for good in "v1.0.0-rc.1" "v1.0.0+build.5" "v10.20.30"; do
 done
 
 # Restore the fixture the later cases expect.
+rm -f "$M"
 publish "Glyndor/podup" "v1.2.3" podup-windows-x86_64.exe podup-windows-arm64.exe
 
 # --- a broken trust anchor is not a bad signature ---------------------------

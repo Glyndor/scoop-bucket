@@ -53,6 +53,17 @@ rather than against a copy.
 `dco-on-main.yml` stays as detection for anything that lands without a pull
 request: an unsigned human commit would be a red run within a minute.
 
+## Intentional release rollbacks
+
+The renderer refuses versions below the served version using SemVer precedence
+(pre-releases precede stable releases; build metadata does not affect ordering).
+For a reviewed rollback, run
+`ALLOW_RELEASE_DOWNGRADE=1 ./scripts/render-manifests.sh` manually, validate with
+`./scripts/check-manifests.sh`, and submit the generated diff through a pull request.
+The override logs a warning naming the product and both versions; signature and
+provenance checks still apply. `update.yml` never sets this variable, including
+on `workflow_dispatch`, so dispatching the scheduled updater cannot enable it.
+
 ## Branch flow
 
 ```
