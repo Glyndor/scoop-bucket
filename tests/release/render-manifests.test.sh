@@ -350,6 +350,44 @@ rc=0; run "$WORK/r9/scripts/release/render-manifests.sh" "$WORK/r9" || rc=$?
 check "a short digest is rejected" "3" "$rc"
 check "the error gives the length" "1" "$(grep -c 'is 6 characters, not 64' "$WORK/out")"
 
+# The size cap is exact: a signed manifest of exactly MAX_SUMS_BYTES passes the
+# size check and is rendered, one byte more is refused as oversized.
+for size in 4096 4097; do
+	publish Glyndor/podup v9.9.9 podup-windows-x86_64.exe podup-windows-arm64.exe
+	cp "$RELEASES/Glyndor__podup/SHA256SUMS" "$WORK/tmpsums"
+	pad=$(( size - $(stat -c%s "$WORK/tmpsums") - 64 - 2 - 1 ))
+	{
+		cat "$WORK/tmpsums"
+		printf '%064d  ' 0
+		head -c "$pad" /dev/zero | tr '\0' x
+		printf '\n'
+	} > "$WORK/tmpsums2"
+	check "the fixture manifest is exactly $size bytes" "$size" "$(stat -c%s "$WORK/tmpsums2")"
+	resign "$WORK/tmpsums2" Glyndor/podup
+	new_root "$WORK/cap$size"
+	generator_with "$WORK/cap$size/scripts/release/render-manifests.sh" "$PODUP"
+	rc=0; run "$WORK/cap$size/scripts/release/render-manifests.sh" "$WORK/cap$size" || rc=$?
+	if [ "$size" = 4096 ]; then
+		check "a signed manifest of exactly 4096 bytes is accepted" "0" "$rc"
+	else
+		check "a signed manifest of 4097 bytes is refused" "3" "$rc"
+		check "and is named as over the cap" "1" "$(grep -c 'over the 4096-byte cap' "$WORK/out")"
+	fi
+done
+
+# An uppercase digest in the signed manifest is well-formed hexadecimal, but the
+# renderer compares it with the lowercase sha256sum of the download: it must be
+# refused rather than rendered under a digest that was not the one verified.
+publish Glyndor/podup v9.9.9 podup-windows-x86_64.exe podup-windows-arm64.exe
+awk '{ print toupper($1) "  " $2 }' "$RELEASES/Glyndor__podup/SHA256SUMS" > "$WORK/tmpsums"
+resign "$WORK/tmpsums" Glyndor/podup
+new_root "$WORK/upper"
+generator_with "$WORK/upper/scripts/release/render-manifests.sh" "$PODUP"
+rc=0; run "$WORK/upper/scripts/release/render-manifests.sh" "$WORK/upper" || rc=$?
+check "an uppercase digest in the manifest is not rendered" "3" "$rc"
+check "and the refusal is the digest comparison" "1" "$(grep -c 'has digest' "$WORK/out")"
+check "and no manifest is written" "0" "$(find "$WORK/upper/bucket" -name '*.json' | wc -l)"
+
 # --- two healthy products together -------------------------------------------
 # The plain multi-product case: the suite otherwise only ever pairs a good
 # product with a broken one, and this is the shape the second real product takes.
