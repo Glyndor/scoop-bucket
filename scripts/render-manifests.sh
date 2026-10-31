@@ -11,7 +11,7 @@
 #
 # Exit codes: 0 every product rendered; 3 at least one product was skipped and
 # the rest rendered (update.yml commits those, then fails the job); anything
-# else is a failure before any product was reached.
+# else is a fatal failure and update.yml must not publish any changes.
 set -euo pipefail
 
 # The org's Ed25519 release-signing public key, raw and unpadded base64.
@@ -364,7 +364,7 @@ hash_of() { # $1=asset
 render_product() { # $1=table entry
 	local entry="$1"
 	local repo manifest desc a64 aarm tag version h64 harm base arches
-	local verify_asset verify_sha
+	local verify_asset verify_sha served order
 
 	IFS='|' read -r repo manifest desc a64 aarm <<<"$entry"
 
@@ -466,6 +466,57 @@ render_product() { # $1=table entry
 			return 1
 		}
 	done
+
+	if [ -f "$root/bucket/$manifest.json" ]; then
+		served="$(jq -er '.version | select(type == "string" and length > 0)' "$root/bucket/$manifest.json")" || {
+			echo "::error::$repo: cannot read the served version; refusing to replace the manifest" >&2
+			exit 1
+		}
+		# SemVer precedence: compare numeric major/minor/patch, then dotted
+		# pre-release identifiers (numeric before lexical); stable beats any
+		# pre-release. Ignore +build metadata. Invalid versions fail closed.
+		order="$(python3 - "$version" "$served" <<'PY'
+import re
+import sys
+
+def parse(value):
+    match = re.fullmatch(
+        r"(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)"
+        r"(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?"
+        r"(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?", value)
+    if not match:
+        raise ValueError(f"invalid SemVer version: {value}")
+    major, minor, patch, prerelease = match.groups()
+    identifiers = []
+    for part in prerelease.split(".") if prerelease else []:
+        if part.isdigit():
+            if len(part) > 1 and part.startswith("0"):
+                raise ValueError(f"invalid numeric pre-release identifier: {value}")
+            identifiers.append((0, int(part)))
+        else:
+            identifiers.append((1, part))
+    return (int(major), int(minor), int(patch), prerelease is None, identifiers)
+
+try:
+    candidate, served = map(parse, sys.argv[1:])
+    print((candidate > served) - (candidate < served))
+except ValueError as error:
+    print(error, file=sys.stderr)
+    sys.exit(1)
+PY
+)" || {
+			echo "::error::$repo: cannot compare served version $served with candidate $version" >&2
+			exit 1
+		}
+		if [ "$order" = "-1" ]; then
+			if [ "${ALLOW_RELEASE_DOWNGRADE:-}" = "1" ]; then
+				echo "::warning::$repo: allowing release downgrade from $served to $version (ALLOW_RELEASE_DOWNGRADE=1)" >&2
+			else
+				echo "::error::$repo: refusing release downgrade from $served to $version" >&2
+				exit 1
+			fi
+		fi
+	fi
 
 	# Build the architecture object from only what the product ships, with jq so
 	# the result is valid JSON either way.
