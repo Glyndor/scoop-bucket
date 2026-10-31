@@ -107,6 +107,21 @@ check "and the message names the signer check" "1" \
 check "and no manifest is written from it" "0" \
 	"$(find "$WORK/p4/bucket" -name '*.json' | wc -l)"
 
+# gh can exit 0 and still print nothing that proves anything. Each of these
+# shapes must be refused, with the "no entries" message and nothing written.
+for shape in empty-list empty-object json-null not-json; do
+	publish Glyndor/podup v9.9.9 podup-windows-x86_64.exe podup-windows-arm64.exe
+	export ATTEST_STUB_OUTCOME="$shape"
+	new_root "$WORK/shape-$shape"
+	generator_with "$WORK/shape-$shape/scripts/release/render-manifests.sh" "$PODUP"
+	rc=0
+	out="$( cd "$WORK/shape-$shape" && "$WORK/shape-$shape/scripts/release/render-manifests.sh" --pubkey "$PUBKEY" 2>&1 )" || rc=$?
+	unset ATTEST_STUB_OUTCOME
+	check "a successful verify printing $shape is refused" "3" "$rc"
+	check "and nothing is written from it ($shape)" "0" \
+		"$(find "$WORK/shape-$shape/bucket" -name '*.json' | wc -l)"
+done
+
 # A digest that verifies but does not match the entry in SHA256SUMS. The
 # requirement calls this out by name: verifying one thing and rendering
 # another is a control that inspects nothing, so the renderer must
