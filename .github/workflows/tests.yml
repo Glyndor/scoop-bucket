@@ -45,6 +45,7 @@ jobs:
         ./tests/ci/suites/check-suite-completeness.test.sh
         ./tests/release/render-manifests.test.sh
         ./tests/release/render-manifests-attestation.test.sh
+        ./tests/release/render-manifests-products.test.sh
         ./tests/publication/update-workflow.test.sh
         ./tests/artifacts/check-products-consistent.test.sh
         ./tests/artifacts/check-manifests.test.sh

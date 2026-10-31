@@ -378,6 +378,19 @@ render_product() { # $1=table entry
 		}
 	done
 
+	# The manifest name becomes a file name under bucket/ and the shim alias, so
+	# it is held to what a manifest name is: lowercase letters, digits, dot, hyphen
+	# and underscore, starting with a letter or a digit. A "/" or ".." would write
+	# outside bucket/, and whitespace, quotes and backslashes have no place in a
+	# file name. The match is made in the C locale: in a UTF-8 one a range such as
+	# a-z also matches accented letters. The roster belongs to this repository, so
+	# this is defence in depth for the day it has an automated source, not an
+	# answer to a known attack.
+	printf '%s' "$manifest" | LC_ALL=C grep -qE '^[a-z0-9][a-z0-9._-]*$' || {
+		echo "::error::the PRODUCTS entry \"$entry\" has an invalid manifest name \"$manifest\""
+		return 1
+	}
+
 	tag="$(gh release view --repo "$repo" --json tagName --jq .tagName)" || {
 		echo "::error::$repo: could not read the latest release"
 		return 1
