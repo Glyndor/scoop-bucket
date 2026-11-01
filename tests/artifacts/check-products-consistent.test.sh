@@ -71,12 +71,20 @@ check "and it is named" "1" "$(said 'sub/evil')"
 B="$(mkbucket dirmanifest alpha)"
 rm -f "$B/bucket/alpha.json"; mkdir "$B/bucket/alpha.json"
 rc=0; run "$B" || rc=$?
-check "a directory named like a manifest does not count as one" "1" "$rc"
+check "a directory named like a manifest is refused" "1" "$rc"
+check "and the error says it is not a regular file" "1" "$(said 'not a regular file')"
 
 B="$(mkbucket dangling alpha)"
 rm -f "$B/bucket/alpha.json"; ln -s /nonexistent/target "$B/bucket/alpha.json"
 rc=0; run "$B" || rc=$?
-check "a dangling link named like a manifest does not count as one" "1" "$rc"
+check "a dangling link named like a manifest is refused" "1" "$rc"
+
+# An undeclared link to a valid manifest must not slip past the roster.
+B="$(mkbucket undeclared-link alpha)"
+ln -s alpha.json "$B/bucket/evil.json"
+rc=0; run "$B" || rc=$?
+check "an undeclared link to a valid manifest is refused" "1" "$rc"
+check "and it is named" "1" "$(said 'evil.json')"
 
 # --- bucket/ is missing a file ---------------------------------------------
 B="$(mkbucket noformula alpha beta)"
