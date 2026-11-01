@@ -391,6 +391,26 @@ check "an untracked first manifest reports changed=1" "1" "$(output changed)"
 check "and the commit step lists it under additions" "1" \
 	"$(jq '.variables.changes.additions | map(select(.path == "bucket/newproduct.json")) | length' "$WORK/gh/.stdin" 2>/dev/null || echo 0)"
 
+# --- a path git would print quoted --------------------------------------------
+# With the default core.quotePath git lists "bucket/caf\303\251.json" in quotes, which
+# is not a file: the base64 of it failed inside an argument, was ignored, and an
+# empty file named with literal quotes was committed to main.
+sandbox "$WORK/u" 0 new
+printf '{"version":"1"}\n' > "$WORK/u/bucket/café.json"
+stub_gh "$WORK/gh-utf"
+rc=0
+( cd "$WORK/u" && \
+	PATH="$WORK/gh-utf:$PATH" \
+	STUB_DIR="$WORK/gh-utf" \
+	REPO="Glyndor/scoop-bucket" \
+	GH_TOKEN="dummy" \
+	bash "$COMMIT" ) > "$WORK/out" 2>&1 || rc=$?
+check "a non-ASCII path does not stop the commit step" "0" "$rc"
+check "its path is sent as the file name, without quotes" "1" \
+	"$(jq -r '.variables.changes.additions[].path' "$WORK/gh-utf/.stdin" 2>/dev/null | grep -cFx 'bucket/café.json')"
+check "and its contents are the file's, not empty" "$(wc -c < "$WORK/u/bucket/café.json" | tr -d ' ')" \
+	"$(jq -r '.variables.changes.additions[] | select(.path == "bucket/café.json") | .contents' "$WORK/gh-utf/.stdin" 2>/dev/null | base64 -d | wc -c | tr -d ' ')"
+
 # --- a deletion-only render --------------------------------------------------
 #
 # A deletion-only render is one whose only effect is removing a tracked
