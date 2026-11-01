@@ -46,7 +46,11 @@ declared="$(awk '/^PRODUCTS=\(/ { inside = 1; next }
 	exit 1
 }
 
-rendered="$(find "$root/bucket" -maxdepth 1 -name '*.json' -printf '%f\n' \
+# Regular files at any depth: a directory or a dangling link named like a
+# manifest is not one, and a file in a subfolder (bucket/sub/evil.json) is a
+# manifest Scoop could still install from, whatever the roster says. It shows
+# up here as "sub/evil" and disagrees with PRODUCTS.
+rendered="$(find "$root/bucket" -type f -name '*.json' -printf '%P\n' \
            | while read -r f; do echo "${f%.json}"; done | sort -u)"
 
 status=0

@@ -61,6 +61,23 @@ B="$(mkbucket agree alpha beta)"
 rc=0; run "$B" || rc=$?
 check "a bucket where all three agree passes" "0" "$rc"
 
+# --- entries that are not regular manifests, or sit in a subfolder ----------
+B="$(mkbucket nested alpha)"
+mkdir -p "$B/bucket/sub"; : > "$B/bucket/sub/evil.json"
+rc=0; run "$B" || rc=$?
+check "a manifest in a subfolder of bucket/ fails" "1" "$rc"
+check "and it is named" "1" "$(said 'sub/evil')"
+
+B="$(mkbucket dirmanifest alpha)"
+rm -f "$B/bucket/alpha.json"; mkdir "$B/bucket/alpha.json"
+rc=0; run "$B" || rc=$?
+check "a directory named like a manifest does not count as one" "1" "$rc"
+
+B="$(mkbucket dangling alpha)"
+rm -f "$B/bucket/alpha.json"; ln -s /nonexistent/target "$B/bucket/alpha.json"
+rc=0; run "$B" || rc=$?
+check "a dangling link named like a manifest does not count as one" "1" "$rc"
+
 # --- bucket/ is missing a file ---------------------------------------------
 B="$(mkbucket noformula alpha beta)"
 rm -f "$B/bucket/beta.json"
