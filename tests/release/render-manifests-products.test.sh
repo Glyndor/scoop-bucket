@@ -87,6 +87,40 @@ check "newline metadata refusal names the missing asset field" "1" \
 	"$(grep -c 'has no a64' "$WORK/out" || true)"
 check "newline metadata writes no JSON" "0" "$(find "$WORK/metadata-newline" -name '*.json' | wc -l)"
 
+# The repository and the asset names reach the download url too.
+raw_generator() { # $1=destination $2=full roster row
+	python3 - "$GENERATOR" "$1" "$2" <<'PY'
+import pathlib, shlex, sys
+source, dest, row = sys.argv[1:]
+text = pathlib.Path(source).read_text()
+start = text.index("PRODUCTS=(\n")
+end = text.index("\n)", start) + 2
+pathlib.Path(dest).write_text(text[:start] + "PRODUCTS=(\n\t" + shlex.quote(row) + "\n)" + text[end:])
+PY
+	chmod +x "$1"
+}
+for bad in 'a"b' 'a\b' 'a b' 'a/b' '..' '-leading' '../x'; do
+	for slot in 3 4; do
+		root_case="$WORK/asset-$slot-${bad//[^A-Za-z0-9]/_}"
+		new_root "$root_case"
+		row="Glyndor/podup|podup|desc|podup-windows-x86_64.exe|podup-windows-arm64.exe"
+		row="$(python3 -c 'import sys; f=sys.argv[1].split("|"); f[int(sys.argv[2])]=sys.argv[3]; print("|".join(f))' "$row" "$slot" "$bad")"
+		raw_generator "$root_case/scripts/release/render-manifests.sh" "$row"
+		rc=0; run "$root_case/scripts/release/render-manifests.sh" "$root_case" || rc=$?
+		check "asset name [$bad] in slot $slot is refused" "3" "$rc"
+		check "and it is named as an invalid asset name ($bad, slot $slot)" "1" "$(grep -c 'invalid asset name' "$WORK/out" || true)"
+		check "and no JSON is written ($bad, slot $slot)" "0" "$(find "$root_case" -name '*.json' | wc -l)"
+	done
+done
+for bad in 'Glyndor' 'Glyndor/' '/podup' 'Glyndor/pod"up' 'Glyndor/a/b' 'Gl yndor/podup'; do
+	root_case="$WORK/repo-${bad//[^A-Za-z0-9]/_}"
+	new_root "$root_case"
+	raw_generator "$root_case/scripts/release/render-manifests.sh" "$bad|podup|desc|podup-windows-x86_64.exe|-"
+	rc=0; run "$root_case/scripts/release/render-manifests.sh" "$root_case" || rc=$?
+	check "repository [$bad] is refused" "3" "$rc"
+	check "and it is named as an invalid repository ($bad)" "1" "$(grep -c 'invalid repository' "$WORK/out" || true)"
+done
+
 echo
 echo "$pass passed, $fail failed"
 printf 'DONE %s %d %d\n' "${BASH_SOURCE[0]##*/}" "$pass" "$fail"
