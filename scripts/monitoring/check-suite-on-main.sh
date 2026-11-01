@@ -134,7 +134,14 @@ EOF
 	)
 
 	for attempt in $(seq 1 "$max_attempts"); do
-		result=$(gh api "$base" --jq "$filter")
+		# A transient API error (a 502, a dropped connection) on one attempt is
+		# not a verdict: it is read like "no run yet" and asked again. A failure
+		# that persists runs out the attempts and fails with the timeout message
+		# below, so nothing is turned into a pass.
+		result=$(gh api "$base" --jq "$filter") || {
+			echo "::warning::gh api failed on attempt $attempt of $max_attempts; asking again" >&2
+			result="EMPTY"
+		}
 
 		if [ "$result" = "EMPTY" ]; then
 			if [ "$attempt" -lt "$max_attempts" ]; then
