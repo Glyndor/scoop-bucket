@@ -79,6 +79,12 @@ rm -f "$B/bucket/alpha.json"; ln -s /nonexistent/target "$B/bucket/alpha.json"
 rc=0; run "$B" || rc=$?
 check "a dangling link named like a manifest is refused" "1" "$rc"
 
+# Windows does not distinguish the case of the extension.
+B="$(mkbucket upper-ext alpha)"
+: > "$B/bucket/Evil.JSON"
+rc=0; run "$B" || rc=$?
+check "an undeclared manifest with an upper-case extension is refused" "1" "$rc"
+
 # An undeclared link to a valid manifest must not slip past the roster.
 B="$(mkbucket undeclared-link alpha)"
 ln -s alpha.json "$B/bucket/evil.json"
