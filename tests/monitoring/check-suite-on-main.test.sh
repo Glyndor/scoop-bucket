@@ -87,6 +87,11 @@ if [ -n "${STUB_JSON:-}" ]; then
 	jq -r "$filter" "$json_path"
 	exit "${STUB_EXIT_CODE:-0}"
 fi
+# STUB_FAIL_FIRST=N: the first N calls fail like a 502, whatever else is set.
+if [ "$idx" -le "${STUB_FAIL_FIRST:-0}" ]; then
+	echo "gh: HTTP 502" >&2
+	exit 1
+fi
 RESP="${STUB_RESPONSES:?stub responses file required}"
 val=$(awk -v n="$idx" 'NR==n {print; exit}' "$RESP")
 printf '%s' "$val"
@@ -237,6 +242,17 @@ for concl in timed_out skipped neutral action_required startup_failure; do
 	out="$(run_script)"; rc=$?
 	check "a completed run concluded '$concl' fails" "1" "$rc"
 done
+
+# --- a transient gh failure on the push path is asked again -------------
+# One 502 must not end a poll that has 31 attempts left; a failure that never
+# clears must still end red, not green.
+printf '%s\n%s\n' "$(push_response completed success abc123)" "$(push_response completed success abc123)" > "$WORK/resp"
+out="$(STUB_FAIL_FIRST=1 run_script_push abc123)"; rc=$?
+check "a push poll survives one failing gh call" "0" "$rc"
+check "and says it is asking again" "1" "$(printf '%s' "$out" | grep -c 'asking again')"
+printf '%s\n' "$(push_response completed success abc123)" > "$WORK/resp"
+out="$(STUB_FAIL_FIRST=99 run_script_push abc123)"; rc=$?
+check "a gh failure that never clears ends red" "1" "$rc"
 
 # --- a completed failing run is reported, with a link -------------------
 printf '%s' "$(schedule_response failure)" > "$WORK/resp"
