@@ -50,8 +50,8 @@ SUB_KEYS='["url","hash","bin"]'
 # every segment with literal dots and slashes, and each path-segment class
 # requires at least one letter or digit so a dots-only segment like `..`
 # does not slip through either.
-URL_RE='^https://github\.com/Glyndor/[A-Za-z0-9_.-]*[A-Za-z0-9][A-Za-z0-9_.-]*/releases/download/v[0-9A-Za-z]*[A-Za-z0-9][0-9A-Za-z.+-]*/[A-Za-z0-9_.-]*[A-Za-z0-9][A-Za-z0-9_.-]*$'
-HASH_RE='^[0-9a-f]{64}$'
+URL_RE='\Ahttps://github\.com/Glyndor/[A-Za-z0-9_.-]*[A-Za-z0-9][A-Za-z0-9_.-]*/releases/download/v[0-9A-Za-z]*[A-Za-z0-9][0-9A-Za-z.+-]*/[A-Za-z0-9_.-]*[A-Za-z0-9][A-Za-z0-9_.-]*\z'
+HASH_RE='\A[0-9a-f]{64}\z'
 
 for m in "${manifests[@]}"; do
 	# JSON must parse. If it does not, there is no field to point at; the
@@ -59,6 +59,13 @@ for m in "${manifests[@]}"; do
 	# feeds the file to jq as JSON.
 	if ! jq -e . "$m" >/dev/null 2>&1; then
 		echo "::error file=$m::$m is not valid JSON" >&2
+		exit 1
+	fi
+	# One document. `jq -e .` accepts a stream of values, so two manifests
+	# pasted one after the other would pass; a parser that reads a single
+	# document rejects them.
+	if [ "$(jq -s 'length' "$m")" != 1 ]; then
+		echo "::error file=$m::$m must hold exactly one JSON document" >&2
 		exit 1
 	fi
 
@@ -122,7 +129,7 @@ for m in "${manifests[@]}"; do
 					 elif ($v | has("hash") | not) then "architecture \"\($a)\" missing required field \"hash\""
 					 elif ($v.hash | type) != "string" then "architecture \"\($a)\" field \"hash\" must be a string"
 					 elif ($v.hash | test($hashre) | not)
-						then "architecture \"\($a)\" field \"hash\" must match " + $hashre
+						then "architecture \"\($a)\" field \"hash\" must match ^[0-9a-f]{64}$ exactly (no line feed or other character before or after)"
 					 else empty end),
 
 					(if ($v | type) != "object" then empty
@@ -139,9 +146,9 @@ for m in "${manifests[@]}"; do
 						# array is not a shim and has no place on the machine after scoop install.
 						# Report each bad entry by index.
 						$v.bin | to_entries[] |
-							if (.value | type) == "string" then empty
-							elif (.value | type) == "array" and (.value | length) > 0 and (.value | all(.[]; type == "string")) then empty
-							else "architecture \"\($a)\" bin entry \(.key) is not a string or array of strings"
+							if (.value | type) == "string" and (.value | length) > 0 then empty
+							elif (.value | type) == "array" and (.value | length) > 0 and (.value | all(.[]; type == "string" and length > 0)) then empty
+							else "architecture \"\($a)\" bin entry \(.key) is not a non-empty string or an array of non-empty strings"
 							end
 					 else empty end)
 				]

@@ -72,7 +72,9 @@ def check_script(path):
 				continue
 			if not INVOCATION_RE.search(line):
 				continue
-			if "--max-time" not in line:
+			# A deadline is the flag followed by its value. The bare substring is
+			# not enough: `--user-agent '--max-time'` contains it and bounds nothing.
+			if not re.search(r"(?:^|\s)--max-time\s+[0-9$]", line):
 				violations.append((path, lineno, line.rstrip()))
 	return violations
 
@@ -150,6 +152,17 @@ check "and does not name the comment-only script" 0 \
 	"$(printf '%s' "$out" | grep -c 'with-comment.sh')"
 check "and does not name the curl-string-only script" 0 \
 	"$(printf '%s' "$out" | grep -c 'with-string.sh')"
+
+# The flag name used as a value is not a deadline.
+mkdir -p "$WORK/fake/scripts"
+cat >"$WORK/fake/scripts/fake.sh" <<'SH'
+#!/usr/bin/env bash
+set -euo pipefail
+curl -fsSL --user-agent '--max-time' "$url" > "$tmp/remote"
+SH
+out="$(check_curl "$WORK/fake" 2>&1)"; rc=$?
+check "the flag name used as a value is not a deadline" 1 "$rc"
+check "and the script is named" 1 "$(printf '%s' "$out" | grep -c 'fake.sh')"
 
 echo "$pass passed, $fail failed"
 printf 'DONE %s %d %d\n' "${BASH_SOURCE[0]##*/}" "$pass" "$fail"

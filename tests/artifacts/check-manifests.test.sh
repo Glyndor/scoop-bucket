@@ -307,6 +307,39 @@ check "a host that only matches an unescaped-dot prefix is refused" "1" "$rc"
 check "and the error names the expected url shape" "1" \
 	"$(said 'releases/download/<tag>/<asset>')"
 
+# --- edge shapes the gate used to let through -------------------------------
+
+# Two complete manifests one after the other are a stream of values, not a
+# document: `jq -e .` takes them, a parser that reads one document does not.
+B="$(mkbucket stream '.')"
+cat "$B/podup.json" "$B/podup.json" > "$WORK/twice.json" && mv "$WORK/twice.json" "$B/podup.json"
+rc=0; run "$B" || rc=$?
+check "two JSON documents in one file are refused" "1" "$rc"
+check "and the error says exactly one document" "1" "$(said 'exactly one JSON document')"
+
+# jq's $ also matches before a final newline, so a 65-character hash (64 hex
+# and a line feed) and a URL ending in one satisfied the anchors.
+B="$(mkbucket hash-lf '.architecture["64bit"].hash += "\n"')"
+rc=0; run "$B" || rc=$?
+check "a hash followed by a line feed is refused" "1" "$rc"
+B="$(mkbucket url-lf '.architecture["64bit"].url += "\n"')"
+rc=0; run "$B" || rc=$?
+check "a url followed by a line feed is refused" "1" "$rc"
+B="$(mkbucket hash-lf-lead '.architecture["64bit"].hash = "\n" + .architecture["64bit"].hash')"
+rc=0; run "$B" || rc=$?
+check "a hash preceded by a line feed is refused" "1" "$rc"
+
+# A bin entry has to name something.
+B="$(mkbucket bin-empty-in-array '.architecture["64bit"].bin = [""]')"
+rc=0; run "$B" || rc=$?
+check "an empty string inside a bin array is refused" "1" "$rc"
+B="$(mkbucket bin-empty-exe '.architecture["64bit"].bin = [["", "podup"]]')"
+rc=0; run "$B" || rc=$?
+check "an empty executable inside an exe/alias entry is refused" "1" "$rc"
+B="$(mkbucket bin-empty-alias '.architecture["64bit"].bin = [["podup.exe", ""]]')"
+rc=0; run "$B" || rc=$?
+check "an empty alias inside an exe/alias entry is refused" "1" "$rc"
+
 # --- this repository --------------------------------------------------------
 rc=0; run "$HERE/bucket" || rc=$?
 check "the manifests in this repository are valid" "0" "$rc"
