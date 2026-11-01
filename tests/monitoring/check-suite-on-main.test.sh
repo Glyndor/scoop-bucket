@@ -229,6 +229,15 @@ check "and prints a clickable link to the run" "1" \
 check "and ends with the success summary" "1" \
 	"$(printf '%s' "$out" | grep -q 'Newest completed run on main concluded success.' && echo 1 || echo 0)"
 
+# --- any conclusion other than success is red -----------------------------
+# Only the literal "success" passes. A check written as `= "failure"` would let
+# timed_out, skipped, neutral, action_required and startup_failure through.
+for concl in timed_out skipped neutral action_required startup_failure; do
+	printf '%s' "$(schedule_response "$concl")" > "$WORK/resp"
+	out="$(run_script)"; rc=$?
+	check "a completed run concluded '$concl' fails" "1" "$rc"
+done
+
 # --- a completed failing run is reported, with a link -------------------
 printf '%s' "$(schedule_response failure)" > "$WORK/resp"
 out="$(run_script)"; rc=$?
