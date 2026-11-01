@@ -46,7 +46,21 @@ declared="$(awk '/^PRODUCTS=\(/ { inside = 1; next }
 	exit 1
 }
 
-rendered="$(find "$root/bucket" -maxdepth 1 -name '*.json' -printf '%f\n' \
+# Every entry named like a manifest has to be a regular file, at any depth.
+# A directory or a link named like one is not a manifest and a link could point
+# anywhere, so it is refused outright rather than skipped: skipping it would let
+# an undeclared bucket/evil.json link slip past the roster comparison. A file in
+# a subfolder is a manifest Scoop could still install from, whatever the roster
+# says; it shows up below as "sub/evil" and disagrees with PRODUCTS. Names are
+# matched without regard to case: Scoop runs on Windows, where Evil.JSON is a
+# manifest too.
+not_regular="$(find "$root/bucket" -iname '*.json' ! -type f -printf '%P\n' | sort)"
+if [ -n "$not_regular" ]; then
+	echo "::error::bucket/ holds an entry named like a manifest that is not a regular file:" >&2
+	printf '%s\n' "$not_regular" | sed 's/^/  /' >&2
+	exit 1
+fi
+rendered="$(find "$root/bucket" -type f -iname '*.json' -printf '%P\n' \
            | while read -r f; do echo "${f%.json}"; done | sort -u)"
 
 status=0
