@@ -391,6 +391,20 @@ render_product() { # $1=table entry
 		return 1
 	}
 
+	# The repository and the two asset names reach the download url. Same
+	# reasoning as the manifest name; "-" means nothing published for the slot.
+	printf '%s' "$repo" | LC_ALL=C grep -qE '^[A-Za-z0-9][A-Za-z0-9._-]*/[A-Za-z0-9][A-Za-z0-9._-]*$' || {
+		echo "::error::the PRODUCTS entry \"$entry\" has an invalid repository \"$repo\""
+		return 1
+	}
+	for field in a64 aarm; do
+		[ "${!field}" = "-" ] && continue
+		printf '%s' "${!field}" | LC_ALL=C grep -qE '^[A-Za-z0-9][A-Za-z0-9._-]*$' || {
+			echo "::error::the PRODUCTS entry \"$entry\" has an invalid asset name in $field"
+			return 1
+		}
+	done
+
 	tag="$(gh release view --repo "$repo" --json tagName --jq .tagName)" || {
 		echo "::error::$repo: could not read the latest release"
 		return 1
