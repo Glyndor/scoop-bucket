@@ -204,7 +204,7 @@ while IFS='|' read -r served candidate; do
 	rc=0; run "$WORK/rollback/scripts/release/render-manifests.sh" "$WORK/rollback" || rc=$?
 	check "$served -> $candidate is a fatal downgrade, not a partial render" "1" "$rc"
 	check "the downgrade error names the product and both versions" "1" \
-		"$(grep -Fc "::error::Glyndor/podup: refusing release downgrade from $served to $candidate" "$WORK/out" || true)"
+		"$(grep -Fc "::error::Glyndor/podup: refusing release downgrade from served $served to candidate $candidate" "$WORK/out" || true)"
 	check "the served manifest stays byte-identical" "0" \
 		"$(cmp -s "$WORK/before.json" "$WORK/rollback/bucket/podup.json"; echo $?)"
 	check "the downgrade reports no publication" "0" "$(grep -c '^rendered ' "$WORK/out" || true)"
@@ -230,7 +230,7 @@ rc=0; ALLOW_RELEASE_DOWNGRADE=1 run "$WORK/override/scripts/release/render-manif
 check "an explicit rollback succeeds" "0" "$rc"
 check "the rollback publishes the older version" "1.0.0" "$(jq -r .version "$WORK/override/bucket/podup.json")"
 check "the rollback is visible in the log" "1" \
-	"$(grep -Fc '::warning::Glyndor/podup: allowing release downgrade from 9.9.9 to 1.0.0 (ALLOW_RELEASE_DOWNGRADE=1)' "$WORK/out" || true)"
+	"$(grep -Fc '::warning::Glyndor/podup: ALLOW_RELEASE_DOWNGRADE=1 permits rollback from served 9.9.9 to candidate 1.0.0' "$WORK/out" || true)"
 check "the scheduled workflow never sets the bypass" "0" \
 	"$(grep -c ALLOW_RELEASE_DOWNGRADE "$HERE/.github/workflows/update.yml" || true)"
 
