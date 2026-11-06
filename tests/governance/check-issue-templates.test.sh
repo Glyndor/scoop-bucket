@@ -67,16 +67,12 @@ body:
       label: Operating system
       description: Windows version, plus your Scoop version (`scoop --version`).
       placeholder: e.g. Windows 11 23H2, Windows 10 22H2
-    validations:
-      required: true
   - type: input
     id: version
     attributes:
       label: Version
       description: Project version and how you installed it.
       placeholder: e.g. 5.16.0 (scoop install podup)
-    validations:
-      required: true
 YAML
 
 # The install block a reader of this README is given holds three commands, and
@@ -105,16 +101,12 @@ body:
     attributes:
       label: Operating system
       placeholder: e.g. Ubuntu 24.04, Debian 13, Fedora 42
-    validations:
-      required: true
   - type: input
     id: version
     attributes:
       label: Version
       description: Project version and how you installed it.
       placeholder: v0.3.1 (install.sh)
-    validations:
-      required: true
 YAML
 
 # Only the operating system field is wrong: another channel's distributions.
@@ -127,16 +119,12 @@ body:
     attributes:
       label: Operating system
       placeholder: e.g. Ubuntu 24.04, Debian 13, Fedora 42
-    validations:
-      required: true
   - type: input
     id: version
     attributes:
       label: Version
       description: Project version and how you installed it.
       placeholder: e.g. 5.16.0 (scoop install podup)
-    validations:
-      required: true
 YAML
 
 # Only the version field is wrong: an install method this channel does not have.
@@ -150,16 +138,12 @@ body:
       label: Operating system
       description: Windows version, plus your Scoop version (`scoop --version`).
       placeholder: e.g. Windows 11 23H2, Windows 10 22H2
-    validations:
-      required: true
   - type: input
     id: version
     attributes:
       label: Version
       description: Project version and how you installed it.
       placeholder: v0.3.1 (install.sh)
-    validations:
-      required: true
 YAML
 
 # The platform is named and a distribution is offered next to it.
@@ -173,16 +157,12 @@ body:
       label: Operating system
       description: Windows version, plus your Scoop version (`scoop --version`).
       placeholder: e.g. Windows 11 23H2, Ubuntu 24.04
-    validations:
-      required: true
   - type: input
     id: version
     attributes:
       label: Version
       description: Project version and how you installed it.
       placeholder: e.g. 5.16.0 (scoop install podup)
-    validations:
-      required: true
 YAML
 
 # The distribution is written in lower case.
@@ -196,16 +176,12 @@ body:
       label: Operating system
       description: Windows version, plus your Scoop version (`scoop --version`).
       placeholder: e.g. Windows 11 23H2, ubuntu 24.04
-    validations:
-      required: true
   - type: input
     id: version
     attributes:
       label: Version
       description: Project version and how you installed it.
       placeholder: e.g. 5.16.0 (scoop install podup)
-    validations:
-      required: true
 YAML
 
 # The manager is named in a different case.
@@ -219,16 +195,12 @@ body:
       label: Operating system
       description: Windows version, plus your Scoop version.
       placeholder: e.g. Windows 11 23H2, Windows 10 22H2
-    validations:
-      required: true
   - type: input
     id: version
     attributes:
       label: Version
       description: Project version and how you installed it.
       placeholder: e.g. 5.16.0 (scoop install podup)
-    validations:
-      required: true
 YAML
 
 # The platform is named, but the package manager's version is not asked for.
@@ -242,16 +214,12 @@ body:
       label: Operating system
       description: Windows version.
       placeholder: e.g. Windows 11 23H2, Windows 10 22H2
-    validations:
-      required: true
   - type: input
     id: version
     attributes:
       label: Version
       description: Project version and how you installed it.
       placeholder: e.g. 5.16.0 (scoop install podup)
-    validations:
-      required: true
 YAML
 
 # The version field names a command that starts like the README's one.
@@ -265,16 +233,12 @@ body:
       label: Operating system
       description: Windows version, plus your Scoop version (`scoop --version`).
       placeholder: e.g. Windows 11 23H2, Windows 10 22H2
-    validations:
-      required: true
   - type: input
     id: version
     attributes:
       label: Version
       description: Project version and how you installed it.
       placeholder: e.g. 5.16.0 (scoop install podup-nightly)
-    validations:
-      required: true
 YAML
 
 # The template has no operating system field at all.
@@ -288,8 +252,6 @@ body:
       label: Version
       description: Project version and how you installed it.
       placeholder: e.g. 5.16.0 (scoop install podup)
-    validations:
-      required: true
 YAML
 
 # A README that documents no install command.
