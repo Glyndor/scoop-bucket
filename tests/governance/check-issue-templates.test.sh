@@ -36,7 +36,7 @@ check() { # <description> <expected> <actual>
 
 run() { # $1=tree -> rc in $rc, output in $out
 	rc=0
-	out="$("$CHECK" "$1" 2>&1)" || rc=$?
+	out="$(bash "$CHECK" "$1" 2>&1)" || rc=$?
 }
 
 said() { printf '%s' "$out" | grep -qF "$1" && echo 1 || echo 0; }
@@ -185,6 +185,52 @@ body:
       required: true
 YAML
 
+# The distribution is written in lower case.
+cat > "$WORK/lower-case-os-template.yml" <<'YAML'
+name: Bug report
+description: Report a bug or unexpected behavior
+body:
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      description: Windows version, plus your Scoop version (`scoop --version`).
+      placeholder: e.g. Windows 11 23H2, ubuntu 24.04
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Project version and how you installed it.
+      placeholder: e.g. 5.16.0 (scoop install podup)
+    validations:
+      required: true
+YAML
+
+# The manager is named in a different case.
+cat > "$WORK/manager-case-template.yml" <<'YAML'
+name: Bug report
+description: Report a bug or unexpected behavior
+body:
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      description: Windows version, plus your Scoop version.
+      placeholder: e.g. Windows 11 23H2, Windows 10 22H2
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Project version and how you installed it.
+      placeholder: e.g. 5.16.0 (scoop install podup)
+    validations:
+      required: true
+YAML
+
 # The platform is named, but the package manager's version is not asked for.
 cat > "$WORK/no-manager-template.yml" <<'YAML'
 name: Bug report
@@ -289,6 +335,15 @@ D="$(fixture mixed-os "$WORK/mixed-os-template.yml" "$WORK/good-readme.md")"
 run "$D"
 check "a distribution offered next to the platform is refused" "1" "$rc"
 check "and names the distribution" "1" "$(said 'Ubuntu')"
+
+D="$(fixture lower-case-os "$WORK/lower-case-os-template.yml" "$WORK/good-readme.md")"
+run "$D"
+check "a distribution written in lower case is refused too" "1" "$rc"
+check "and names the distribution" "1" "$(said 'Ubuntu')"
+
+D="$(fixture manager-case "$WORK/manager-case-template.yml" "$WORK/good-readme.md")"
+run "$D"
+check "a manager written in another case is accepted" "0" "$rc"
 
 D="$(fixture no-manager "$WORK/no-manager-template.yml" "$WORK/good-readme.md")"
 run "$D"
