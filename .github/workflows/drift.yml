@@ -1,8 +1,11 @@
 name: Drift
 
 # Compares this repository's copies of the shared reusables against the copies
-# its sibling channels carry. The comparison itself lives in
-# scripts/monitoring/check-reusable-drift.sh; this file only decides when it runs.
+# its sibling channels carry, and the scripts and tests it shares with the tap
+# against the tap's copies. The comparisons live in
+# scripts/monitoring/check-reusable-drift.sh and
+# scripts/monitoring/check-channel-drift.sh; this file only decides when they
+# run.
 #
 # NOT on pull_request, and that is the whole design of this file.
 #
@@ -12,6 +15,12 @@ name: Drift
 # copy, and red on theirs because the first one now carries the new one. Every
 # such change would deadlock: three pull requests, none mergeable until the
 # others merge.
+#
+# The shared scripts and tests are two repositories rather than three, and the
+# deadlock is the same: the bucket's copy and the tap's copy of a file listed
+# in scripts/monitoring/channel-shared-paths.txt cannot land at the same
+# instant, so a pull_request trigger would make two pull requests wait for
+# each other.
 #
 # Schedule and a manual button, and deliberately NOT `push: main`. Removing
 # that trigger is what fixes two defects at once, and both are worth naming
@@ -60,9 +69,10 @@ jobs:
   drift:
     name: reusable drift
     runs-on: ubuntu-latest
-    # Measured at about 10 seconds; performs fifteen sequential fetches
-    # against raw.githubusercontent.com, with the deadlines added to the
-    # scripts themselves bounding each one.
+    # Measured at about 10 seconds for the fifteen reusable fetches alone; the
+    # thirty-two shared-file fetches this job also performs add about nine
+    # seconds measured here, and the deadlines added to the scripts themselves
+    # bound each one.
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -71,6 +81,18 @@ jobs:
 
       - name: Compare the reusable copies against the sibling channels
         run: ./scripts/monitoring/check-reusable-drift.sh
+
+      # The files this repository and the tap carry as exact copies: the same
+      # shell, the same CI policy, the same tests. The list of them lives in
+      # scripts/monitoring/channel-shared-paths.txt, and nothing watched them
+      # until this comparison did.
+      #
+      # Its own step for the same reason the render comparison is one: a red
+      # reusable comparison must not hide the day's copy comparison, and the
+      # two answer different questions.
+      - name: Compare the shared scripts and tests against the tap's copies
+        if: ${{ !cancelled() }}
+        run: ./scripts/monitoring/check-channel-drift.sh
 
       # The render scripts are not copies of each other -- one emits Ruby, the
       # other JSON -- but they carry the same verification logic, and that half
