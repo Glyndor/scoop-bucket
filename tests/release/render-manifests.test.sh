@@ -125,7 +125,7 @@ printf 'a\n%.0s' $(seq 1 5000) > "$RELEASES/Glyndor__podup/SHA256SUMS"
 new_root "$WORK/r2b"
 generator_with "$WORK/r2b/scripts/release/render-manifests.sh" "$PODUP"
 rc=0
-out="$( cd "$WORK/r2b" && "$WORK/r2b/scripts/release/render-manifests.sh" --pubkey "$PUBKEY" 2>&1 )" || rc=$?
+out="$( cd "$WORK/r2b" && CURL_STUB_IGNORE_MAXFILESIZE=1 "$WORK/r2b/scripts/release/render-manifests.sh" --pubkey "$PUBKEY" 2>&1 )" || rc=$?
 check "an oversized SHA256SUMS is refused" "3" "$rc"
 check "and the message names the size limit" "1" \
 	"$(printf '%s' "$out" | grep -c 'over the 4096-byte cap')"
@@ -145,7 +145,7 @@ for sz in 32 128; do
 	new_root "$WORK/r2c$sz"
 	generator_with "$WORK/r2c$sz/scripts/release/render-manifests.sh" "$PODUP"
 	rc=0
-	out="$( cd "$WORK/r2c$sz" && "$WORK/r2c$sz/scripts/release/render-manifests.sh" --pubkey "$PUBKEY" 2>&1 )" || rc=$?
+	out="$( cd "$WORK/r2c$sz" && CURL_STUB_IGNORE_MAXFILESIZE=1 "$WORK/r2c$sz/scripts/release/render-manifests.sh" --pubkey "$PUBKEY" 2>&1 )" || rc=$?
 	check "a ${sz}-byte signature is refused" "3" "$rc"
 	check "and is named by its measured size, not as a bad signature ($sz bytes)" "1" \
 		"$(printf '%s' "$out" | grep -c "SHA256SUMS.sig is ${sz} bytes")"
@@ -393,7 +393,7 @@ for size in 4096 4097; do
 	resign "$WORK/tmpsums2" Glyndor/podup
 	new_root "$WORK/cap$size"
 	generator_with "$WORK/cap$size/scripts/release/render-manifests.sh" "$PODUP"
-	rc=0; run "$WORK/cap$size/scripts/release/render-manifests.sh" "$WORK/cap$size" || rc=$?
+	rc=0; CURL_STUB_IGNORE_MAXFILESIZE=1 run "$WORK/cap$size/scripts/release/render-manifests.sh" "$WORK/cap$size" || rc=$?
 	if [ "$size" = 4096 ]; then
 		check "a signed manifest of exactly 4096 bytes is accepted" "0" "$rc"
 	else
