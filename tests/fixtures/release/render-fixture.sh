@@ -175,7 +175,7 @@ esac
 SH
 chmod +x "$BIN/gh"
 
-# Curl stub for the asset download. Parses the URL the same way the
+# Curl stub for release metadata and binary downloads. Parses the URL the same way the
 # drift script's curl does -- owner/repo from the host, tag and asset
 # from the path -- and serves the matching fixture file. The renderer's
 # `verify_attestation` downloads `podup-windows-x86_64.exe` from the
@@ -206,6 +206,9 @@ tag="${rest%%/*}"
 asset="${rest#*/}"
 slug="${owner_repo//\//__}"
 fixture="$RELEASES/$slug/asset_${asset}"
+case "$asset" in
+	SHA256SUMS|SHA256SUMS.sig) fixture="$RELEASES/$slug/$asset" ;;
+esac
 if [ ! -f "$fixture" ]; then
 	echo "curl stub: no fixture for $url (looked at $fixture)" >&2
 	exit 1
