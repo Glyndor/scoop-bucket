@@ -42,6 +42,13 @@ jobs:
       # break a reference; README.md is read by check-products-consistent for
       # the same reason. tests/ci/suites/shell-ci-scope.test.sh fails if this
       # list grows to a file the suite reads.
+      #
+      # Every check under scripts/quality/ runs from here, through its own test
+      # in the same folder of tests/. A gate nobody watches fail is a gate
+      # nobody trusts, so each one plants the violation it refuses instead of
+      # only declaring it: check-action-pins.sh refuses a `uses:` that names a
+      # tag or a branch instead of a commit SHA, and its test refuses one on
+      # purpose.
       test-command: >-
         ./tests/ci/suites/check-suite-completeness.test.sh
         ./tests/release/render-manifests.test.sh
@@ -54,6 +61,7 @@ jobs:
         ./tests/ci/policy/locale-pinned.test.sh
         ./tests/quality/check-test-coverage.test.sh
         ./tests/quality/check-doc-anchors.test.sh
+        ./tests/quality/check-action-pins.test.sh
         ./tests/governance/check-dco-on-main.test.sh
         ./tests/governance/check-issue-templates.test.sh
         ./tests/monitoring/check-suite-on-main.test.sh
