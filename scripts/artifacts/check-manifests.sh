@@ -69,6 +69,82 @@ for m in "${manifests[@]}"; do
 		exit 1
 	fi
 
+	# A key that appears twice, at any depth. jq keeps the last value of a
+	# repeated key and says nothing, so a manifest can carry two "version"
+	# keys -- or two "url" keys under one architecture -- and every check
+	# below would validate whichever one jq happened to keep. Which one the
+	# consumer keeps is not defined either: PowerShell's ConvertFrom-Json,
+	# which reads the manifest for Scoop, refuses the file outright, and a
+	# reader that does not refuse it may take the other value. The renderer
+	# never emits a repeated key, so one is a hand edit or a hijacked render.
+	#
+	# Python's object_pairs_hook sees the pairs before the object is built,
+	# which is the only way to read a key that a value-based parser has
+	# already dropped; jq cannot, because it only ever sees the value.
+	# Checked before the field rules, which would otherwise describe a
+	# document that no consumer ever installs.
+	repeated="$(python3 -I - "$m" <<'PY'
+import json
+import sys
+
+
+class Object(dict):
+    """A JSON object that remembers the keys that appeared more than once."""
+
+    def __init__(self, pairs):
+        seen = set()
+        repeated = []
+        for key, _value in pairs:
+            if key in seen and key not in repeated:
+                repeated.append(key)
+            seen.add(key)
+        super().__init__(pairs)
+        self.repeated = repeated
+
+
+def duplicates(node, path):
+    """Yield every (path, key) whose key appeared twice inside one object."""
+    if isinstance(node, dict):
+        for key in getattr(node, "repeated", ()):
+            yield path, key
+        for key, value in node.items():
+            yield from duplicates(value, path + [key])
+    elif isinstance(node, list):
+        for index, value in enumerate(node):
+            yield from duplicates(value, path + [index])
+
+
+def where(path):
+    """Name the place a duplicated key sits, for the message."""
+    if not path:
+        return "at the top level"
+    return "under " + " and ".join(
+        "[%d]" % part if isinstance(part, int) else '"%s"' % part for part in path
+    )
+
+
+try:
+    with open(sys.argv[1], encoding="utf-8") as handle:
+        document = json.load(handle, object_pairs_hook=Object)
+except (OSError, ValueError) as error:
+    sys.stderr.write("%s: %s\n" % (sys.argv[1], error))
+    raise SystemExit(1)
+
+for path, key in duplicates(document, []):
+    print('has duplicate key "%s" %s' % (key, where(path)))
+PY
+	)" || {
+		echo "::error file=$m::$m could not be checked for duplicate keys" >&2
+		exit 1
+	}
+	if [ -n "$repeated" ]; then
+		while IFS= read -r problem; do
+			[ -n "$problem" ] || continue
+			echo "::error file=$m::$m $problem" >&2
+		done <<<"$repeated"
+		exit 1
+	fi
+
 	# Collect every problem into a single jq invocation, then walk them in
 	# bash. One pass per file keeps the gate cheap and the messages in one
 	# place, with each message naming the file, the field and the shape the
