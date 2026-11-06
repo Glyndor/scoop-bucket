@@ -14,22 +14,48 @@ name: Freshness
 # Separate from the suite on purpose. These fail because something did not
 # happen elsewhere, never because this pull request is wrong.
 
-# Pull request, push to main, and a schedule too. The first two put this on
-# the ordinary CI path; the third exists because a quiet repository stops
-# checking its own freshness, and that matters here because update.yml
-# commits straight to main, so main can move on its own.
+# A schedule and a push to main, and a pull request only when it changes this
+# workflow or the reusables it calls. Not every pull request, and the reason is
+# measured rather than assumed: every job in this file answers a question about main or
+# about a cron somewhere else, never about the change in the pull request, so
+# the same five verdicts were produced once per pull request without learning
+# anything the previous pull request had not already said.
+#
+# Measured 2026-11-06 over the last fourteen pull request runs of this
+# workflow: five jobs every time, 19 to 28 seconds of job time (mean 23), and
+# a wall clock from 12 seconds to 112 minutes that was queue rather than work.
+# The run was created when the pull request opened and finished long after its
+# answer had stopped mattering.
+#
+# What is left still watches the same thing, and the push is not the
+# decoration: a cron that stops firing is exactly what freshness-itself cannot
+# report about itself, so the path that fires without the cron is the one that
+# has to stay. Measured the same day, the schedule fired twice and main moved
+# five times before midday, update.yml committing to it directly.
 #
 # Never promote one of these to a required check. What they measure lives
 # outside the pull request, so an author who did nothing wrong could not
 # clear it, and the whole repository would wait on an unrelated repair.
+# Measured 2026-11-06 against the live ruleset: the eight required checks are
+# shell / test, shell / shellcheck, line-limit / line limit, dco /
+# Signed-off-by present on every commit, workflow-lint / workflow-lint,
+# empty-diff / empty diff, validate manifests, and products match the
+# generator. None of them is a job in this file, so narrowing the trigger
+# leaves no required check unreported.
+#
+# What this gives up: the red tick on work outside those files when the
+# schedule and the pushes are silent at once. That takes two crons dying together, and one of
+# the two watchers is what catches the first one.
 
 on:
   # A watcher with no schedule only watches while somebody is already looking.
-  # Until this was added, these checks fired on pull_request and push and
-  # nothing else, so a cron that stopped firing between two pull requests
+  # Until the schedule was added, these checks fired on pull_request and push
+  # and nothing else, so a cron that stopped firing between two pull requests
   # would have gone unreported until a person next visited the repository.
-  # The freshness thresholds below are measured in days; a watcher
-  # that runs only when a person happens to push cannot honour a one-day one.
+  # The pull request trigger is narrowed to the files below, and the header
+  # says why; this schedule and the push to main are what remain for the rest. The freshness thresholds
+  # below are measured in days; a watcher that runs only when a person happens
+  # to push cannot honour a one-day one.
   #
   # Twice a day rather than daily, because the tightest threshold declared
   # below is one day and a daily run leaves no margin: a single skipped firing
@@ -43,7 +69,17 @@ on:
   # record by the time it looks.
   schedule:
     - cron: "13 8,20 * * *"
+  # A pull request runs these only when it changes what these jobs are made of:
+  # this file and the two reusables it calls. Anything else cannot change the
+  # verdict, so it would only repeat the five jobs. None of the five is a
+  # required check, which is what makes a path filter safe here: a required
+  # check behind a filter would never be reported and the pull request would
+  # wait for ever.
   pull_request:
+    paths:
+      - .github/workflows/freshness.yml
+      - .github/workflows/reusable-dependabot-freshness.yml
+      - .github/workflows/reusable-schedule-freshness.yml
   push:
     branches: [main]
 
