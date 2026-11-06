@@ -54,9 +54,15 @@ declared="$(awk '/^PRODUCTS=\(/ { inside = 1; next }
 # says; it shows up below as "sub/evil" and disagrees with PRODUCTS. Names are
 # matched without regard to case: Scoop runs on Windows, where Evil.JSON is a
 # manifest too.
-not_regular="$(find "$root/bucket" -iname '*.json' ! -type f -printf '%P\n' | sort)"
+# A symlinked directory is refused whatever its name, since find does not
+# descend into it and Scoop would read the manifests behind it.
+if [ -L "$root/bucket" ]; then
+	echo "::error::bucket/ is a symlink; the bucket must hold its own manifests" >&2
+	exit 1
+fi
+not_regular="$(find "$root/bucket" -mindepth 1 \( -type l -o \( ! -type f ! -type d \) -o \( -type d -iname '*.json' \) \) -printf '%P\n' | sort)"
 if [ -n "$not_regular" ]; then
-	echo "::error::bucket/ holds an entry named like a manifest that is not a regular file:" >&2
+	echo "::error::bucket/ holds a symlink or another entry that is not a regular file or a directory:" >&2
 	printf '%s\n' "$not_regular" | sed 's/^/  /' >&2
 	exit 1
 fi

@@ -79,6 +79,19 @@ rm -f "$B/bucket/alpha.json"; ln -s /nonexistent/target "$B/bucket/alpha.json"
 rc=0; run "$B" || rc=$?
 check "a dangling link named like a manifest is refused" "1" "$rc"
 
+# A symlinked directory: find does not descend into it, so manifests behind it
+# would be read by Scoop and never seen by the comparison.
+B="$(mkbucket dirlink alpha)"
+mkdir -p "$WORK/elsewhere"; : > "$WORK/elsewhere/evil.json"
+ln -s "$WORK/elsewhere" "$B/bucket/sub"
+rc=0; run "$B" || rc=$?
+check "a symlinked directory under bucket/ fails" "1" "$rc"
+check "and the link is listed by name" "1" "$(grep -c '^  sub$' "$WORK/out")"
+B="$(mkbucket rootlink alpha)"
+mv "$B/bucket" "$WORK/real-bucket"; ln -s "$WORK/real-bucket" "$B/bucket"
+rc=0; run "$B" || rc=$?
+check "a symlinked bucket/ fails" "1" "$rc"
+
 # Windows does not distinguish the case of the extension.
 B="$(mkbucket upper-ext alpha)"
 : > "$B/bucket/Evil.JSON"
