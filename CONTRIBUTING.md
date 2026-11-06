@@ -46,7 +46,7 @@ through `createCommitOnBranch` are GitHub-signed, which is how they satisfy
 
 **The validation that runs INSIDE `update.yml` before the commit is the only
 gate between a bad render and `scoop install`**, because the bot's push skips
-the required checks. It is covered by `tests/publication/update-workflow.test.sh`, which
+the required checks. It is covered by `tests/publication/update/update-workflow.test.sh`, which
 extracts the workflow's own `run:` blocks and executes them as they ship
 rather than against a copy.
 

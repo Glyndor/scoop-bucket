@@ -56,7 +56,7 @@ jobs:
         ./tests/release/render-manifests-inputs.test.sh
         ./tests/release/render-manifests-transfer-limits.test.sh
         ./tests/release/render-manifests-products.test.sh
-        ./tests/publication/update-workflow.test.sh
+        ./tests/publication/update/update-workflow.test.sh
         ./tests/artifacts/check-products-consistent.test.sh
         ./tests/artifacts/check-manifests.test.sh
         ./tests/artifacts/check-manifests-duplicate-keys.test.sh
