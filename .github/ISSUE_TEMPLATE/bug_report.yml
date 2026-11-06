@@ -35,7 +35,8 @@ body:
     id: os
     attributes:
       label: Operating system
-      placeholder: e.g. Ubuntu 24.04, Debian 13, Fedora 42
+      description: Windows version, plus your Scoop version (`scoop --version`).
+      placeholder: e.g. Windows 11 23H2, Windows 10 22H2
     validations:
       required: true
   - type: input
@@ -43,7 +44,7 @@ body:
     attributes:
       label: Version
       description: Project version and how you installed it.
-      placeholder: v0.3.1 (install.sh)
+      placeholder: e.g. 5.16.0 (scoop install podup)
     validations:
       required: true
   - type: textarea
