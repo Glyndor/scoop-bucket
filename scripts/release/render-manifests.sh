@@ -354,6 +354,128 @@ hash_of() { # $1=asset
 	printf '%s\n' "$digest"
 }
 
+# Hold the release tag to a plain version before it is interpolated into
+# generated code.
+#
+# The tag is the only field here that comes from outside this repository and
+# carries no signature of its own. SHA256SUMS is verified, and the digests it
+# gives are checked to be 64 hex characters before use -- but the tag travels
+# beside that signature, not inside it, and it lands in the artifact that is
+# published.
+#
+# A tag carrying a quote, a backslash, a space or any other character outside
+# the set below can close the string it is written into and append text that
+# runs on every install. Whoever can publish a release in a product repository
+# would get code execution on every machine installing from this channel.
+#
+# So the version is held to the same standard as the digest: a fixed
+# character set, checked before it is interpolated. Real tags are v5.1.0,
+# v3.7.1 -- digits, dots, and the pre-release and build punctuation semver
+# allows. Nothing else.
+#
+# The two channels must accept and refuse the same tags, so this function is
+# compared between them: a tag refused here and published there is a release
+# one channel will not serve and the other will.
+version_guard() { # $1=repo $2=tag $3=version
+	case "$3" in
+		"" | *[!0-9A-Za-z.+-]* | .* | *.)
+			echo "::error::$1: the release tag \"$2\" is not a plain version; refusing to interpolate it into generated code" >&2
+			return 1
+			;;
+	esac
+	case "$3" in
+		[0-9]*) ;;
+		*)
+			echo "::error::$1: the release tag \"$2\" does not start with a digit after stripping a leading v" >&2
+			return 1
+			;;
+	esac
+}
+
+# Read the version this repository already serves, from the manifest on disk.
+# "-" means nothing is served yet.
+#
+# This is NOT part of the drift contract: reading the served version out of a
+# JSON manifest and out of a Ruby formula are different operations, and only
+# the decision they feed is shared.
+served_version() { # $1=repo $2=manifest name
+	local repo="$1" path="$root/bucket/$2.json" served
+	if [ ! -f "$path" ]; then
+		printf '%s\n' "-"
+		return 0
+	fi
+	served="$(jq -er '.version | select(type == "string" and length > 0)' "$path")" || {
+		echo "::error::$repo: cannot read the served version; refusing to replace the manifest" >&2
+		return 1
+	}
+	printf '%s\n' "$served"
+}
+
+# Compare the served version with the candidate using SemVer precedence:
+# numeric major/minor/patch; pre-release < stable; numeric pre-release identifiers
+# < text (ASCII), compared left to right; build metadata is ignored. rc1 is text.
+#
+# $1 = the repository, named in the error message
+# $2 = the candidate version
+# $3 = the product whose served version is compared
+#
+# The served version is read through served_version, which is the one part of
+# this that differs between the channels: a Ruby formula and a JSON manifest
+# do not hold it the same way. Everything after that -- the comparison and the
+# refusal -- is shared, and the two channels must agree on it, or a release
+# refused here is published there.
+#
+# Prints lower, equal or higher. A candidate below the served version is a
+# rollback: a genuinely signed older release marked latest again would move
+# the channel backwards, so it is refused unless ALLOW_RELEASE_DOWNGRADE=1,
+# which the workflow never sets. Signature, digest and provenance checks stay
+# on either way.
+#
+# The candidate is validated as SemVer before the served version is compared,
+# so a first publication of an invalid version is refused with an error that
+# names it. Published, it would make the next valid release abort on a served
+# version that cannot be parsed.
+release_order() { # $1=repo $2=candidate $3=product
+	local repo="$1" candidate="$2" served order
+	served="$(served_version "$repo" "$3")" || return 1
+	order="$(python3 - "$served" "$candidate" "$repo" <<'SEMVER'
+import re, sys
+
+served, candidate, repo = sys.argv[1:]
+pattern = r"(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?"
+
+
+def precedence(version):
+    match = re.fullmatch(pattern, version)
+    if not match:
+        sys.exit(f"::error::{repo}: {version!r} is not a valid SemVer release version")
+    major, minor, patch, pre = match.groups()
+    identifiers = [] if pre is None else pre.split(".")
+    if any(item.isdigit() and len(item) > 1 and item[0] == "0" for item in identifiers):
+        sys.exit(f"::error::{repo}: invalid numeric pre-release in {version!r}")
+    return (int(major), int(minor), int(patch), pre is None,
+            tuple((0, int(item)) if item.isdigit() else (1, item) for item in identifiers))
+
+
+new = precedence(candidate)
+if served == "-":
+    print("higher")
+    sys.exit(0)
+old = precedence(served)
+print("lower" if new < old else "higher" if new > old else "equal")
+SEMVER
+	)" || return 1
+	if [ "$order" = "lower" ]; then
+		if [ "${ALLOW_RELEASE_DOWNGRADE:-}" = "1" ]; then
+			echo "::warning::$repo: ALLOW_RELEASE_DOWNGRADE=1 permits rollback from served $served to candidate $candidate" >&2
+		else
+			echo "::error::$repo: refusing release downgrade from served $served to candidate $candidate" >&2
+			return 1
+		fi
+	fi
+	printf '%s\n' "$order"
+}
+
 # Render one product's manifest. Returns non-zero without touching any file when
 # the release cannot be read, its SHA256SUMS does not verify, or an asset the
 # table names is missing.
@@ -364,7 +486,7 @@ hash_of() { # $1=asset
 render_product() { # $1=table entry
 	local entry="$1"
 	local repo manifest desc a64 aarm tag version h64 harm base arches
-	local verify_asset verify_sha served order
+	local verify_asset verify_sha
 
 	IFS='|' read -r repo manifest desc a64 aarm <<<"$entry"
 
@@ -427,19 +549,9 @@ render_product() { # $1=table entry
 	# character set, checked before it is interpolated. Real tags are v5.1.0,
 	# v3.7.1 -- digits, dots, and the pre-release and build punctuation semver
 	# allows. Nothing else.
-	case "$version" in
-		"" | *[!0-9A-Za-z.+-]* | .* | *.)
-			echo "::error::$repo: the release tag \"$tag\" is not a plain version; refusing to interpolate it into generated code" >&2
-			return 1
-			;;
-	esac
-	case "$version" in
-		[0-9]*) ;;
-		*)
-			echo "::error::$repo: the release tag \"$tag\" does not start with a digit after stripping a leading v" >&2
-			return 1
-			;;
-	esac
+	# The guard itself is shared with the sibling channel: the two must
+	# accept and refuse the same tags.
+	version_guard "$repo" "$tag" "$version" || return 1
 
 
 	verify_sha256sums "$repo" "$tag" || {
@@ -497,67 +609,7 @@ render_product() { # $1=table entry
 	# The candidate is validated even when nothing is served yet: published as
 	# is, an invalid first version would make the next valid release abort on a
 	# served version that cannot be parsed.
-	served="-"
-	if [ -f "$root/bucket/$manifest.json" ]; then
-		served="$(jq -er '.version | select(type == "string" and length > 0)' "$root/bucket/$manifest.json")" || {
-			echo "::error::$repo: cannot read the served version; refusing to replace the manifest" >&2
-			exit 1
-		}
-	fi
-	{
-		# SemVer precedence: compare numeric major/minor/patch, then dotted
-		# pre-release identifiers (numeric before lexical); stable beats any
-		# pre-release. Ignore +build metadata. Invalid versions fail closed.
-		order="$(python3 - "$version" "$served" <<'PY'
-import re
-import sys
-
-def parse(value):
-    match = re.fullmatch(
-        r"(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)"
-        r"(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?"
-        r"(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?", value)
-    if not match:
-        raise ValueError(f"invalid SemVer version: {value}")
-    major, minor, patch, prerelease = match.groups()
-    identifiers = []
-    for part in prerelease.split(".") if prerelease else []:
-        if part.isdigit():
-            if len(part) > 1 and part.startswith("0"):
-                raise ValueError(f"invalid numeric pre-release identifier: {value}")
-            identifiers.append((0, int(part)))
-        else:
-            identifiers.append((1, part))
-    return (int(major), int(minor), int(patch), prerelease is None, identifiers)
-
-try:
-    candidate = parse(sys.argv[1])
-    if sys.argv[2] == "-":
-        print(0)
-    else:
-        served = parse(sys.argv[2])
-        print((candidate > served) - (candidate < served))
-except ValueError as error:
-    print(error, file=sys.stderr)
-    sys.exit(1)
-PY
-)" || {
-			if [ "$served" = "-" ]; then
-				echo "::error::$repo: '$version' is not a valid SemVer release version" >&2
-			else
-				echo "::error::$repo: cannot compare served version $served with candidate $version (both must be valid SemVer)" >&2
-			fi
-			exit 1
-		}
-		if [ "$order" = "-1" ]; then
-			if [ "${ALLOW_RELEASE_DOWNGRADE:-}" = "1" ]; then
-				echo "::warning::$repo: allowing release downgrade from $served to $version (ALLOW_RELEASE_DOWNGRADE=1)" >&2
-			else
-				echo "::error::$repo: refusing release downgrade from $served to $version" >&2
-				exit 1
-			fi
-		fi
-	}
+	release_order "$repo" "$version" "$manifest" >/dev/null || exit 1
 
 	# Build the architecture object from only what the product ships, with jq so
 	# the result is valid JSON either way.
