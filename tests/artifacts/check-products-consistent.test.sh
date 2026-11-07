@@ -97,6 +97,7 @@ B="$(mkbucket upper-ext alpha)"
 : > "$B/bucket/Evil.JSON"
 rc=0; run "$B" || rc=$?
 check "an undeclared manifest with an upper-case extension is refused" "1" "$rc"
+check "and the one definition of a manifest file is stated" "1" "$(said 'directly in bucket/')"
 
 # An undeclared link to a valid manifest must not slip past the roster.
 B="$(mkbucket undeclared-link alpha)"
