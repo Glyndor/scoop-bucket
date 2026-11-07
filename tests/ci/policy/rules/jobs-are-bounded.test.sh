@@ -23,7 +23,7 @@
 # Requires: python3, PyYAML.
 set -uo pipefail
 
-HERE="$(cd "$(dirname "$0")/../../.." && pwd)"
+HERE="$(cd "$(dirname "$0")/../../../.." && pwd)"
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 
