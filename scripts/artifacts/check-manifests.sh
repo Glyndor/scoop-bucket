@@ -16,11 +16,16 @@
 # lands on main and there is no review step between that commit and
 # `scoop install`. Both now call this.
 #
+# The shape of a url is not the whole rule. A url also has to be this
+# manifest's own product's release asset: the repository from the roster row
+# that names it, and the tag the version in the manifest implies.
+#
 # Usage: check-manifests.sh [bucket-dir]   (default: bucket/ next to this repo)
 set -euo pipefail
 shopt -s nullglob
 
-bucket="${1:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/bucket}"
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+bucket="${1:-$root/bucket}"
 
 manifests=("$bucket"/*.json)
 # An empty bucket must be an error, not a vacuous pass. A loop over nothing
@@ -28,6 +33,29 @@ manifests=("$bucket"/*.json)
 # serves nobody -- which is exactly how an emptied bucket reaches users.
 if [ ${#manifests[@]} -eq 0 ]; then
 	echo "::error::no manifests found under $bucket" >&2
+	exit 1
+fi
+
+# The roster: one row per product, `repository|manifest|description|...`, read
+# out of the table the renderer declares it in. PRODUCTS in
+# scripts/release/render-manifests.sh is the only place a product is declared,
+# and check-products-consistent.sh reads the same table: one list of products.
+roster_file="$root/scripts/release/render-manifests.sh"
+declare -A roster=()
+while IFS='|' read -r product repo; do
+	if [ -n "$product" ] && [ -n "$repo" ]; then
+		roster["$product"]="$repo"
+	fi
+done < <(awk '/^PRODUCTS=\(/ { inside = 1; next }
+                inside && /^\)/  { exit }
+                inside           { print }' "$roster_file" 2>/dev/null \
+	| sed -n 's/^[^"]*"\([^|]*\)|\([^|]*\)|.*/\2|\1/p')
+# A roster that declares no product leaves nothing to bind a url to. That is an
+# error, not a pass: a gate that cannot establish which repository a manifest
+# may name cannot certify that it names the right one.
+rosterknown="yes"
+if [ ${#roster[@]} -eq 0 ]; then
+	echo "::error::no PRODUCTS roster in $roster_file; the url of a manifest cannot be bound to its product" >&2
 	exit 1
 fi
 
@@ -50,10 +78,19 @@ SUB_KEYS='["url","hash","bin"]'
 # every segment with literal dots and slashes, and each path-segment class
 # requires at least one letter or digit so a dots-only segment like `..`
 # does not slip through either.
+#
+# The regex fixes the shape, not the owner. Any Glyndor release fitted it, so
+# a manifest could name another product's release and this gate had nothing to
+# say. The owner is settled below, from the roster.
 URL_RE='\Ahttps://github\.com/Glyndor/[A-Za-z0-9_.-]*[A-Za-z0-9][A-Za-z0-9_.-]*/releases/download/v[0-9A-Za-z]*[A-Za-z0-9][0-9A-Za-z.+-]*/[A-Za-z0-9_.-]*[A-Za-z0-9][A-Za-z0-9_.-]*\z'
 HASH_RE='\A[0-9a-f]{64}\z'
 
 for m in "${manifests[@]}"; do
+	# The product this manifest publishes, and the repository its release
+	# assets live in -- the row the renderer takes the repository from.
+	product="$(basename "$m" .json)"
+	repo="${roster[$product]-}"
+
 	# JSON must parse. If it does not, there is no field to point at; the
 	# message names the file and stops. Done first because every later check
 	# feeds the file to jq as JSON.
@@ -155,8 +192,11 @@ PY
 	                    --argjson arch "$ARCH_KEYS" \
 	                    --argjson sub "$SUB_KEYS" \
 	                    --arg urlre "$URL_RE" \
-	                    --arg hashre "$HASH_RE" '
-		[
+	                    --arg hashre "$HASH_RE" \
+	                    --arg repo "$repo" --arg product "$product" \
+	                    --arg rosterknown "$rosterknown" '
+		(.version | if type == "string" then . else "" end) as $version | [
+			(if $repo == "" and $rosterknown == "yes" then "the PRODUCTS roster of scripts/release/render-manifests.sh has no row for \"\($product)\", so no release url is admissible for this manifest" else empty end),
 			([keys[] | select(. as $k | ($top | index($k)) == null)] |
 				if length > 0
 				then "unexpected top-level key(s): " + (map("\"\(.)\"") | join(", "))
@@ -198,8 +238,22 @@ PY
 					 elif ($v | has("url") | not) then "architecture \"\($a)\" missing required field \"url\""
 					 elif ($v.url | type) != "string" then "architecture \"\($a)\" field \"url\" must be a string"
 					 elif ($v.url | test($urlre) | not)
-						then "architecture \"\($a)\" field \"url\" must be a Glyndor release asset URL: https://github.com/Glyndor/<repo>/releases/download/<tag>/<asset>"
-					 else empty end),
+					 then "architecture \"\($a)\" field \"url\" must be a Glyndor release asset URL: https://github.com/Glyndor/<repo>/releases/download/<tag>/<asset>"
+						else
+						# The url has to be the release asset of the product
+						# it publishes: the repository in the roster row, and
+						# the tag the version in the manifest implies.
+						("https://github.com/" + $repo + "/releases/download/v" + $version + "/") as $base
+						| if $version == "" or $repo == "" or ($v.url | startswith($base)) then empty
+						else ($v.url | split("/")) as $parts
+						| (($parts[3] // "?") + "/" + ($parts[4] // "?")) as $named
+						| if $named == $repo then
+							"architecture \"\($a)\" field \"url\" must name the tag \"v\($version)\", the version this manifest declares; it names \"\($parts[7] // "?")\""
+						  else
+							"architecture \"\($a)\" field \"url\" must name the repository \"\($repo)\", the one this product releases from; it names \"\($named)\""
+						  end
+						end
+					 end),
 
 					(if ($v | type) != "object" then empty
 					 elif ($v | has("hash") | not) then "architecture \"\($a)\" missing required field \"hash\""
