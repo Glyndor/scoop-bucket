@@ -85,6 +85,7 @@ check "and the error says the url cannot be bound" "1" "$(said 'cannot be bound 
 # edit did not change the file, the sabotage would be inert and the flip below
 # would prove nothing, so the diff is required to be non-empty first.
 S="$(mktree sabotaged)"
+# shellcheck disable=SC2016 # the pattern names jq variables; they must not expand
 sed 's/\$version == "" or \$repo == "" or (\$v.url | startswith(\$base))/true/' \
 	"$HERE/scripts/artifacts/check-manifests.sh" > "$S/scripts/artifacts/check-manifests.sh"
 chmod +x "$S/scripts/artifacts/check-manifests.sh"
