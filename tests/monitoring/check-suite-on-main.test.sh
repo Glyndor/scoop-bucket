@@ -636,6 +636,37 @@ check "S6 (higher-id first): does not name the #100 run" "0" \
 check "S6 (higher-id first): reports conclusion=failure" "1" \
 	"$(printf '%s' "$out" | grep -q 'conclusion=failure' && echo 1 || echo 0)"
 
+# --- S7/S8: a run still in progress is not a verdict ---------------------
+# The page asks for status=completed, but a run that is not completed has a
+# null conclusion, an empty field in the record, and bash read collapses the
+# tabs and shifts every field after it: a timestamp was reported as the
+# conclusion and main as red over a green run.
+page_s7=$(make_json_page \
+	"$(make_json_run 2 b in_progress null "$ts_new"),$(make_json_run 1 a completed success "$ts_old")")
+printf '%s' "$page_s7" > "$WORK/s7.json"
+out="$(run_script_schedule_json "$WORK/s7.json")"; rc=$?
+check "S7: an in_progress newest run does not hide the older completed success" "0" "$rc"
+check "S7: names the completed run (#1) with conclusion=success" "1" \
+	"$(printf '%s' "$out" | grep -c '#1 (event=push, conclusion=success')"
+printf '%s' "$(make_json_page "$(make_json_run 2 b in_progress null "$ts_new")")" > "$WORK/s8.json"
+out="$(run_script_schedule_json "$WORK/s8.json")"; rc=$?
+check "S8: only an in_progress run on record fails" "1" "$rc"
+check "S8: and says no completed run is on record" "1" \
+	"$(printf '%s' "$out" | grep -c 'No completed run on record')"
+# Control: the old filter, which does not ask for completed, must fail S7.
+SCRIPT_OLD="$WORK/old-suite-on-main.sh"
+python3 -I - "$SCRIPT" "$SCRIPT_OLD" <<'PY'
+import sys
+s = open(sys.argv[1]).read()
+new = s.replace('map(select(.status == "completed")) as $done', 'map(.) as $done')
+assert new != s
+open(sys.argv[2], "w").write(new)
+PY
+SCRIPT_KEEP="$SCRIPT"; SCRIPT="$SCRIPT_OLD"
+out="$(run_script_schedule_json "$WORK/s7.json")"; rc=$?
+SCRIPT="$SCRIPT_KEEP"
+check "S7 control: without the completed filter the same page is reported red" "1" "$rc"
+
 echo "$pass passed, $fail failed"
 printf 'DONE %s %d %d\n' "${BASH_SOURCE[0]##*/}" "$pass" "$fail"
 [ "$fail" -eq 0 ]
