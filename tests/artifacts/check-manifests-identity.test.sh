@@ -102,6 +102,24 @@ for label in other-repo other-tag other-version; do
 	check "without the binding, $label passes (the refusal is the binding's)" "0" "$rc"
 done
 
+# --- one definition of a manifest file, shared with check-products-consistent --
+# The glob reads bucket/<name>.json only, so a valid manifest copied into a
+# subfolder, or named with capitals, was a file the gate never opened.
+T="$(mktree subdir)"; manifest "$T" podup.json '.'; mkdir "$T/bucket/sub"; cp "$T/bucket/podup.json" "$T/bucket/sub/podup.json"
+rc=0; gate "$T" || rc=$?
+check "a valid manifest in a subfolder is refused" "1" "$rc"
+check "and the message says where a manifest lives" "1" "$(said 'directly in the bucket')"
+T="$(mktree upper)"; manifest "$T" podup.json '.'; cp "$T/bucket/podup.json" "$T/bucket/Podup.JSON"
+rc=0; gate "$T" || rc=$?
+check "a valid manifest with an upper-case extension is refused" "1" "$rc"
+D="$(mktree defsab)"; manifest "$D" podup.json '.'; mkdir "$D/bucket/sub"; cp "$D/bucket/podup.json" "$D/bucket/sub/podup.json"
+# shellcheck disable=SC2016 # the pattern names a shell variable; it must not expand
+sed 's/^if \[ -n "\$odd" \]; then/if false; then/' "$HERE/scripts/artifacts/check-manifests.sh" > "$D/scripts/artifacts/check-manifests.sh"
+check "the definition control changed the gate" "1" \
+	"$(cmp -s "$HERE/scripts/artifacts/check-manifests.sh" "$D/scripts/artifacts/check-manifests.sh" && echo 0 || echo 1)"
+rc=0; gate "$D" || rc=$?
+check "without the definition, the subfolder copy passes" "0" "$rc"
+
 echo "$pass passed, $fail failed"
 printf 'DONE %s %d %d\n' "${0##*/}" "$pass" "$fail"
 [ "$fail" -eq 0 ]
