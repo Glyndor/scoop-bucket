@@ -9,7 +9,7 @@
 # Requires: jq, python3.
 set -u
 
-HERE="$(cd "$(dirname "$0")/../.." && pwd)"
+HERE="$(cd "$(dirname "$0")/../../.." && pwd)"
 CHECK="$HERE/scripts/artifacts/check-manifests.sh"
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
