@@ -40,6 +40,17 @@ if [ ${#manifests[@]} -eq 0 ]; then
 	exit 1
 fi
 
+# The glob above reads bucket/<name>.json and nothing else, while Scoop reads a
+# manifest in a subfolder and one whose extension is in capitals. A file the
+# gate never opens is a file it cannot hold to its roster row, so it is refused
+# by name. check-products-consistent.sh states the same definition.
+odd="$(find "$bucket" -type f -iname '*.json' -printf '%P\n' | grep -Ev '^[^/]+\.json$' | LC_ALL=C sort || true)"
+if [ -n "$odd" ]; then
+	echo "::error::$bucket holds a file that is not <name>.json (directly in the bucket, lowercase extension):" >&2
+	printf '%s\n' "$odd" | sed 's/^/  /' >&2
+	exit 1
+fi
+
 # The roster: one row per product, `repository|manifest|description|...`, read
 # out of the table the renderer declares it in. PRODUCTS in
 # scripts/release/render-manifests.sh is the only place a product is declared,
