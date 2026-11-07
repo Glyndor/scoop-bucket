@@ -219,8 +219,9 @@ base="repos/${REPO}/actions/workflows/${WORKFLOW}/runs?branch=main&status=comple
 filter='
 .workflow_runs
 | sort_by([.created_at, .id]) | reverse
-| map(select(.conclusion != "cancelled")) as $kept
-| (length - ($kept | length)) as $skipped
+| map(select(.status == "completed")) as $done
+| ($done | map(select(.conclusion != "cancelled"))) as $kept
+| (($done | length) - ($kept | length)) as $skipped
 | if ($kept | length) == 0
   then "EMPTY\t\($skipped)"
   else ($kept | .[0] | [.id, .conclusion, .created_at, .html_url, .event] | @tsv) + "\t\($skipped)"
