@@ -80,7 +80,7 @@ check "and it names the file it accepted" "1" "$(said 'podup.json')"
 
 # --- T5: what the gate does not bind ----------------------------------------
 # Each edit keeps the types and global URL/hash shapes valid. The url is bound
-# to the product and to the version (tests/artifacts/check-manifests-identity.test.sh
+# to the product and to the version (tests/artifacts/check-manifests/check-manifests-identity.test.sh
 # plants and refuses those), and bin, homepage and description are bound to the
 # roster row (check-manifests-binding.test.sh); the hash is not, and only the
 # renderer's signed sums and per-asset provenance checks establish it on
