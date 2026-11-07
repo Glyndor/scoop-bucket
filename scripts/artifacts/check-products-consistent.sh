@@ -66,6 +66,15 @@ if [ -n "$not_regular" ]; then
 	printf '%s\n' "$not_regular" | sed 's/^/  /' >&2
 	exit 1
 fi
+# The same definition check-manifests.sh holds: a manifest is bucket/<name>.json,
+# directly in bucket/, with a lowercase extension. Scoop reads the others too, so
+# one is named here instead of being read as some other product.
+odd="$(find "$root/bucket" -type f -iname '*.json' -printf '%P\n' | grep -Ev '^[^/]+\.json$' | LC_ALL=C sort || true)"
+if [ -n "$odd" ]; then
+	echo "::error::bucket/ holds a file that is not bucket/<name>.json (directly in bucket/, lowercase extension):" >&2
+	printf '%s\n' "$odd" | sed 's/^/  /' >&2
+	exit 1
+fi
 rendered="$(find "$root/bucket" -type f -iname '*.json' -printf '%P\n' \
            | while read -r f; do echo "${f%.json}"; done | sort -u)"
 
