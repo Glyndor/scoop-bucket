@@ -81,8 +81,9 @@ check "and it names the file it accepted" "1" "$(said 'podup.json')"
 # --- T5: what the gate does not bind ----------------------------------------
 # Each edit keeps the types and global URL/hash shapes valid. The url is bound
 # to the product and to the version (tests/artifacts/check-manifests-identity.test.sh
-# plants and refuses those); the bin name and the hash are not, and only the
-# renderer's signed sums and per-asset provenance checks establish them on
+# plants and refuses those), and bin, homepage and description are bound to the
+# roster row (check-manifests-binding.test.sh); the hash is not, and only the
+# renderer's signed sums and per-asset provenance checks establish it on
 # generated output.
 while IFS="|" read -r label filter; do
 	B="$(mkbucket "identity-$label" "$filter")"
@@ -90,7 +91,6 @@ while IFS="|" read -r label filter; do
 	check "$label is accepted by the structural gate, not authenticated" "0" "$rc"
 	check "$label acceptance names podup.json" "1" "$(said "ok  $B/podup.json")"
 done <<'CASES'
-other-bin|.architecture."64bit".bin = [["other-windows-x86_64.exe", "podup"]]
 other-hash|.architecture."64bit".hash = "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
 CASES
 
@@ -196,22 +196,15 @@ check "a bin of empty-array entries is refused" "1" "$rc"
 check "and the error names the manifest" "1" "$(said 'podup.json')"
 check "and names the offending entry" "1" "$(said 'bin entry')"
 
-# Scoop also accepts a single shim name as a bare string. A previous version
-# of this gate refused every string bin, which was the wrong rule.
-B="$(mkbucket bin-string '.architecture["64bit"].bin = "podup.exe"')"
-rc=0; run "$B" || rc=$?
-check "a bin that is a single string is accepted" "0" "$rc"
-
-# The array-of-shim-names form Scoop accepts alongside the bare-string one.
-B="$(mkbucket bin-string-array '.architecture["64bit"].bin = ["podup.exe"]')"
-rc=0; run "$B" || rc=$?
-check "a bin that is an array of strings is accepted" "0" "$rc"
-
-# The [exe, alias, args] form Scoop's documentation shows, and the form the
-# renderer itself writes.
-B="$(mkbucket bin-args-form '.architecture["64bit"].bin = [["podup.exe", "podup"]]')"
-rc=0; run "$B" || rc=$?
-check "a bin that is an array of exe/alias/args is accepted" "0" "$rc"
+# The renderer writes one [asset, alias] pair per architecture, so the other
+# forms Scoop accepts (a bare string, an array of names, a third element with
+# arguments) are not what this bucket publishes and are refused; the pair is
+# held to the asset and the product in check-manifests-binding.test.sh.
+for form in '"podup.exe"' '["podup.exe"]' '[["podup-windows-x86_64.exe", "podup", "--x"]]'; do
+	B="$(mkbucket bin-form '.architecture["64bit"].bin = '"$form")"
+	rc=0; run "$B" || rc=$?
+	check "a bin of the form $form is refused" "1" "$rc"
+done
 
 # --- top-level required fields are still required --------------------------
 #

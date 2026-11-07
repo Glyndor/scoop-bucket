@@ -18,7 +18,11 @@
 #
 # The shape of a url is not the whole rule. A url also has to be this
 # manifest's own product's release asset: the repository from the roster row
-# that names it, and the tag the version in the manifest implies.
+# that names it, and the tag the version in the manifest implies. The other
+# fields the renderer derives from that same row are held to it too: the
+# homepage is that repository's page, the description is present and not
+# empty, and every `bin` entry is the pair the renderer writes -- the file
+# the architecture downloads, and the product the shim is called after.
 #
 # Usage: check-manifests.sh [bucket-dir]   (default: bucket/ next to this repo)
 set -euo pipefail
@@ -55,7 +59,7 @@ done < <(awk '/^PRODUCTS=\(/ { inside = 1; next }
 # may name cannot certify that it names the right one.
 rosterknown="yes"
 if [ ${#roster[@]} -eq 0 ]; then
-	echo "::error::no PRODUCTS roster in $roster_file; the url of a manifest cannot be bound to its product" >&2
+	echo "::error::no PRODUCTS roster in $roster_file; the url of a manifest cannot be bound to its product, and neither can its homepage" >&2
 	exit 1
 fi
 
@@ -196,7 +200,7 @@ PY
 	                    --arg repo "$repo" --arg product "$product" \
 	                    --arg rosterknown "$rosterknown" '
 		(.version | if type == "string" then . else "" end) as $version | [
-			(if $repo == "" and $rosterknown == "yes" then "the PRODUCTS roster of scripts/release/render-manifests.sh has no row for \"\($product)\", so no release url is admissible for this manifest" else empty end),
+			(if $repo == "" and $rosterknown == "yes" then "the PRODUCTS roster of scripts/release/render-manifests.sh has no row for \"\($product)\", so no release url or homepage is admissible for this manifest" else empty end),
 			([keys[] | select(. as $k | ($top | index($k)) == null)] |
 				if length > 0
 				then "unexpected top-level key(s): " + (map("\"\(.)\"") | join(", "))
@@ -206,8 +210,22 @@ PY
 			 elif (.version | type) != "string" then "field \"version\" must be a string"
 			 elif (.version | length) == 0 then "field \"version\" must be a non-empty string"
 			 else empty end),
+			# The renderer always emits the description of the roster row, so a
+			# manifest without one is a hand edit or a hijacked render.
+			(if has("description") | not then "missing required top-level field \"description\""
+			 elif (.description | type) != "string" then "field \"description\" must be a string"
+			 elif (.description | length) == 0 then "field \"description\" must be a non-empty string"
+			 else empty end),
+			# The homepage is the repository the row names, and nothing else.
+			# A string of any shape passed before, including a "javascript:"
+			# one, which is a link the reader of the manifest would follow.
+			# The value is printed with @json because it is attacker-supplied:
+			# a newline in it would forge a line of the CI log.
 			(if has("homepage") | not then "missing required top-level field \"homepage\""
 			 elif (.homepage | type) != "string" then "field \"homepage\" must be a string"
+			 elif $repo == "" then empty
+			 elif .homepage != ("https://github.com/" + $repo)
+			 then "field \"homepage\" must be exactly \"https://github.com/\($repo)\", the page of the product this manifest publishes; it is \(.homepage | @json)"
 			 else empty end),
 			(if has("license") | not then "missing required top-level field \"license\""
 			 elif (.license | type) != "string" then "field \"license\" must be a string"
@@ -219,6 +237,15 @@ PY
 
 			(try (.architecture | to_entries) catch empty | .[] |
 				.key as $a | .value as $v |
+				# The file this architecture downloads: the last path segment of a
+				# well-formed url. A `bin` entry that does not name exactly this
+				# file points the shim somewhere else. It is bound to null when
+				# the url is not a well-formed one, because then the url rule
+				# below is the cause, and two causes for one field would only
+				# blur it.
+				(if ($v | type) == "object" and ($v.url | type) == "string" and ($v.url | test($urlre))
+				 then ($v.url | split("/") | last)
+				 else null end) as $asset |
 				[
 					(if ($v | type) != "object"
 					 then "architecture \"\($a)\" must be an object, not \($v | type)"
@@ -264,23 +291,35 @@ PY
 
 					(if ($v | type) != "object" then empty
 					 elif ($v | has("bin") | not) then "architecture \"\($a)\" missing required field \"bin\""
-					 elif (($v.bin | type) != "string" and ($v.bin | type) != "array")
-						then "architecture \"\($a)\" field \"bin\" must be a string or an array"
-					 elif ($v.bin | type) == "string" and ($v.bin | length) == 0
-						then "architecture \"\($a)\" field \"bin\" must be a non-empty string"
-					 elif ($v.bin | type) == "array" and ($v.bin | length) == 0
-						then "architecture \"\($a)\" field \"bin\" must be a non-empty array"
-					 elif ($v.bin | type) == "array" then
-						# A Scoop bin entry is either a string (shim name) or a non-empty array of
-						# strings in [exe, alias, args] form. A number, a boolean, or an empty inner
-						# array is not a shim and has no place on the machine after scoop install.
-						# Report each bad entry by index.
+					 elif ($v.bin | type) != "array"
+					 then "architecture \"\($a)\" field \"bin\" must be an array of [asset, alias] pairs"
+					 elif ($v.bin | length) == 0
+					 then "architecture \"\($a)\" field \"bin\" must be a non-empty array of [asset, alias] pairs"
+					 else
+						# The renderer writes one pair per architecture, and nothing
+						# else: the file the architecture downloads, and the product
+						# the shim is called after. A third element is the
+						# [exe, alias, args] form Scoop accepts, and those
+						# arguments are written into the shim the user runs. A
+						# first element that is not the downloaded file points
+						# the shim at another file, or at one outside the
+						# install directory.
 						$v.bin | to_entries[] |
-							if (.value | type) == "string" and (.value | length) > 0 then empty
-							elif (.value | type) == "array" and (.value | length) > 0 and (.value | all(.[]; type == "string" and length > 0)) then empty
-							else "architecture \"\($a)\" bin entry \(.key) is not a non-empty string or an array of non-empty strings"
-							end
-					 else empty end)
+							.key as $i | .value as $e |
+							(if ($e | type) != "array"
+							 then "architecture \"\($a)\" bin entry \($i) must be an [asset, alias] pair, not \($e | type)"
+							 elif ($e | length) != 2
+							 then "architecture \"\($a)\" bin entry \($i) must hold exactly two elements [asset, alias]; it holds \($e | length)"
+							 elif ($e[0] | type) != "string" or ($e[1] | type) != "string"
+							 then "architecture \"\($a)\" bin entry \($i) must hold two strings [asset, alias]"
+							 elif ($e[0] | length) == 0 or ($e[1] | length) == 0
+							 then "architecture \"\($a)\" bin entry \($i) must name a non-empty asset and a non-empty alias"
+							 elif $asset != null and $e[0] != $asset
+							 then "architecture \"\($a)\" bin entry \($i) names the executable \($e[0] | @json), but this architecture downloads \($asset | @json)"
+							 elif $e[1] != $product
+							 then "architecture \"\($a)\" bin entry \($i) names the alias \($e[1] | @json), but the shim of this manifest is named after the product, \($product | @json)"
+							 else empty end)
+					 end)
 				]
 			)[]
 		] | unique[]
