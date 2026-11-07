@@ -78,18 +78,18 @@ rc=0; run "$B" || rc=$?
 check "a complete manifest passes" "0" "$rc"
 check "and it names the file it accepted" "1" "$(said 'podup.json')"
 
-# --- T5: accepted structural shapes do not establish release identity --------
-# Each edit keeps the types and global URL/hash shapes valid. The gate accepts
-# these hand edits; only the renderer's signed sums and per-asset provenance
-# checks establish a release binding on generated output.
+# --- T5: what the gate does not bind ----------------------------------------
+# Each edit keeps the types and global URL/hash shapes valid. The url is bound
+# to the product and to the version (tests/artifacts/check-manifests-identity.test.sh
+# plants and refuses those); the bin name and the hash are not, and only the
+# renderer's signed sums and per-asset provenance checks establish them on
+# generated output.
 while IFS="|" read -r label filter; do
 	B="$(mkbucket "identity-$label" "$filter")"
 	rc=0; run "$B" || rc=$?
 	check "$label is accepted by the structural gate, not authenticated" "0" "$rc"
 	check "$label acceptance names podup.json" "1" "$(said "ok  $B/podup.json")"
 done <<'CASES'
-other-repo|.architecture."64bit".url = "https://github.com/Glyndor/other/releases/download/v1.0.0/podup-windows-x86_64.exe"
-other-version|.version = "9.9.9"
 other-bin|.architecture."64bit".bin = [["other-windows-x86_64.exe", "podup"]]
 other-hash|.architecture."64bit".hash = "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
 CASES
@@ -238,7 +238,7 @@ rc=0; run "$B" || rc=$?
 check "an empty version string is refused" "1" "$rc"
 check "and the error names the version shape" "1" "$(said 'version" must be a non-empty string')"
 
-B="$(mkbucket short-version '.version = "0"')"
+B="$(mkbucket short-version '.version = "0" | .architecture["64bit"].url |= sub("/v1.0.0/"; "/v0/")')"
 rc=0; run "$B" || rc=$?
 check "and a one-character version is accepted" "0" "$rc"
 
