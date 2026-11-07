@@ -63,15 +63,15 @@ jobs:
         ./tests/artifacts/check-manifests/check-manifests-binding.test.sh
         ./tests/artifacts/check-manifests/check-manifests-duplicate-keys.test.sh
         ./tests/artifacts/check-version-monotonic.test.sh
-        ./tests/ci/policy/locale-pinned.test.sh
-        ./tests/ci/policy/workflow-publish-triggers.test.sh
+        ./tests/ci/policy/rules/locale-pinned.test.sh
+        ./tests/ci/policy/workflows/workflow-publish-triggers.test.sh
         ./tests/quality/check-test-coverage.test.sh
         ./tests/quality/check-doc-anchors.test.sh
         ./tests/quality/check-action-pins.test.sh
         ./tests/governance/check-dco-on-main.test.sh
         ./tests/governance/check-issue-templates.test.sh
         ./tests/monitoring/check-suite-on-main.test.sh
-        ./tests/ci/policy/documented-test-command.test.sh
+        ./tests/ci/docs/documented-test-command.test.sh
         ./tests/ci/suites/ci-runs-every-test.test.sh
         ./tests/quality/lint-workflow-shell.test.sh
         ./tests/ci/reusable/reusable-line-limit.test.sh
@@ -79,14 +79,14 @@ jobs:
         ./tests/ci/suites/shell-ci-scope.test.sh
         ./tests/quality/ci-job-scope.test.sh
         ./tests/ci/suites/lint-job-scope.test.sh
-        ./tests/ci/policy/cancel-policy.test.sh
+        ./tests/ci/policy/rules/cancel-policy.test.sh
         ./tests/ci/reusable/reusable-empty-diff.test.sh
         ./tests/ci/reusable/reusable-dco.test.sh
         ./tests/quality/check-editorconfig.test.sh
         ./tests/monitoring/check-reusable-drift.test.sh
         ./tests/monitoring/check-channel-drift.test.sh
-        ./tests/ci/policy/workflow-shape.test.sh
-        ./tests/ci/policy/freshness-pr-scope.test.sh
+        ./tests/ci/policy/workflows/workflow-shape.test.sh
+        ./tests/ci/policy/workflows/freshness-pr-scope.test.sh
         ./tests/monitoring/check-render-drift.test.sh
         ./tests/monitoring/check-render-drift/check-render-drift-drift.test.sh
         ./tests/monitoring/check-render-drift/check-render-drift-missing.test.sh
@@ -97,8 +97,8 @@ jobs:
         ./tests/ci/reusable/reusable-schedule-freshness.test.sh
         ./tests/ci/reusable/reusable-workflow-lint.test.sh
         ./tests/ci/reusable/reusable-workflow-lint-install.test.sh
-        ./tests/ci/policy/jobs-are-bounded.test.sh
-        ./tests/ci/policy/network-calls-are-bounded.test.sh
+        ./tests/ci/policy/rules/jobs-are-bounded.test.sh
+        ./tests/ci/policy/rules/network-calls-are-bounded.test.sh
       # shellcheck: tests/quality/lint-workflow-shell.test.sh plants a violation and
       # requires the linter to report it, so it needs the linter. The gate
       # itself runs in the shellcheck job against the pinned binary; this one
