@@ -92,6 +92,7 @@ jobs:
         ./tests/ci/reusable/reusable-dependabot-freshness.test.sh
         ./tests/ci/reusable/reusable-schedule-freshness.test.sh
         ./tests/ci/reusable/reusable-workflow-lint.test.sh
+        ./tests/ci/reusable/reusable-workflow-lint-install.test.sh
         ./tests/ci/policy/jobs-are-bounded.test.sh
         ./tests/ci/policy/network-calls-are-bounded.test.sh
       # shellcheck: tests/quality/lint-workflow-shell.test.sh plants a violation and
