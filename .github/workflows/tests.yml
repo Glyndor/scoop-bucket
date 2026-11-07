@@ -52,10 +52,10 @@ jobs:
       test-command: >-
         ./tests/ci/suites/check-suite-completeness.test.sh
         ./tests/release/render-manifests.test.sh
-        ./tests/release/render-manifests-attestation.test.sh
-        ./tests/release/render-manifests-inputs.test.sh
-        ./tests/release/render-manifests-transfer-limits.test.sh
-        ./tests/release/render-manifests-products.test.sh
+        ./tests/release/render-manifests/render-manifests-attestation.test.sh
+        ./tests/release/render-manifests/render-manifests-inputs.test.sh
+        ./tests/release/render-manifests/render-manifests-transfer-limits.test.sh
+        ./tests/release/render-manifests/render-manifests-products.test.sh
         ./tests/publication/update/update-workflow.test.sh
         ./tests/artifacts/check-products-consistent.test.sh
         ./tests/artifacts/check-manifests.test.sh
