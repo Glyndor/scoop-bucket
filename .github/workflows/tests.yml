@@ -59,6 +59,7 @@ jobs:
         ./tests/publication/update/update-workflow.test.sh
         ./tests/artifacts/check-products-consistent.test.sh
         ./tests/artifacts/check-manifests.test.sh
+        ./tests/artifacts/check-manifests-identity.test.sh
         ./tests/artifacts/check-manifests-duplicate-keys.test.sh
         ./tests/ci/policy/locale-pinned.test.sh
         ./tests/ci/policy/workflow-publish-triggers.test.sh

@@ -79,6 +79,10 @@ sandbox() { # $1=path $2=code $3=writes? (yes|no|empty|new|del|del-multi)
 	fi
 	cat > "$dir/scripts/release/render-manifests.sh" <<SH
 #!/usr/bin/env bash
+# The roster check-manifests.sh binds each manifest url to (it reads this table).
+PRODUCTS=(
+	"Glyndor/podup|podup|stub|podup-windows-x86_64.exe"
+)
 case "$mode" in
 	yes)       printf '{"version":"2"}\n' > "$dir/bucket/podup.json" ;;
 	empty)     rm -f "$dir"/bucket/*.json ;;
