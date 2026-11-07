@@ -99,7 +99,7 @@ checked again on 2026-10-31 against the current renderer and tests.
 
 | Threat | Control | Evidence |
 |---|---|---|
-| A human with Write commits a malicious manifest | three partial controls and a named gap. (1) the ruleset on `main`: pull request required, required status checks, `required_signatures`, no bypass for humans (it is a ruleset, not in the tree). (2) The next hourly render overwrites a hand edit for any product whose release renders (`scripts/release/render-manifests.sh#render_product`, `CONTRIBUTING.md#The bot commits straight to main, and that is not an oversight`). (3) `dco-on-main.yml` reports a human commit without `Signed-off-by` after it lands (`.github/workflows/dco-on-main.yml#Check the pushed commits`, `scripts/governance/check-dco-on-main.sh#exempt_all`); the pull request `dco` check is required. The gap: validation restricts keys, types, URL shape and digest format, and holds the URL to the product the roster names and the tag the manifest's version implies, but does not bind a hand edit to the product's signed release. Another executable mapping or another well-formed hash can pass. If that product's release stops rendering, the hand edit is kept | test for (3): `tests/governance/check-dco-on-main.test.sh#an unsigned human commit fails`; `tests/governance/check-dco-on-main.test.sh#a commit whose author field impersonates the bot is still reported`. (1) is a ruleset, not in the tree. (2): `tests/release/render-manifests.test.sh#the skipped product keeps the manifest it had` pins the gap, not the control |
+| A human with Write commits a malicious manifest | three partial controls and a named gap. (1) the ruleset on `main`: pull request required, required status checks, `required_signatures`, no bypass for humans (it is a ruleset, not in the tree). (2) The next hourly render overwrites a hand edit for any product whose release renders (`scripts/release/render-manifests.sh#render_product`, `CONTRIBUTING.md#The bot commits straight to main, and that is not an oversight`). (3) `dco-on-main.yml` reports a human commit without `Signed-off-by` after it lands (`.github/workflows/dco-on-main.yml#Check the pushed commits`, `scripts/governance/check-dco-on-main.sh#exempt_all`); the pull request `dco` check is required. The gap: validation restricts keys, types, URL shape and digest format, and holds the URL, the homepage, the description and the executable mapping to the product the roster names and to the version the manifest declares, but does not bind a hand edit to the product's signed release. Another well-formed hash can pass. If that product's release stops rendering, the hand edit is kept | test for (3): `tests/governance/check-dco-on-main.test.sh#an unsigned human commit fails`; `tests/governance/check-dco-on-main.test.sh#a commit whose author field impersonates the bot is still reported`. (1) is a ruleset, not in the tree. (2): `tests/release/render-manifests.test.sh#the skipped product keeps the manifest it had` pins the gap, not the control |
 | A manifest `url` points outside the product's GitHub release | the validator holds every `url` to the release of the product that manifest publishes: the repository comes from the row that names the manifest in `PRODUCTS` (`scripts/release/render-manifests.sh#PRODUCTS`), and the tag has to be the `v<version>` the manifest itself declares (`scripts/artifacts/check-manifests.sh#check-manifests`). A url for another Glyndor repository, or for another tag of this one, is refused by name. On the rendered path the URL is built from the `PRODUCTS` repository and the verified tag, never read from the release (`scripts/release/render-manifests.sh#render_product`) | test: `tests/release/render-manifests.test.sh#the 64bit url points at the tagged asset`; the validator's own cases are in `tests/artifacts/check-manifests.test.sh`. The url is bound to the product and the version, not to the bytes a release published: see the row above |
 | A manifest that is not JSON, lacks a field, or an emptied `bucket/` reaches `main` | `scripts/artifacts/check-manifests.sh` runs inside the job before the commit (`.github/workflows/update.yml#Validate the re-rendered manifests`) and on every push and pull request (`.github/workflows/tests.yml#manifests`); an empty bucket is an error, not a vacuous pass (`scripts/artifacts/check-manifests.sh#check-manifests`) | test: `tests/artifacts/check-manifests.test.sh#a file that is not JSON is refused`; `tests/artifacts/check-manifests.test.sh#an empty bucket is refused rather than passing vacuously`; `tests/artifacts/check-manifests.test.sh#a per-architecture field the renderer does not emit is refused`; `tests/publication/update/update-workflow.test.sh#an emptied bucket/ fails validation` |
 | The bot's commit lands unsigned, or on a `main` that moved since checkout | `createCommitOnBranch` with `expectedHeadOid` (`.github/workflows/update.yml#Commit the update to main (GitHub-signed)`); the concurrency group serialises runs (`.github/workflows/update.yml#update`) | test: `tests/publication/update/update-workflow.test.sh#and the payload uses createCommitOnBranch`; `tests/publication/update/update-workflow.test.sh#and pins expectedHeadOid` |
@@ -114,9 +114,24 @@ to its product as well: the repository is the one the row that names the
 manifest declares in `PRODUCTS` (`scripts/release/render-manifests.sh#PRODUCTS`),
 and the tag has to be the `v<version>` the manifest itself declares, so a URL
 for another Glyndor product, or for another tag of this one, is refused by
-name. What it still does not bind is `bin` to the downloaded asset, or the
-hash to any actual bytes: the cases in `tests/artifacts/check-manifests.test.sh`
-record the hand edits the gate accepts.
+name.
+
+The rest of what the renderer derives from that same row is bound to it too.
+`description` has to be present and not empty, because the renderer always
+emits it. `homepage` has to be exactly `https://github.com/` followed by the
+repository of the row, so a manifest cannot send the reader of it to another
+page. Every `bin` entry has to be the pair the renderer writes
+(`scripts/release/render-manifests.sh#render_product`): the file name that
+architecture downloads, and the product the shim is called after. A third
+element is the `[exe, alias, args]` form Scoop accepts, and those arguments
+are written into the shim the user runs; a first element that is not the
+downloaded file points the shim at another file, or at one outside the install
+directory. Both are refused by name, with the entry index.
+
+What it still does not bind is the hash to any actual bytes: a well-formed
+digest that matches no download passes here. The cases in
+`tests/artifacts/check-manifests.test.sh` record the hand edits the gate
+accepts.
 
 On the generated path, the renderer constructs URL and executable mapping
 from the repository-controlled `PRODUCTS` row and candidate tag, verifies
@@ -183,10 +198,10 @@ oversights.
   the roster record and is refused as a missing field. The roster belongs to
   this repository, so the check is defence in depth for the day it has an
   automated source. The same table also decides which repository a manifest's
-  URL may name (`scripts/artifacts/check-manifests.sh#check-manifests`), so a
-  row that named the wrong repository would move the admission with it; the
-  shape of a row is checked, that the product it names is the right one is
-  not.
+  URL and homepage may name, and which product its shim is called after
+  (`scripts/artifacts/check-manifests.sh#check-manifests`), so a row that
+  named the wrong repository would move the admission with it; the shape of a
+  row is checked, that the product it names is the right one is not.
 - **No field test on Windows hardware.** The manifest renders, validates, and
   was rendered from a real signed release; no `scoop install` has been run on
   a Windows machine by this repository. Stated here, not measured in the tree.
