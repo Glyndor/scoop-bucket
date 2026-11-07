@@ -112,6 +112,7 @@ check "and the message says where a manifest lives" "1" "$(said 'directly in the
 T="$(mktree upper)"; manifest "$T" podup.json '.'; cp "$T/bucket/podup.json" "$T/bucket/Podup.JSON"
 rc=0; gate "$T" || rc=$?
 check "a valid manifest with an upper-case extension is refused" "1" "$rc"
+check "and the message says where a manifest lives" "1" "$(said 'directly in the bucket')"
 D="$(mktree defsab)"; manifest "$D" podup.json '.'; mkdir "$D/bucket/sub"; cp "$D/bucket/podup.json" "$D/bucket/sub/podup.json"
 # shellcheck disable=SC2016 # the pattern names a shell variable; it must not expand
 sed 's/^if \[ -n "\$odd" \]; then/if false; then/' "$HERE/scripts/artifacts/check-manifests.sh" > "$D/scripts/artifacts/check-manifests.sh"

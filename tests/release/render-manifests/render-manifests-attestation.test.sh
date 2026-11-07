@@ -118,6 +118,11 @@ for shape in empty-list empty-object json-null not-json; do
 	out="$( cd "$WORK/shape-$shape" && "$WORK/shape-$shape/scripts/release/render-manifests.sh" --pubkey "$PUBKEY" 2>&1 )" || rc=$?
 	unset ATTEST_STUB_OUTCOME
 	check "a successful verify printing $shape is refused" "3" "$rc"
+	case "$shape" in
+		not-json) reason="JSONDecodeError" ;;
+		*) reason="attestation verification produced no entries" ;;
+	esac
+	check "and the reason is the shape of the output ($shape)" "1" "$(printf '%s' "$out" | grep -cF "$reason" | sed 's/^[1-9].*/1/')"
 	check "and nothing is written from it ($shape)" "0" \
 		"$(find "$WORK/shape-$shape/bucket" -name '*.json' | wc -l)"
 done

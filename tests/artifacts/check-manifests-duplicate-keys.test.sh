@@ -65,6 +65,7 @@ check "and the message names the key" "1" "$(said 'duplicate key "a"')"
 B="$(printf '{"version": "1.0.0", "version": "1.0.0", %s, %s}\n' "$GOOD_TAIL" "$ARCH" | bucket same)"
 rc=0; run "$B" || rc=$?
 check "a repeated key with the same value is refused too" "1" "$rc"
+check "and the message names the key" "1" "$(said 'duplicate key "version"')"
 
 echo
 echo "$pass passed, $fail failed"

@@ -152,6 +152,7 @@ check "and the refusal names the release asset shape" "1" "$(said 'releases/down
 B="$(mkbucket url-pct-dotdot '.architecture."64bit".url = "https://github.com/Glyndor/%2e%2e/attacker/payload/releases/download/v1/podup.exe"')"
 rc=0; run "$B" || rc=$?
 check "a url with a percent-encoded dot-dot segment is refused" "1" "$rc"
+check "and the message says what a release url is" "1" "$(said 'must be a Glyndor release asset URL')"
 
 # The org release endpoint never takes a query string. A startswith check
 # accepts anything that begins with it, so a query-stringed asset URL slips
@@ -159,6 +160,7 @@ check "a url with a percent-encoded dot-dot segment is refused" "1" "$rc"
 B="$(mkbucket url-query '.architecture."64bit".url = "https://github.com/Glyndor/podup/releases/download/v1.0.0/podup.exe?x=1"')"
 rc=0; run "$B" || rc=$?
 check "a url with a query string is refused" "1" "$rc"
+check "and the message says what a release url is" "1" "$(said 'must be a Glyndor release asset URL')"
 
 # --- hash must match the digest regex --------------------------------------
 B="$(mkbucket bad-hash '.architecture["64bit"].hash = "notahash"')"
