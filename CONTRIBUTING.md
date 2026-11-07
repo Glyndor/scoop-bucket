@@ -109,8 +109,9 @@ find scripts tests -name '*.sh' -print0 | xargs -0 shellcheck || fail=1
 Keep the flag. A loop that carries on past a failure is more useful locally than
 one that stops, but it surrenders the exit status, and the printed `FAILED:`
 lines then become the only signal there is. They scroll. The flag turns them
-back into something a script can read. Compare the workflow, where the same
-scripts are joined with `&&` and the first failure ends the job.
+back into something a script can read. Compare the workflow, where one command,
+the suite runner, takes every suite as an argument and runs them all, so nothing
+stops at the first failure there either.
 
 **Every script in `scripts/` needs a test.**
 `scripts/quality/check-test-coverage.sh` fails when one does not, itself included --
