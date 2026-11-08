@@ -40,6 +40,17 @@ if [ ${#manifests[@]} -eq 0 ]; then
 	exit 1
 fi
 
+# Anything in the bucket that is neither a regular file nor a folder is refused:
+# a manifest that is a symlink is read by the glob below like any other, so the
+# gate would certify the link's target while the bucket serves a path that can
+# be repointed.
+links="$(find "$bucket" -mindepth 1 ! -type f ! -type d -printf '%P\n' | LC_ALL=C sort || true)"
+if [ -n "$links" ]; then
+	echo "::error::$bucket holds an entry that is not a regular file:" >&2
+	printf '%s\n' "$links" | sed 's/^/  /' >&2
+	exit 1
+fi
+
 # The glob above reads bucket/<name>.json and nothing else, while Scoop reads a
 # manifest in a subfolder and one whose extension is in capitals. A file the
 # gate never opens is a file it cannot hold to its roster row, so it is refused
