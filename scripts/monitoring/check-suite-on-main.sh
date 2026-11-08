@@ -227,7 +227,24 @@ filter='
   else ($kept | .[0] | [.id, .conclusion, .created_at, .html_url, .event] | @tsv) + "\t\($skipped)"
   end'
 
-result=$(gh api "$base" --jq "$filter")
+# The same rule as the push path: one transient API error (a 502, a dropped
+# connection) is not a verdict, so it is asked again a few times. This path is
+# read twice a day, and a single bad answer used to turn the check red for
+# nothing. A failure that never clears still ends red, with the API's own error.
+retry_attempts=3
+retry_sleep_seconds=15
+result=""
+for attempt in $(seq 1 "$retry_attempts"); do
+	if result=$(gh api "$base" --jq "$filter"); then
+		break
+	fi
+	if [ "$attempt" -eq "$retry_attempts" ]; then
+		echo "::error::gh api failed ${retry_attempts} times in a row; no verdict on ${WORKFLOW} on main." >&2
+		exit 1
+	fi
+	echo "::warning::gh api failed on attempt $attempt of $retry_attempts; asking again" >&2
+	sleep "$retry_sleep_seconds"
+done
 
 skipped="${result##*$'\t'}"
 body="${result%$'\t'*}"
