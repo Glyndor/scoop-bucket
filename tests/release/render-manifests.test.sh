@@ -533,6 +533,8 @@ check "every asset gets its own provenance check (2 of 2)" "2" \
 # drift-compared with the sibling repository, so both carry the same line.
 check "verify_attestation downloads the asset over https-only redirects" "1" \
 	"$(sed -n '/^verify_attestation()/,/^}/p' "$HERE/scripts/release/render-manifests.sh" | grep -cE -- '--proto-redir =https([[:space:]]|$)')"
+check "and with the https-only protocol, as the metadata downloads have it" "1" \
+	"$(sed -n '/^verify_attestation()/,/^}/p' "$HERE/scripts/release/render-manifests.sh" | grep -cE -- '--proto =https([[:space:]]|$)')"
 
 # A candidate that is not SemVer is refused even on a first publication, when no
 # manifest is served yet: published, it would make the next valid release abort
