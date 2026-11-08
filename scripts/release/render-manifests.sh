@@ -258,7 +258,7 @@ verify_attestation() { # $1=repo $2=tag $3=asset $4=expected_sha256
 	# curl. --max-filesize makes curl refuse an asset whose announced size is
 	# over the cap before it writes it; the stat below still catches a server
 	# that does not announce one.
-	if ! curl -fsSL --proto-redir =https --connect-timeout 10 --max-time 120 \
+	if ! curl -fsSL --proto-redir =https --proto =https --connect-timeout 10 --max-time 120 \
 		--max-filesize "$MAX_ASSET_BYTES" \
 		-o "$asset_path" "$base/$asset"; then
 		echo "::error::$repo $tag: failed to download $asset for attestation verification" >&2
