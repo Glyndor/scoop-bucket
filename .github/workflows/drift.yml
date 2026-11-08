@@ -69,7 +69,7 @@ jobs:
   drift:
     name: reusable drift
     runs-on: ubuntu-latest
-    # Measured at about 10 seconds for the fifteen reusable fetches alone; the
+    # Measured at about 10 seconds for the fourteen reusable fetches alone; the
     # thirty-five shared-file fetches this job also performs add about nine
     # seconds measured here, and the deadlines added to the scripts themselves
     # bound each one.
