@@ -500,7 +500,7 @@ SEMVER
 render_product() { # $1=table entry
 	local entry="$1"
 	local repo manifest desc a64 aarm tag version h64 harm base arches
-	local verify_asset verify_sha
+	local verify_asset verify_sha target tmp
 
 	IFS='|' read -r repo manifest desc a64 aarm <<<"$entry"
 
@@ -662,6 +662,17 @@ render_product() { # $1=table entry
 			'$a + {"arm64": {url: $url, hash: $h, bin: [[$asset, $tool]]}}')"
 	fi
 
+	# A manifest that is a symlink is refused, and the file is written beside it
+	# and moved into place. Redirecting straight into the path follows the link,
+	# so the render reported success while bucket/ kept only the link, nothing
+	# changed for update.yml to commit, and the bucket stayed frozen unnoticed.
+	target="$root/bucket/$manifest.json"
+	if [ -L "$target" ]; then
+		echo "::error::bucket/$manifest.json is a symlink; refusing to write through it" >&2
+		return 1
+	fi
+	tmp="$(mktemp "$root/bucket/.render.XXXXXX")" || return 1
+
 	# Build with jq so the output is always valid JSON. `bin` renames the arch
 	# exe to the tool name, so `scoop install` exposes it simply as `<manifest>`.
 	jq -n \
@@ -677,7 +688,14 @@ render_product() { # $1=table entry
 			# per-product. Move it into PRODUCTS before adding one that is not.
 			license: "MIT",
 			architecture: $architecture
-		}' >"$root/bucket/$manifest.json" || return 1
+		}' >"$tmp" || {
+		rm -f "$tmp"
+		return 1
+	}
+	mv -f "$tmp" "$target" || {
+		rm -f "$tmp"
+		return 1
+	}
 
 	echo "rendered bucket/$manifest.json -> $version"
 }

@@ -57,12 +57,14 @@ jobs:
         ./tests/release/render-manifests/render-manifests-transfer-limits.test.sh
         ./tests/release/render-manifests/render-manifests-products.test.sh
         ./tests/release/render-manifests/render-manifests-guards.test.sh
+        ./tests/release/render-manifests/render-manifests-symlink.test.sh
         ./tests/publication/update/update-workflow.test.sh
         ./tests/artifacts/check-products-consistent.test.sh
         ./tests/artifacts/check-manifests.test.sh
         ./tests/artifacts/check-manifests/check-manifests-identity.test.sh
         ./tests/artifacts/check-manifests/check-manifests-binding.test.sh
         ./tests/artifacts/check-manifests/check-manifests-duplicate-keys.test.sh
+        ./tests/artifacts/check-manifests/check-manifests-nonregular.test.sh
         ./tests/artifacts/check-version-monotonic.test.sh
         ./tests/ci/policy/rules/locale-pinned.test.sh
         ./tests/ci/policy/workflows/workflow-publish-triggers.test.sh
