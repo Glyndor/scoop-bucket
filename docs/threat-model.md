@@ -17,8 +17,7 @@ numbers went on pointing at unrelated code while this page still read as if it
 were current. Nothing noticed, because a line number in a Markdown document is
 not a link and nothing resolves it.
 `scripts/quality/check-doc-anchors.sh` resolves every reference below and
-fails when one does not. Release admission and validator boundaries were
-checked again on 2026-10-31 against the current renderer and tests.
+fails when one does not.
 
 ## What this repository is, and is not
 

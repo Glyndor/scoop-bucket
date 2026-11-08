@@ -5,12 +5,12 @@
 # here.
 #
 # The bug report template is the first thing a user meets when something breaks.
-# It asks two questions -- which operating system, and which version and how did
-# you install it -- and both have to be answerable in this channel, or the
+# It asks which operating system, and which version and how did you install it,
+# and both have to be answerable in this channel, or the
 # reporter writes something the maintainer cannot use.
 #
-# The template was copied from another channel and never adapted. It offered
-# "e.g. Ubuntu 24.04, Debian 13, Fedora 42" as the operating system and
+# The template was copied from another channel and, until it was adapted,
+# offered "e.g. Ubuntu 24.04, Debian 13, Fedora 42" as the operating system and
 # "v0.3.1 (install.sh)" as the version. Neither belongs here: this channel
 # installs with `scoop install <product>` and runs on Windows, and `install.sh`
 # is a script in the product repositories, not in this one. The field is

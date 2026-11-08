@@ -105,7 +105,7 @@ set -euo pipefail
 SIBLING_REPO="Glyndor/homebrew-tap"
 
 # The file each side renders from. The names are deliberately different: this
-# repository renders Ruby formulae; the sibling renders JSON manifests.
+# repository renders JSON manifests; the sibling renders Ruby formulae.
 LOCAL_FILE="scripts/release/render-manifests.sh"
 REMOTE_FILE="scripts/release/render-formulae.sh"
 

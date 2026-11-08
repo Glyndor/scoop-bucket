@@ -58,7 +58,7 @@ on:
   # to push cannot honour a one-day one.
   #
   # Twice a day rather than daily, because the tightest threshold declared
-  # below is one day and a daily run leaves no margin: a single skipped firing
+  # below is two days and a daily run leaves little margin: a single skipped firing
   # (GitHub drops scheduled runs under load, and delays them by up to an hour
   # routinely) would put the check past its own limit before it ever ran.
   #

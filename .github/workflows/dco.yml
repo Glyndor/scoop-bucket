@@ -7,7 +7,7 @@ name: DCO
 # and head and checks each carries a sign-off, so a push to `main` is not
 # a range it can walk. The question is NOT settled by a push: a human can
 # commit straight to `main` here, which is why dco-on-main.yml exists and
-# why four such commits are already on this branch.
+# why such commits are already on this branch.
 
 on:
   pull_request:

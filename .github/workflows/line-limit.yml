@@ -25,7 +25,8 @@ jobs:
       # so this repository's choice stays visible in this repository's own file
       # and the reusable stays a recognisable copy of the shared one.
       #
-      # Nothing needed splitting to turn this on. Counted the way the check
-      # counts -- comments and blank lines dropped -- the longest YAML in the
-      # three channel repositories is 183 lines against a soft limit of 300.
+      # Nothing needed splitting when this was turned on. Counted the way the
+      # check counts -- comments and blank lines dropped -- the longest YAML in
+      # the three channel repositories was then 183 lines against a soft limit
+      # of 300.
       extensions: "rs go ts tsx js jsx mjs cjs py sh astro vue svelte yml yaml"

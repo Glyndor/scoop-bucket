@@ -5,7 +5,7 @@ name: update
 # releases, verifies the signed SHA256SUMS against the org release key, validates
 # the re-rendered manifests, and commits them straight to `main`, GitHub-signed
 # via the createCommitOnBranch mutation, so a new Windows build reaches
-# `scoop update` within a day without any product holding a credential here.
+# `scoop update` within an hour without any product holding a credential here.
 #
 # Why a direct commit and not a pull request: the organisation forbids GitHub
 # Actions from creating or approving PRs (a locked, org-wide setting), so the
@@ -40,10 +40,8 @@ on:
     # would put signing, the registry and both channels behind one compromise.
     # Pulling more often buys most of the latency back and moves no credential.
     #
-    # Cheap, measured rather than assumed: a run takes 20 to 52 seconds and
-    # short-circuits when nothing changed, and the expensive macOS audit fires
-    # on push rather than on this schedule, so it still runs only when a render
-    # actually differs.
+    # Cheap, measured rather than assumed: a run takes 13 to 20 seconds and
+    # short-circuits when nothing changed.
     - cron: "30 * * * *"
   workflow_dispatch:
   # Optional instant trigger: a product's release workflow may
