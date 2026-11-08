@@ -41,10 +41,11 @@
 #     commit is visible; we sort by created_at desc in the script and
 #     pick the head whose head_sha matches, with the jq select as a
 #     second guard. If the run is missing or still in progress, sleep
-#     15 s and look again, for at most 32 attempts (8 minutes, inside
-#     the job's 10-minute timeout; the suite finishes in well under
-#     that: apt about 2 minutes, homebrew-tap 1 to 4, scoop-bucket 33 s,
-#     measured 2026-09-19). After the last attempt the script fails
+#     15 s and look again, for at most 80 attempts (20 minutes, inside
+#     the job's 25-minute timeout; the suite finishes in a few minutes
+#     when the queue is free: apt about 2 minutes, homebrew-tap 1 to 4,
+#     scoop-bucket 33 s, measured 2026-09-19, and ten minutes behind a
+#     slow queue on 2026-11-08). After the last attempt the script fails
 #     with one line naming the commit, rather than reading another
 #     commit's run.
 #
@@ -107,11 +108,11 @@ if [ "$EVENT_NAME" = "push" ]; then
 	# page cannot masquerade as the answer either.
 	#
 	# Suite runs measured 2026-09-19: apt about 2 minutes,
-	# homebrew-tap 1 to 4, scoop-bucket 33 seconds. 32 attempts at
-	# 15 seconds gives 8 minutes of waiting, well inside the job's
-	# 10-minute timeout, with the 31 sleeps between attempts and
+	# homebrew-tap 1 to 4, scoop-bucket 33 seconds. 80 attempts at
+	# 15 seconds gives 20 minutes of waiting, well inside the job's
+	# 25-minute timeout, with the 79 sleeps between attempts and
 	# none after the last attempt.
-	max_attempts=32
+	max_attempts=80
 	sleep_seconds=15
 
 	# GITHUB_SHA is a 40-character hex string and contains no
@@ -182,11 +183,11 @@ EOF
 		fi
 	done
 
-	# 32 attempts saw no completed run for this commit. Either the
-	# suite is still running past 8 minutes or it never started;
+	# 80 attempts saw no completed run for this commit. Either the
+	# suite is still running past 20 minutes or it never started;
 	# either way this script will not pretend another commit's run
 	# answers for it.
-	echo "::error::No ${WORKFLOW} run for commit ${PUSH_SHA} finished within 8 minutes; not reading another commit's run."
+	echo "::error::No ${WORKFLOW} run for commit ${PUSH_SHA} finished within 20 minutes; not reading another commit's run."
 	exit 1
 fi
 

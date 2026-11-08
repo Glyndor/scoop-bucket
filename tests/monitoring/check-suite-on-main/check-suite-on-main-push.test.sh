@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # Behaviour tests for the push path of scripts/monitoring/check-suite-on-main.sh:
-# the verdict is the run whose head_sha is GITHUB_SHA, polled for up to 8 minutes
+# the verdict is the run whose head_sha is GITHUB_SHA, polled for up to 20 minutes
 # while it is not completed, and a cancelled run for that commit is red.
 #
 # The fake `gh`, its builders and the runners come from
@@ -29,7 +29,7 @@ check() { # <description> <expected> <actual>
 }
 
 # --- a transient gh failure on the push path is asked again -------------
-# One 502 must not end a poll that has 31 attempts left; a failure that never
+# One 502 must not end a poll that has 79 attempts left; a failure that never
 # clears must still end red, not green.
 printf '%s\n%s\n' "$(push_response completed success abc123)" "$(push_response completed success abc123)" > "$WORK/resp"
 out="$(STUB_FAIL_FIRST=1 run_script_push abc123)"; rc=$?
@@ -139,30 +139,30 @@ check "R3: names the conclusion it saw (failure)" "1" \
 check "R3: names the run for b (#2)" "1" \
 	"$(printf '%s' "$out" | grep -q '#2' && echo 1 || echo 0)"
 
-# --- R4: no run for b in any of 32 responses -> fail after 8 minutes ---
+# --- R4: no run for b in any of 80 responses -> fail after 20 minutes ---
 #
-# 32 attempts saw nothing for THIS commit. The script fails with one
-# line naming the commit and 8 minutes, rather than reading another
-# commit's run, the failure 2026-09-19 measured. 32 attempts at
-# 15 s each means 31 sleeps between attempts and none after the
-# last, so the assertion is "exactly 31 sleeps".
+# 80 attempts saw nothing for THIS commit. The script fails with one
+# line naming the commit and 20 minutes, rather than reading another
+# commit's run, the failure 2026-09-19 measured. 80 attempts at
+# 15 s each means 79 sleeps between attempts and none after the
+# last, so the assertion is "exactly 79 sleeps".
 : > "$WORK/resp"
-for _ in $(seq 1 32); do
+for _ in $(seq 1 80); do
 	printf '%s' "$(empty_push_response)" >> "$WORK/resp"
 	printf '\n' >> "$WORK/resp"
 done
 out="$(run_script_push b)"; rc=$?
-check "R4: no run for b in 32 attempts fails" "1" "$rc"
-check "R4: makes exactly 32 API calls" "32" \
+check "R4: no run for b in 80 attempts fails" "1" "$rc"
+check "R4: makes exactly 80 API calls" "80" \
 	"$(grep -acz . "$WORK/gh.log" | tr -d ' ')"
-check "R4: sleeps exactly 31 times" "31" \
+check "R4: sleeps exactly 79 times" "79" \
 	"$(grep -acz . "$WORK/sleep.log" | tr -d ' ')"
 check "R4: every sleep argument is 15" "15" \
 	"$(awk -v RS='\0' '{print}' "$WORK/sleep.log" | sort -u)"
 check "R4: names commit b in the failure" "1" \
 	"$(printf '%s' "$out" | grep -qF 'commit b' && echo 1 || echo 0)"
-check "R4: says 8 minutes" "1" \
-	"$(printf '%s' "$out" | grep -q '8 minutes' && echo 1 || echo 0)"
+check "R4: says 20 minutes" "1" \
+	"$(printf '%s' "$out" | grep -q '20 minutes' && echo 1 || echo 0)"
 check "R4: does not name any other run's conclusion as the verdict" "0" \
 	"$(printf '%s' "$out" | grep -cE "concluded '(success|failure)'")"
 
