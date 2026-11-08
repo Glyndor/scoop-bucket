@@ -55,7 +55,7 @@ check "bin renames the arch exe to the tool" "podup-windows-x86_64.exe podup" \
 	"$(jq -r '.architecture."64bit".bin[0] | join(" ")' "$M")"
 check "the description comes from the table" "Docker-compose translator" \
 	"$(jq -r .description "$M")"
-check "every field ci.yml requires is present" "true" \
+check "every field check-manifests.sh requires is present" "true" \
 	"$(jq -e '(.version|type=="string") and (.homepage|type=="string")
 	          and (.license|type=="string")
 	          and (.architecture|to_entries|all(.value.url and .value.hash and (.value.bin|type=="array")))' "$M")"
@@ -110,7 +110,7 @@ check "an unreadable release skips the product" "3" "$rc"
 # either "the trust anchor is malformed" or "their signature does not verify";
 # the test pinpoints the third message by name.
 #
-# The existing happy path on line 154 uses a real signed release with a real
+# The happy path at the top of this file uses a real signed release with a real
 # sized signature, so its assertions still hold: a harness that refuses
 # everything would turn that test red and would never reach these cases.
 
@@ -450,7 +450,7 @@ check "it declares exactly one architecture" "1" "$(jq -r '.architecture | lengt
 check "and that one is 64bit" "64bit" "$(jq -r '.architecture | keys[0]' "$S")"
 check "with the right url" "https://github.com/Glyndor/single/releases/download/v2.0.0/single-windows-x86_64.exe" \
 	"$(jq -r '.architecture."64bit".url' "$S")"
-check "it still passes ci.yml's own schema check" "true" \
+check "it still has every field check-manifests.sh requires" "true" \
 	"$(jq -e '(.version|type=="string") and (.homepage|type=="string") and (.license|type=="string")
 	          and (.architecture|type=="object" and (.|length > 0))
 	          and (.architecture|to_entries|all(.value.url and .value.hash and (.value.bin|type=="array")))' "$S")"
