@@ -175,7 +175,7 @@ jobs:
   # a push is the previous commit's run), and a push that fixed a red
   # main got a red cross from this gate while its own `tests.yml` was
   # green. The script now asks for the run whose head_sha is the
-  # pushed commit and waits up to 8 minutes for it to finish, so the
+  # pushed commit and waits up to 20 minutes for it to finish, so the
   # developer pushing the fix sees the green within minutes rather
   # than on a later visit; the schedule keeps the verdict within hours
   # if nobody pushes.
@@ -193,11 +193,11 @@ jobs:
   suite-on-main:
     name: suite is green on main
     runs-on: ubuntu-latest
-    # Bound at 8 minutes by the script's retry budget (32 attempts of
-    # 15 seconds); measured suite runs are well under that (apt about
-    # 2 minutes, homebrew-tap 1 to 4, scoop-bucket 33 seconds). Ten
-    # minutes is the slack.
-    timeout-minutes: 10
+    # Bound at 20 minutes by the script's retry budget (80 attempts of
+    # 15 seconds); a suite behind a slow queue measured ten minutes on
+    # 2026-11-08 (apt about 2 minutes when the queue is free, homebrew-tap
+    # 1 to 4, scoop-bucket 33 seconds). Five minutes is the slack.
+    timeout-minutes: 25
     permissions:
       contents: read
       actions: read
