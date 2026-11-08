@@ -2,9 +2,10 @@ name: Drift
 
 # Compares this repository's copies of the shared reusables against the copies
 # its sibling channels carry, and the scripts and tests it shares with the tap
-# against the tap's copies. The comparisons live in
-# scripts/monitoring/check-reusable-drift.sh and
-# scripts/monitoring/check-channel-drift.sh; this file only decides when they
+# against the tap's copies, and the renderers against the tap's renderer. The
+# comparisons live in scripts/monitoring/check-reusable-drift.sh,
+# scripts/monitoring/check-channel-drift.sh and
+# scripts/monitoring/check-render-drift.sh; this file only decides when they
 # run.
 #
 # NOT on pull_request, and that is the whole design of this file.
@@ -70,7 +71,7 @@ jobs:
     name: reusable drift
     runs-on: ubuntu-latest
     # Measured at about 10 seconds for the fourteen reusable fetches alone; the
-    # thirty-five shared-file fetches this job also performs add about nine
+    # shared-file fetches this job also performs add about nine
     # seconds measured here, and the deadlines added to the scripts themselves
     # bound each one.
     timeout-minutes: 10

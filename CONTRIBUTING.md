@@ -130,8 +130,8 @@ than the one it names; or the same tool that made the change also confirmed it.
 Confirm from something that took no part in the change, and read the failure
 message, not the colour.
 
-Assert **which** failure fired, never that some failure did. Everything runs
-under `set -euo pipefail`, so almost any mistake exits non-zero.
+Assert **which** failure fired, never that some failure did. Scripts run under
+`set -euo pipefail`, so almost any mistake exits non-zero.
 
 Two failures that only appear after the commit:
 

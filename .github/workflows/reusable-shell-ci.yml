@@ -273,7 +273,7 @@ jobs:
       #
       # Nothing is skipped unless the caller opts in with a list, because which
       # prose is inert differs per repository: README.md is read by tests in
-      # all three channel repositories, and docs/ by one of them.
+      # all three channel repositories, and docs/ by more than one.
       #
       # It fails open. Anything that is not clearly a pull request touching only
       # listed paths -- a push, a schedule, an unreadable diff, an empty list, a
