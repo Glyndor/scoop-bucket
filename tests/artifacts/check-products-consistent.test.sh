@@ -91,6 +91,7 @@ B="$(mkbucket rootlink alpha)"
 mv "$B/bucket" "$WORK/real-bucket"; ln -s "$WORK/real-bucket" "$B/bucket"
 rc=0; run "$B" || rc=$?
 check "a symlinked bucket/ fails" "1" "$rc"
+check "and says bucket/ itself is the symlink" "1" "$(grep -c 'bucket/ is a symlink' "$WORK/out")"
 
 # Windows does not distinguish the case of the extension.
 B="$(mkbucket upper-ext alpha)"
