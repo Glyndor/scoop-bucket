@@ -95,11 +95,9 @@ The suites need `shellcheck` and `python3-yaml` installed, the same packages `te
 ```sh
 fail=0
 suite=$(find tests -name '*.test.sh' -type f | sort)
-# The completeness check takes the other test files as arguments; on its own it only prints its usage.
-while IFS= read -r t; do
-  [ "$t" = tests/ci/suites/check-suite-completeness.test.sh ] && continue
-  "$t" || { echo "FAILED: $t"; fail=1; }
-done <<< "$suite"
+# The completeness check takes the other test files as arguments and runs them
+# itself, so this command runs each suite exactly once. On its own it only
+# prints its usage.
 # shellcheck disable=SC2086
 [ -x tests/ci/suites/check-suite-completeness.test.sh ] &&
   { tests/ci/suites/check-suite-completeness.test.sh $(grep -v check-suite-completeness <<< "$suite") || fail=1; }
@@ -108,12 +106,11 @@ find scripts tests -name '*.sh' -print0 | xargs -0 shellcheck || fail=1
 [ "$fail" -eq 0 ]
 ```
 
-Keep the flag. A loop that carries on past a failure is more useful locally than
-one that stops, but it surrenders the exit status, and the printed `FAILED:`
-lines then become the only signal there is. They scroll. The flag turns them
-back into something a script can read. Compare the workflow, where one command,
-the suite runner, takes every suite as an argument and runs them all, so nothing
-stops at the first failure there either.
+Keep the flag. The runner carries on past a failure -- it runs every suite and
+counts the failures -- but its exit status says only that something failed.
+The `FAIL` lines it prints are what say which, and they scroll. The flag turns
+them back into something a script can read. This is the command the workflow
+runs, so a local run and a CI run judge the same thing.
 
 **Every script in `scripts/` needs a test.**
 `scripts/quality/check-test-coverage.sh` fails when one does not, itself included --
