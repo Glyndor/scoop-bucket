@@ -58,12 +58,14 @@ flowchart LR
 ```
 
 Nothing is pushed here from a product, and no product holds a write
-credential on this repository. A bad signature fails the run and leaves the
-manifests untouched, so the failure mode is a bucket that stops updating, never
-one that ships an unverified binary.
+credential on this repository. A product whose signature does not verify is skipped, its manifest stays on its
+last verified release and the run fails at the end; the other products still
+update. The failure mode is a manifest that stops updating, never one that ships
+an unverified binary.
 
 The [threat model](docs/threat-model.md) lists each threat, the control that
-answers it, and the test that fails when that control is removed.
+answers it, and the evidence for it: a test that fails when the control is
+removed, a measurement, or an explicit note that none exists yet.
 
 ---
 
