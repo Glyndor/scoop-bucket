@@ -18,7 +18,7 @@ name: Freshness
 # workflow or the reusables it calls. Not every pull request, and the reason is
 # measured rather than assumed: every job in this file answers a question about main or
 # about a cron somewhere else, never about the change in the pull request, so
-# the same five verdicts were produced once per pull request without learning
+# the same verdicts were produced once per pull request without learning
 # anything the previous pull request had not already said.
 #
 # Measured 2026-11-06 over the last fourteen pull request runs of this
@@ -70,17 +70,19 @@ on:
   schedule:
     - cron: "13 8,20 * * *"
   # A pull request runs these only when it changes what these jobs are made of:
-  # this file, the two reusables it calls and the script its suite job runs.
+  # this file, the two reusables it calls, the published-bytes workflow it
+  # watches, its schedule-history helper and the script its suite job runs.
   # Anything else cannot change the
-  # verdict, so it would only repeat the five jobs. None of the five is a
-  # required check, which is what makes a path filter safe here: a required
-  # check behind a filter would never be reported and the pull request would
-  # wait for ever.
+  # verdict, so it would only repeat the jobs. None of them is a required
+  # check, which is what makes a path filter safe here: a required check behind
+  # a filter would never be reported and the pull request would wait for ever.
   pull_request:
     paths:
       - .github/workflows/freshness.yml
       - .github/workflows/reusable-dependabot-freshness.yml
       - .github/workflows/reusable-schedule-freshness.yml
+      - .github/workflows/published-bytes.yml
+      - scripts/monitoring/check-schedule-history-ready.sh
       - scripts/monitoring/check-suite-on-main.sh
   push:
     branches: [main]
@@ -159,6 +161,54 @@ jobs:
     uses: ./.github/workflows/reusable-schedule-freshness.yml
     with:
       workflow: drift.yml
+      max-age-days: 3
+
+  # The published-bytes watcher is the only check that binds each manifest
+  # digest to the bytes its release asset serves. Its cron therefore needs the
+  # same independent liveness check as update.yml and drift.yml: if the cron
+  # stops, a stale or hand-edited manifest would otherwise go unreported.
+  #
+  # reusable-schedule-freshness fails when a workflow has never run on a
+  # schedule, so this caller cannot exist in the same change that introduces
+  # the cron without opening red for a reason that is not a fault. The helper
+  # below reports ready=false until the schedule has succeeded once, or until
+  # the workflow has existed for the three-day grace period. The reusable then
+  # takes over and measures the cadence normally.
+  published-bytes-ready:
+    permissions:
+      contents: read
+      actions: read
+    runs-on: ubuntu-latest
+    # Two `gh run list` calls normally complete in under two seconds; ten
+    # minutes leaves ample room for a slow API without approaching the default.
+    timeout-minutes: 10
+    outputs:
+      ready: ${{ steps.check.outputs.ready }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Check whether published-bytes has scheduled-run history
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          ready="$(bash ./scripts/monitoring/check-schedule-history-ready.sh published-bytes.yml 3)"
+          echo "$ready" >> "$GITHUB_OUTPUT"
+
+  freshness-published-bytes:
+    needs: published-bytes-ready
+    if: needs.published-bytes-ready.outputs.ready == 'true'
+    permissions:
+      contents: read
+      actions: read
+    uses: ./.github/workflows/reusable-schedule-freshness.yml
+    with:
+      workflow: published-bytes.yml
       max-age-days: 3
 
   # Report when `main` is red, not just when the workflow stopped firing.

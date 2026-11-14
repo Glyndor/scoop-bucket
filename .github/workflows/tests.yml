@@ -74,6 +74,7 @@ jobs:
         ./tests/governance/check-dco-on-main.test.sh
         ./tests/governance/check-issue-templates.test.sh
         ./tests/monitoring/check-suite-on-main.test.sh
+        ./tests/monitoring/check-schedule-history-ready.test.sh
         ./tests/monitoring/check-suite-on-main/check-suite-on-main-push.test.sh
         ./tests/monitoring/check-suite-on-main/check-suite-on-main-retry.test.sh
         ./tests/monitoring/check-suite-on-main/check-suite-on-main-order.test.sh
@@ -95,6 +96,7 @@ jobs:
         ./tests/ci/policy/workflows/workflow-shape.test.sh
         ./tests/ci/policy/workflows/freshness-pr-scope.test.sh
         ./tests/monitoring/check-render-drift.test.sh
+        ./tests/monitoring/check-published-manifests.test.sh
         ./tests/monitoring/check-render-drift/check-render-drift-drift.test.sh
         ./tests/monitoring/check-render-drift/check-render-drift-missing.test.sh
         ./tests/monitoring/check-render-drift/check-render-drift-network.test.sh
