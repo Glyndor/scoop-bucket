@@ -151,6 +151,7 @@ after staging or it will tell you a new file is fine when it is not.
 | `tests.yml` | the suite, shellcheck, PRODUCTS/bucket drift, or manifest validation |
 | `pr-hygiene.yml` | the pull request itself is malformed |
 | `freshness.yml` | something scheduled stopped happening elsewhere |
+| `published-bytes.yml` | a published manifest digest does not match the asset its URL serves |
 | `dco.yml`, `line-limit.yml`, `workflow-lint.yml` | one rule each |
 | `update.yml` | the hourly regeneration, which commits to `main` |
 | `drift.yml` | a copy this repository shares with a sibling channel no longer agrees: a reusable workflow, the renderer's verification logic, or one of the scripts and tests the bucket and the tap carry as exact copies |

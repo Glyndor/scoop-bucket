@@ -43,7 +43,7 @@ fails when one does not.
 | Asset | Where | Why it matters |
 |---|---|---|
 | The manifests | `bucket/*.json`, one per row of `PRODUCTS` (`scripts/release/render-manifests.sh#PRODUCTS`) | what `scoop install` reads; the commit is the release |
-| The rendered hashes | `architecture.<arch>.hash` (`bucket/podup.json#hash`) | the only thing binding a download to the verified release; copied from a signed `SHA256SUMS` and compared with the downloaded asset digest before rendering (`scripts/release/render-manifests.sh#hash_of`, `scripts/release/render-manifests.sh#verify_attestation`) |
+| The rendered hashes | `architecture.<arch>.hash` (`bucket/podup.json#hash`) | the thing binding a download to the verified release; copied from a signed `SHA256SUMS` and compared with the downloaded asset digest before rendering (`scripts/release/render-manifests.sh#hash_of`, `scripts/release/render-manifests.sh#verify_attestation`), then independently checked against the bytes the release URL serves after publication (`scripts/monitoring/check-published-manifests.sh#check_asset`) |
 | The organization's Ed25519 release public key | `RELEASE_PUBKEY_B64` (`scripts/release/render-manifests.sh#RELEASE_PUBKEY_B64`), with a second slot (`scripts/release/render-manifests.sh#RELEASE_PUBKEY2_B64`) | the trust anchor; a wrong value fails every render closed (`scripts/release/render-manifests.sh#verify_sha256sums`) |
 | `main` | the branch the bot commits to (`.github/workflows/update.yml#Commit the update to main (GitHub-signed)`) and Scoop clones | it is the published artifact; no build and no review stand between a commit and `scoop install` |
 
@@ -98,8 +98,8 @@ fails when one does not.
 
 | Threat | Control | Evidence |
 |---|---|---|
-| A human with Write commits a malicious manifest | three partial controls and a named gap. (1) the ruleset on `main`: pull request required, required status checks, `required_signatures`, no bypass for humans (it is a ruleset, not in the tree). (2) The next hourly render overwrites a hand edit for any product whose release renders (`scripts/release/render-manifests.sh#render_product`, `CONTRIBUTING.md#The bot commits straight to main, and that is not an oversight`). (3) `dco-on-main.yml` reports a human commit without `Signed-off-by` after it lands (`.github/workflows/dco-on-main.yml#Check the pushed commits`, `scripts/governance/check-dco-on-main.sh#exempt_all`); the pull request `dco` check is required. The gap: validation restricts keys, types, URL shape and digest format, and holds the URL, the homepage, the description and the executable mapping to the product the roster names and to the version the manifest declares, but does not bind a hand edit to the product's signed release. Another well-formed hash can pass. If that product's release stops rendering, the hand edit is kept | test for (3): `tests/governance/check-dco-on-main.test.sh#an unsigned human commit fails`; `tests/governance/check-dco-on-main.test.sh#a commit whose author field impersonates the bot is still reported`. (1) is a ruleset, not in the tree. (2): `tests/release/render-manifests.test.sh#the skipped product keeps the manifest it had` pins the gap, not the control |
-| A manifest `url` points outside the product's GitHub release | the validator holds every `url` to the release of the product that manifest publishes: the repository comes from the row that names the manifest in `PRODUCTS` (`scripts/release/render-manifests.sh#PRODUCTS`), and the tag has to be the `v<version>` the manifest itself declares (`scripts/artifacts/check-manifests.sh#check-manifests`). A url for another Glyndor repository, or for another tag of this one, is refused by name. On the rendered path the URL is built from the `PRODUCTS` repository and the verified tag, never read from the release (`scripts/release/render-manifests.sh#render_product`) | test: `tests/release/render-manifests.test.sh#the 64bit url points at the tagged asset`; the validator's own cases are in `tests/artifacts/check-manifests.test.sh`. The url is bound to the product and the version, not to the bytes a release published: see the row above |
+| A human with Write commits a malicious manifest | four controls. (1) the ruleset on `main`: pull request required, required status checks, `required_signatures`, no bypass for humans (it is a ruleset, not in the tree). (2) The next hourly render overwrites a hand edit for any product whose release renders (`scripts/release/render-manifests.sh#render_product`, `CONTRIBUTING.md#The bot commits straight to main, and that is not an oversight`). (3) `dco-on-main.yml` reports a human commit without `Signed-off-by` after it lands (`.github/workflows/dco-on-main.yml#Check the pushed commits`, `scripts/governance/check-dco-on-main.sh#exempt_all`); the pull request `dco` check is required. (4) The published-bytes watcher first applies the structural validator, then downloads every architecture asset named by `bucket/` and compares its SHA-256 with the manifest digest (`scripts/artifacts/check-manifests.sh#check-manifests`, `scripts/monitoring/check-published-manifests.sh#check_asset`, `.github/workflows/published-bytes.yml#verify`). Validation restricts keys, types, URL shape and digest format, and holds the URL, the homepage, the description and the executable mapping to the product the roster names and to the version the manifest declares; the watcher closes the remaining byte-binding gap by checking the bytes the release URL actually serves. If that product's release stops rendering, the hand edit is kept but the watcher reports its digest mismatch | test for (3): `tests/governance/check-dco-on-main.test.sh#an unsigned human commit fails`; `tests/governance/check-dco-on-main.test.sh#a commit whose author field impersonates the bot is still reported`. (1) is a ruleset, not in the tree. (2): `tests/release/render-manifests.test.sh#the skipped product keeps the manifest it had`. (4): `tests/monitoring/check-published-manifests.test.sh#sabotage: a new version with an old hash fails`; `tests/monitoring/check-published-manifests.test.sh#matching hashes pass`; `tests/monitoring/check-published-manifests.test.sh#a failed download fails`; `tests/monitoring/check-published-manifests.test.sh#a redirect to HTTP is rejected`; `tests/monitoring/check-published-manifests.test.sh#an asset over the transfer cap fails` |
+| A manifest `url` points outside the product's GitHub release | the validator holds every `url` to the release of the product that manifest publishes: the repository comes from the row that names the manifest in `PRODUCTS` (`scripts/release/render-manifests.sh#PRODUCTS`), and the tag has to be the `v<version>` the manifest itself declares (`scripts/artifacts/check-manifests.sh#check-manifests`). A url for another Glyndor repository, or for another tag of this one, is refused by name. On the rendered path the URL is built from the `PRODUCTS` repository and the verified tag, never read from the release (`scripts/release/render-manifests.sh#render_product`). The published-bytes watcher applies that same validator before it downloads any URL, then compares the served bytes with the manifest digest (`scripts/monitoring/check-published-manifests.sh#check_asset`) | test: `tests/release/render-manifests.test.sh#the 64bit url points at the tagged asset`; the validator's own cases are in `tests/artifacts/check-manifests.test.sh`; the byte check is in `tests/monitoring/check-published-manifests.test.sh#matching hashes pass` |
 | A manifest that is not JSON, lacks a field, or an emptied `bucket/` reaches `main` | `scripts/artifacts/check-manifests.sh` runs inside the job before the commit (`.github/workflows/update.yml#Validate the re-rendered manifests`) and on every push and pull request (`.github/workflows/tests.yml#manifests`); an empty bucket is an error, not a vacuous pass (`scripts/artifacts/check-manifests.sh#check-manifests`) | test: `tests/artifacts/check-manifests.test.sh#a file that is not JSON is refused`; `tests/artifacts/check-manifests.test.sh#an empty bucket is refused rather than passing vacuously`; `tests/artifacts/check-manifests.test.sh#a per-architecture field the renderer does not emit is refused`; `tests/publication/update/update-workflow.test.sh#an emptied bucket/ fails validation` |
 | A manifest in `bucket/` is a symlink, so the render writes through it and the bucket stops advancing without a red check | the renderer refuses a symlinked manifest, skips that product and exits 3 instead of writing through the link (`scripts/release/render-manifests.sh#render_product`); the validator refuses any entry in `bucket/` that is neither a regular file nor a folder (`scripts/artifacts/check-manifests.sh#check-manifests`) | test: `tests/release/render-manifests/render-manifests-symlink.test.sh#a symlinked manifest skips the product (exit 3)`; `tests/artifacts/check-manifests/check-manifests-nonregular.test.sh#a symlinked manifest is refused` |
 | The bot's commit lands unsigned, or on a `main` that moved since checkout | `createCommitOnBranch` with `expectedHeadOid` (`.github/workflows/update.yml#Commit the update to main (GitHub-signed)`); the concurrency group serialises runs (`.github/workflows/update.yml#update`) | test: `tests/publication/update/update-workflow.test.sh#and the payload uses createCommitOnBranch`; `tests/publication/update/update-workflow.test.sh#and pins expectedHeadOid` |
@@ -128,17 +128,26 @@ are written into the shim the user runs; a first element that is not the
 downloaded file points the shim at another file, or at one outside the install
 directory. Both are refused by name, with the entry index.
 
-What it still does not bind is the hash to any actual bytes: a well-formed
-digest that matches no download passes here. The cases in
+This structural gate does not itself bind the hash to any actual bytes: a
+well-formed digest that matches no download passes here. The cases in
 `tests/artifacts/check-manifests.test.sh` record the hand edits the gate
-accepts.
+accepts. The published-bytes watcher closes that gap after publication by
+running the structural gate first, then downloading every declared
+architecture URL over HTTPS and comparing its SHA-256 with the manifest digest
+(`scripts/monitoring/check-published-manifests.sh#download_asset`,
+`scripts/monitoring/check-published-manifests.sh#check_asset`). It runs after
+every push to `main` that touches `bucket/`, on demand, and daily
+(`.github/workflows/published-bytes.yml#verify`). A mismatch, failed transfer
+or oversized asset emits a GitHub error and fails the run.
 
 On the generated path, the renderer constructs URL and executable mapping
 from the repository-controlled `PRODUCTS` row and candidate tag, verifies
 `SHA256SUMS`, and checks every downloaded digest and its build provenance.
-Those controls do not retroactively authenticate a hand-edited JSON file.
-The roster itself is trusted configuration; hostile manifest names and
-metadata are exercised in `tests/release/render-manifests/render-manifests-products.test.sh`.
+Those controls do not retroactively authenticate a hand-edited JSON file; the
+published-bytes watcher independently binds the hand-edited digest to the
+bytes its URL serves. The
+roster itself is trusted configuration; hostile manifest names and metadata
+are exercised in `tests/release/render-manifests/render-manifests-products.test.sh`.
 
 ### The job
 
@@ -205,9 +214,14 @@ oversights.
 - **No field test on Windows hardware.** The manifest renders, validates, and
   was rendered from a real signed release; no `scoop install` has been run on
   a Windows machine by this repository. Stated here, not measured in the tree.
-- **Monitoring shares fate with the monitored.** The update job and both
-  freshness watchers run on GitHub Actions; an outage there stops the channel
-  and its alarm together.
+- **Monitoring shares fate with the monitored.** The update job, the
+  published-bytes watcher and the freshness watchers run on GitHub Actions; an
+  outage there stops the channel and its alarm together.
+- **The published-bytes freshness watcher starts after evidence.** It stays
+  inactive until `published-bytes.yml` has a successful scheduled run on record,
+  or for three days after the workflow entered the branch
+  (`scripts/monitoring/check-schedule-history-ready.sh`). Before that, there is
+  no cadence to measure and a missing run is expected rather than a failure.
 - **The release key is shared across products** and held by each product's
   release job. This repository can rotate what it trusts; it cannot see a
   compromise upstream.
@@ -234,6 +248,7 @@ bash scripts/quality/check-doc-anchors.sh                       # every referenc
 ./tests/release/render-manifests.test.sh                                 # signature, slots, tag, digests
 ./tests/publication/update/update-workflow.test.sh                                  # the job's own run: blocks
 ./tests/artifacts/check-manifests.test.sh                                  # what jq refuses
+./tests/monitoring/check-published-manifests.test.sh                      # published bytes match their digests
 ./tests/governance/check-dco-on-main.test.sh                                # detection on main
 ```
 

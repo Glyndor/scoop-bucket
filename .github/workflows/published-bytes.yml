@@ -1,0 +1,52 @@
+name: Published bytes
+
+# Daily and on-demand verification of the bytes behind every manifest on main.
+# A push to main that touches bucket/ runs it too, so a hand edit is checked
+# without waiting for the next daily slot. The schedule remains the backstop.
+#
+# The workflow has no required status check: it answers about published main,
+# not about the pull request that may fix it. Freshness watches its cron.
+#
+# Cost: one release download per declared architecture, currently two. The
+# script bounds each transfer to 120 seconds and 100 MiB, with three attempts.
+# The job timeout is above the worst case for the current two assets.
+
+on:
+  schedule:
+    - cron: "23 7 * * *"
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - bucket/**
+      - scripts/artifacts/check-manifests.sh
+      - scripts/release/render-manifests.sh
+      - scripts/monitoring/check-published-manifests.sh
+      - .github/workflows/published-bytes.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: published-bytes-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: Verify published bytes
+    runs-on: ubuntu-latest
+    # Two current assets at three 120-second attempts each leave under twelve
+    # minutes of transfer budget. Thirty also covers three assets (under
+    # nineteen minutes) and four (under twenty-five), with margin.
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          ref: ${{ github.event_name == 'workflow_dispatch' && 'main' || github.sha }}
+
+      - name: Validate every published manifest before downloading its asset
+        run: bash ./scripts/artifacts/check-manifests.sh
+
+      - name: Compare every published asset with its manifest digest
+        run: bash ./scripts/monitoring/check-published-manifests.sh
