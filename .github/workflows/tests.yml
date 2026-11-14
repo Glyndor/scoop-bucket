@@ -115,6 +115,9 @@ jobs:
       apt-packages: shellcheck python3-yaml
 
   products:
+    concurrency:
+      group: products-${{ github.workflow }}-${{ github.ref }}
+      cancel-in-progress: ${{ github.event_name == 'pull_request' }}
     name: products match the generator
     runs-on: ubuntu-latest
     # Measured at 5 seconds.
@@ -133,6 +136,9 @@ jobs:
           ./scripts/artifacts/check-products-consistent.sh
 
   manifests:
+    concurrency:
+      group: manifests-${{ github.workflow }}-${{ github.ref }}
+      cancel-in-progress: ${{ github.event_name == 'pull_request' }}
     name: validate manifests
     runs-on: ubuntu-latest
     # Measured at 4 seconds.

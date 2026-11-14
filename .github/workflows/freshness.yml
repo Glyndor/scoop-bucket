@@ -191,6 +191,9 @@ jobs:
   # already granted. GITHUB_EVENT_NAME and GITHUB_SHA are the runner's
   # automatic env vars and reach the script without being listed here.
   suite-on-main:
+    concurrency:
+      group: freshness-suite-on-main-${{ github.workflow }}-${{ github.ref }}
+      cancel-in-progress: ${{ github.event_name == 'pull_request' }}
     name: suite is green on main
     runs-on: ubuntu-latest
     # Bound at 20 minutes by the script's retry budget (80 attempts of
