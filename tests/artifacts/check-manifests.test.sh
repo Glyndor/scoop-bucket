@@ -138,6 +138,13 @@ rc=0; run "$B" || rc=$?
 check "a url not under https://github.com/Glyndor/ is refused" "1" "$rc"
 check "and the error names the expected url shape" "1" "$(said 'releases/download/<tag>/<asset>')"
 
+# The same canonical url with only the scheme changed: a host and repository that
+# pass every other rule must still be refused for not being https.
+B="$(mkbucket url-http-only '.architecture["64bit"].url |= sub("^https://"; "http://")')"
+rc=0; run "$B" || rc=$?
+check "a canonical url that differs only by http:// is refused" "1" "$rc"
+check "and the error names the expected url shape" "1" "$(said 'releases/download/<tag>/<asset>')"
+
 # The reproduced failure: ../attacker/payload/... begins with the org prefix
 # as text, but an HTTP client normalises `..` server-side and the bytes come
 # from attacker/payload. A startswith check accepts it; the regex refuses it.

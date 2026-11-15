@@ -257,6 +257,14 @@ check "a redirect to HTTP is rejected" "1" "$exit_code"
 check "the rejected redirect emits a GitHub error annotation" "1" \
 	"$(grep -c '::error file=' "$WORK/err")"
 
+# An initial http:// url on a repository and shape that are otherwise valid: it is
+# refused before any download, not merely when a redirect leads there.
+write_manifest "$WORK/root/bucket/one.json" "1.0.0" "64bit" \
+	"http://github.com/Glyndor/example/releases/download/v1.0.0/plain-http-one.exe" "$current_hash"
+run_watcher
+check "an initial http url is rejected" "1" "$exit_code"
+check "and nothing was downloaded for it" "0" "$(grep -c 'proto=' "$WORK/curl.log")"
+
 write_manifest "$WORK/root/bucket/one.json" "1.0.0" "64bit" \
 	"https://github.com/Glyndor/example/releases/download/v1.0.0/oversize-one.exe" "$current_hash"
 run_watcher
