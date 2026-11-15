@@ -111,8 +111,12 @@ case "$sub" in
 		if [ -n "${ATTEST_STUB_LOG:-}" ]; then
 			echo "attestation verify ${args[1]}" >> "$ATTEST_STUB_LOG"
 		fi
-		expected_ref="refs/tags/$(cat "$base/tag")"
-		expected_signer="$repo/.github/workflows/release.yml"
+		# Read the persisted provenance, not the requested repository: a
+		# transplanted release keeps the donor's certificate identity.
+		expected_ref="$(jq -r '.[0].verificationResult.signature.certificate.SourceRepository' "$base/attestation.json")"
+		expected_signer="$(jq -r '.[0].verificationResult.signature.certificate.SubjectAlternativeName' "$base/attestation.json")"
+		expected_signer="${expected_signer#https://github.com/}"
+		expected_signer="${expected_signer%@*}"
 		if [ -z "$source_ref" ]; then
 			echo "stub gh: refusing attestation verify, --source-ref pin missing; an artifact from another tag would verify against this release" >&2
 			exit 1
@@ -126,7 +130,7 @@ case "$sub" in
 			exit 1
 		fi
 		if [ "$signer" != "$expected_signer" ]; then
-			echo "stub gh: refusing attestation verify, the trusted-workflow pin does not match; passed $signer, expected $expected_signer" >&2
+			echo "stub gh: refusing attestation verify, signer workflow does not match; passed $signer, expected $expected_signer" >&2
 			exit 1
 		fi
 		# Targeted refusal: ATTEST_STUB_REFUSE_ASSET names one asset;
