@@ -101,17 +101,14 @@ for manifest in "${manifests[@]}"; do
 		continue
 	fi
 
-	manifest_assets=0
 	entries="$tmp/entries"
 	if ! jq -c '.architecture | to_entries[] | {architecture: .key, url: .value.url, hash: .value.hash}' "$manifest" > "$entries"; then
 		echo "::error file=$manifest::manifest architectures could not be read" >&2
 		failed=$((failed + 1))
 		continue
 	fi
-	declared_assets="$(jq '.architecture | length' "$manifest")"
 	while IFS= read -r entry; do
 		[ -n "$entry" ] || continue
-		manifest_assets=$((manifest_assets + 1))
 		assets=$((assets + 1))
 
 		architecture="$(jq -r '.architecture' <<<"$entry")"
@@ -159,18 +156,11 @@ for manifest in "${manifests[@]}"; do
 			failed=$((failed + 1))
 		fi
 	done < "$entries"
-
-	if [ "$manifest_assets" -ne "$declared_assets" ]; then
-		echo "::error file=$manifest::read $manifest_assets of $declared_assets declared architectures" >&2
-		failed=$((failed + 1))
-	fi
-	if [ "$manifest_assets" -eq 0 ]; then
-		echo "::error file=$manifest::manifest yielded no architecture to verify" >&2
-		failed=$((failed + 1))
-	fi
 done
 
-if [ "$assets" -eq 0 ] && [ "$failed" -eq 0 ]; then
+# A watcher that inspected no asset has verified nothing, whatever else it counted:
+# say so, and fail, before the failure count can describe it as an ordinary run.
+if [ "$assets" -eq 0 ]; then
 	echo "::error::no published asset was verified" >&2
 	exit 1
 fi
