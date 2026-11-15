@@ -48,6 +48,16 @@ def git(*args):
     return done.stdout
 
 
+def valid_semver(version):
+    """The same acceptance as precedence(), as a yes or no, for what is read from a file."""
+    match = re.fullmatch(PATTERN, version)
+    if not match:
+        return False
+    pre = match.group(4)
+    identifiers = [] if pre is None else pre.split(".")
+    return not any(i.isdigit() and len(i) > 1 and i[0] == "0" for i in identifiers)
+
+
 def precedence(version, where):
     match = re.fullmatch(PATTERN, version) if isinstance(version, str) else None
     if not match:
@@ -79,7 +89,7 @@ def parse_approvals(text, where):
             raise BadApprovals(f"{where}:{number}: malformed line, and a malformed approvals file stops the gate "
                  f"for every pull request until it is fixed; expected '<manifest path> <from> <to>'")
         for version in fields[1:]:
-            if not re.fullmatch(PATTERN, version):
+            if not valid_semver(version):
                 raise BadApprovals(f"{where}:{number}: {version!r} is not a valid SemVer release version")
         entries.append(tuple(fields))
     return entries
