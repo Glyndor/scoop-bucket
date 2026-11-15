@@ -63,14 +63,14 @@ if [ ! -f "$workflow_path" ]; then
 	exit 1
 fi
 
-first_commit="$(git log --reverse --diff-filter=A --format=%ct -- "$workflow_path" | head -1)"
-if [ -z "$first_commit" ]; then
+added_at="$(git log --diff-filter=A --format=%ct -- "$workflow_path" | head -1)"
+if [ -z "$added_at" ]; then
 	echo "::error::could not find when $workflow_path entered this branch" >&2
 	exit 1
 fi
 
 now_epoch="$(date -u +%s)"
-age_seconds=$((now_epoch - first_commit))
+age_seconds=$((now_epoch - added_at))
 max_age_seconds=$((max_age_days * 86400))
 if [ "$age_seconds" -le "$max_age_seconds" ]; then
 	echo ready=false

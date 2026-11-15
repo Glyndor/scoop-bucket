@@ -8,7 +8,9 @@ name: Published bytes
 # not about the pull request that may fix it. Freshness watches its cron.
 #
 # Cost: one release download per declared architecture, currently two. The
-# script bounds each transfer to 120 seconds and 100 MiB, with three attempts.
+# script bounds each transfer to 120 seconds and, in flight, to 100 MiB only when
+# the server declares a size; a body without one is checked against the 100 MiB
+# cap by its size on disk once the transfer ends. Three attempts per asset.
 # The job timeout is above the worst case for the current two assets.
 
 on:
