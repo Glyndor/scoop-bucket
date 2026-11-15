@@ -62,8 +62,13 @@ updates:
     # ecosystem, which is exactly what the pattern selects. A group name is
     # what a reviewer reads before deciding how closely to look at the diff.
     groups:
+      # The action that receives a private key is reviewed on its own, not
+      # inside the routine bump.
+      app-token:
+        patterns: ["actions/create-github-app-token"]
       actions:
         patterns: ["*"]
+        exclude-patterns: ["actions/create-github-app-token"]
     # Dependabot infers a prefix from the commit history when this is absent,
     # and the inference has been unstable across repositories (build(deps):
     # Bump ... in some, chore(deps): bump ... in others). Set it so the
