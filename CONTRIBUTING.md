@@ -62,7 +62,8 @@ For a reviewed rollback, take two pull requests. First merge one that adds a lin
 `scripts/artifacts/approved-rollbacks.txt`: the permission is read from the base
 branch, so it cannot arrive together with the rollback, and the version gate then
 lets exactly that manifest go between exactly those two versions and refuses
-anything else. Remove the line once the rollback has merged. For the second, make the
+anything else. The rollback pull request must also delete the line: an approval is
+single-use, and the gate refuses a tree that is already at the version a line allowed. For the second, make the
 desired signed release `latest`: the hourly updater renders each product's latest
 release, so otherwise its next run replaces your change. Then run
 `ALLOW_RELEASE_DOWNGRADE=1 ./scripts/release/render-manifests.sh` manually, validate with
