@@ -265,6 +265,16 @@ run_watcher
 check "an initial http url is rejected" "1" "$exit_code"
 check "and nothing was downloaded for it" "0" "$(grep -c 'proto=' "$WORK/curl.log")"
 
+# An https url on another host, with a well-formed version and a hash that matches what
+# curl would serve: the url rule is the only thing that refuses it, and it has to be
+# the watcher that does, with nothing downloaded.
+write_manifest "$WORK/root/bucket/one.json" "1.0.0" "64bit" \
+	"https://example.test/releases/download/v1.0.0/one.exe" "$current_hash"
+run_watcher
+check "an https url on another host is rejected" "1" "$exit_code"
+check "and the error says it is not a Glyndor release asset" "1" "$(grep -c 'does not declare a Glyndor release asset URL' "$WORK/err")"
+check "and nothing was downloaded for it" "0" "$(grep -c 'proto=' "$WORK/curl.log")"
+
 write_manifest "$WORK/root/bucket/one.json" "1.0.0" "64bit" \
 	"https://github.com/Glyndor/example/releases/download/v1.0.0/oversize-one.exe" "$current_hash"
 run_watcher
