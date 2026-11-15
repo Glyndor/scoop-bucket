@@ -31,10 +31,13 @@ verdict() { # $1 = workflow file
 	python3 - "$1" <<'PY'
 import sys, yaml
 doc = yaml.safe_load(open(sys.argv[1]))
-steps = [s for j in doc["jobs"].values() for s in j.get("steps", [])]
-runs = [(i, s) for i, s in enumerate(steps) if "run" in s]
+where = []  # (job id, index in its job, step)
+for jid, job in doc["jobs"].items():
+    for i, step in enumerate(job.get("steps", [])):
+        if "run" in step:
+            where.append((jid, i, step))
 def find(name):
-    hits = [(i, s) for i, s in runs if name in s["run"]]
+    hits = [w for w in where if name in w[2]["run"]]
     return hits[0] if len(hits) == 1 else None
 first = find("scripts/artifacts/check-manifests.sh")
 second = find("scripts/monitoring/check-published-manifests.sh")
@@ -42,10 +45,14 @@ if first is None:
     print("the product check is not run exactly once")
 elif second is None:
     print("the published-bytes check is not run exactly once")
-elif first[0] > second[0]:
+elif first[0] != second[0]:
+    print("the two checks are in different jobs")
+elif first[1] > second[1]:
     print("the product check runs after the download check")
-elif first[1].get("continue-on-error") or first[1].get("if"):
+elif first[2].get("continue-on-error") or first[2].get("if"):
     print("the product check can be skipped or can fail without stopping the job")
+elif doc["jobs"][first[0]].get("if") or doc["jobs"][first[0]].get("continue-on-error"):
+    print("the job that holds the product check can be skipped or can fail without failing the workflow")
 else:
     print("ok")
 PY
@@ -78,10 +85,25 @@ def soften(d):
             x["continue-on-error"] = True
 write("dropped", drop)
 write("swapped", swap)
+def job_soft(d):
+    next(iter(d["jobs"].values()))["continue-on-error"] = True
+def job_if(d):
+    next(iter(d["jobs"].values()))["if"] = "github.event_name == 'schedule'"
+def split(d):
+    job = next(iter(d["jobs"].values()))
+    a = next(i for i, x in enumerate(job["steps"]) if "check-manifests.sh" in x.get("run", ""))
+    moved = job["steps"].pop(a)
+    d["jobs"]["product"] = {"runs-on": "ubuntu-latest", "steps": [moved]}
 write("softened", soften)
+write("job-soft", job_soft)
+write("job-if", job_if)
+write("split", split)
 PY
 check "without the product check the workflow is reported" "the product check is not run exactly once" "$(verdict "$WORK/c/dropped.yml")"
 check "with the checks swapped the workflow is reported" "the product check runs after the download check" "$(verdict "$WORK/c/swapped.yml")"
+check "with continue-on-error on the job that holds the product check it is reported" "the job that holds the product check can be skipped or can fail without failing the workflow" "$(verdict "$WORK/c/job-soft.yml")"
+check "with a condition on the job that holds the product check it is reported" "the job that holds the product check can be skipped or can fail without failing the workflow" "$(verdict "$WORK/c/job-if.yml")"
+check "with the checks in different jobs it is reported" "the two checks are in different jobs" "$(verdict "$WORK/c/split.yml")"
 check "with continue-on-error on the product check it is reported" "the product check can be skipped or can fail without stopping the job" "$(verdict "$WORK/c/softened.yml")"
 
 echo "$pass passed, $fail failed"
