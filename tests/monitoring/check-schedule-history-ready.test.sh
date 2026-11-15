@@ -89,6 +89,19 @@ check "a new workflow without scheduled history stays not ready" "ready=false" \
 	"$(run "$WORK/recent")"
 check "an old workflow without scheduled history becomes ready to fail" "ready=true" \
 	"$(run "$WORK/old")"
+# Added ten days ago, deleted, added again yesterday: the grace is counted from the
+# re-add, since the cron has had no time to fire since the workflow came back.
+make_repo "$WORK/readded" "$(date -u -d '10 days ago' +%Y-%m-%dT%H:%M:%SZ)"
+git -C "$WORK/readded" rm -q .github/workflows/published-bytes.yml
+GIT_AUTHOR_DATE="$(date -u -d '5 days ago' +%Y-%m-%dT%H:%M:%SZ)" GIT_COMMITTER_DATE="$(date -u -d '5 days ago' +%Y-%m-%dT%H:%M:%SZ)" \
+	git -C "$WORK/readded" commit -qm removed
+mkdir -p "$WORK/readded/.github/workflows"
+printf 'name: test\n' > "$WORK/readded/.github/workflows/published-bytes.yml"
+git -C "$WORK/readded" add .
+GIT_AUTHOR_DATE="$(date -u -d '1 day ago' +%Y-%m-%dT%H:%M:%SZ)" GIT_COMMITTER_DATE="$(date -u -d '1 day ago' +%Y-%m-%dT%H:%M:%SZ)" \
+	git -C "$WORK/readded" commit -qm readded
+check "a workflow added again yesterday is still in its grace period" "ready=false" \
+	"$(run "$WORK/readded")"
 check "a workflow absent from the default branch is not ready" "ready=false" \
 	"$(GH_NOT_FOUND=1 run "$WORK/recent")"
 mkdir -p "$WORK/deleted/.github/workflows"
