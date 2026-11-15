@@ -113,6 +113,26 @@ check "R1: does not name the run for a (#1)" "0" \
 check "R1: makes exactly one API call (no retry)" "1" \
 	"$(grep -acz . "$WORK/gh.log" | tr -d ' ')"
 
+# --- R1a: the page holds no run for the pushed commit, or a newer green one of another ----
+#
+# The API filters by head_sha, but the script does not take that on trust. Without its own
+# head_sha filter, a page whose newest run belongs to another commit would be read as the verdict
+# for this one. R1 cannot see that: there the newest run is b's own.
+printf '%s' "$(make_json_page "$(make_json_run 1 a completed success "$ts_new")")" > "$WORK/r1a.json"
+out="$(run_script_push_json "$WORK/r1a.json" b)"; rc=$?
+check "R1a: a page with only another commit's run is not a verdict" "1" "$rc"
+check "R1a: it asked until the attempts ran out (80)" "80" \
+	"$(grep -acz . "$WORK/gh.log" | tr -d ' ')"
+check "R1a: it names commit b and the 20 minutes it waited" "1" \
+	"$(printf '%s' "$out" | grep -qF 'commit b' && printf '%s' "$out" | grep -q '20 minutes' && echo 1 || echo 0)"
+
+printf '%s' "$(make_json_page \
+	"$(make_json_run 1 b completed failure "$ts_old"),$(make_json_run 2 a completed success "$ts_new")")" > "$WORK/r1b.json"
+out="$(run_script_push_json "$WORK/r1b.json" b)"; rc=$?
+check "R1a: a newer green run of another commit does not hide this commit's red" "1" "$rc"
+check "R1a: and the verdict names this commit's red run (#1)" "1" \
+	"$(printf '%s' "$out" | grep -q '#1' && echo 1 || echo 0)"
+
 # --- R2: in_progress on first call, completed success on second --------
 #
 # GITHUB_SHA=b. The first attempt finds the run for b still in
