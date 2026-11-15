@@ -100,6 +100,7 @@ jobs:
         ./tests/ci/policy/workflows/published-bytes-order.test.sh
         ./tests/monitoring/check-render-drift.test.sh
         ./tests/monitoring/check-published-manifests.test.sh
+        ./tests/monitoring/published-url-rules-agree.test.sh
         ./tests/monitoring/check-render-drift/check-render-drift-drift.test.sh
         ./tests/monitoring/check-render-drift/check-render-drift-missing.test.sh
         ./tests/monitoring/check-render-drift/check-render-drift-network.test.sh

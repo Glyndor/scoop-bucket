@@ -292,6 +292,17 @@ check "an empty bucket fails rather than passing vacuously" "1" "$exit_code"
 check "the empty bucket emits a GitHub error annotation" "1" \
 	"$(grep -c '::error' "$WORK/err")"
 
+# A bucket whose only manifest declares no architecture inspects no asset at all: the
+# watcher must say that nothing was verified, not report an ordinary run with a count.
+printf '{"version":"1.0.0","architecture":{}}\n' > "$WORK/root/bucket/empty-arch.json"
+run_watcher
+check "a manifest with no architecture fails the watcher" "1" "$exit_code"
+check "and the watcher says that no asset was verified" "1" \
+	"$(grep -c 'no published asset was verified' "$WORK/err")"
+check "and the manifest itself is named as declaring no architecture" "1" \
+	"$(grep -c 'declares no architecture' "$WORK/err")"
+rm -f "$WORK/root/bucket/empty-arch.json"
+
 echo
 echo "$pass passed, $fail failed"
 printf 'DONE %s %d %d\n' "${BASH_SOURCE[0]##*/}" "$pass" "$fail"
