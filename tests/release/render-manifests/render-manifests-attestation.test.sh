@@ -264,6 +264,48 @@ done <<'CASES'
 1.0.0-rc1|1.0.0
 CASES
 
+# Two products share the signing key, tag and asset names. A release editor
+# transplants B's signed sums AND matching binaries into A, retaining B's
+# provenance. Neither the digest check nor the tag pin distinguishes them;
+# the release-workflow identity must still belong to A.
+publish Glyndor/podup v9.9.9 podup-windows-x86_64.exe podup-windows-arm64.exe
+publish Glyndor/other v9.9.9 podup-windows-x86_64.exe podup-windows-arm64.exe
+donor="$RELEASES/Glyndor__other"
+for asset in podup-windows-x86_64.exe podup-windows-arm64.exe; do
+	printf 'product-B-%s' "$asset" > "$donor/asset_$asset"
+done
+(
+	cd "$donor"
+	sha256sum asset_podup-windows-x86_64.exe asset_podup-windows-arm64.exe | sed 's/  asset_/  /'
+) > "$WORK/donor-sums"
+resign "$WORK/donor-sums" Glyndor/other
+new_root "$WORK/transplant-a"
+generator_with "$WORK/transplant-a/scripts/release/render-manifests.sh" "$PODUP"
+rc=0; run "$WORK/transplant-a/scripts/release/render-manifests.sh" "$WORK/transplant-a" || rc=$?
+check "product A's own release renders before the transplant" "0" "$rc"
+cp "$WORK/transplant-a/bucket/podup.json" "$WORK/transplant-before.json"
+new_root "$WORK/transplant-b"
+generator_with "$WORK/transplant-b/scripts/release/render-manifests.sh" \
+	"Glyndor/other|other|donor|podup-windows-x86_64.exe|podup-windows-arm64.exe"
+rc=0; run "$WORK/transplant-b/scripts/release/render-manifests.sh" "$WORK/transplant-b" || rc=$?
+check "product B's signed release and provenance are valid for B" "0" "$rc"
+check "B has different bytes despite sharing A's asset names" "1" \
+	"$(cmp -s "$donor/asset_podup-windows-x86_64.exe" \
+		"$RELEASES/Glyndor__podup/asset_podup-windows-x86_64.exe"; echo $?)"
+for file in SHA256SUMS SHA256SUMS.sig asset_podup-windows-x86_64.exe \
+	asset_podup-windows-arm64.exe attestation.json; do
+	cp "$donor/$file" "$RELEASES/Glyndor__podup/$file"
+done
+rc=0; run "$WORK/transplant-a/scripts/release/render-manifests.sh" "$WORK/transplant-a" || rc=$?
+check "B's signed release transplanted into A is refused" "3" "$rc"
+check "the transplant fails on A's workflow identity" "1" \
+	"$(grep -Fc 'not signed by the release workflow of Glyndor/podup' "$WORK/out" || true)"
+check "the transplant does not fail on the matching downloaded digest" "0" \
+	"$(grep -c 'not the .* that SHA256SUMS declares' "$WORK/out" || true)"
+check "the transplant leaves A's served manifest byte-identical" "0" \
+	"$(cmp -s "$WORK/transplant-before.json" "$WORK/transplant-a/bucket/podup.json"; echo $?)"
+check "the transplant reports no publication" "0" "$(grep -c '^rendered ' "$WORK/out" || true)"
+
 echo
 echo "$pass passed, $fail failed"
 printf 'DONE %s %d %d\n' "${BASH_SOURCE[0]##*/}" "$pass" "$fail"
