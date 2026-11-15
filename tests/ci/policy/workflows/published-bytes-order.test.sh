@@ -36,8 +36,12 @@ for jid, job in doc["jobs"].items():
     for i, step in enumerate(job.get("steps", [])):
         if "run" in step:
             where.append((jid, i, step))
+def calls(run, name):
+    # A line that runs the script, not one that merely names it (an `echo` of it
+    # passes a substring test while running nothing).
+    return any(line.strip() in (f"bash ./{name}", f"./{name}") for line in run.splitlines())
 def find(name):
-    hits = [w for w in where if name in w[2]["run"]]
+    hits = [w for w in where if calls(w[2]["run"], name)]
     return hits[0] if len(hits) == 1 else None
 first = find("scripts/artifacts/check-manifests.sh")
 second = find("scripts/monitoring/check-published-manifests.sh")
@@ -83,6 +87,11 @@ def soften(d):
     for x in steps(d):
         if "check-manifests.sh" in x.get("run", ""):
             x["continue-on-error"] = True
+def echoed(d):
+    for x in steps(d):
+        if "check-manifests.sh" in x.get("run", "") and "check-published" not in x["run"]:
+            x["run"] = "echo " + x["run"]
+write("echoed", echoed)
 write("dropped", drop)
 write("swapped", swap)
 def job_soft(d):
@@ -99,6 +108,7 @@ write("job-soft", job_soft)
 write("job-if", job_if)
 write("split", split)
 PY
+check "a step that only echoes the product check is reported" "the product check is not run exactly once" "$(verdict "$WORK/c/echoed.yml")"
 check "without the product check the workflow is reported" "the product check is not run exactly once" "$(verdict "$WORK/c/dropped.yml")"
 check "with the checks swapped the workflow is reported" "the product check runs after the download check" "$(verdict "$WORK/c/swapped.yml")"
 check "with continue-on-error on the job that holds the product check it is reported" "the job that holds the product check can be skipped or can fail without failing the workflow" "$(verdict "$WORK/c/job-soft.yml")"

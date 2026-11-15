@@ -67,6 +67,15 @@ mkdir "$T/bucket/sub"
 rc=0; gate "$T" || rc=$?
 check "an empty folder is not refused by this rule" "0" "$(said 'is not a regular file')"
 
+# A helper executable is a regular file, so the rule above lets it through; the bucket
+# serves it all the same.
+T="$(mktree helper)"
+printf 'MZ\0\0helper\n' > "$T/bucket/audit-payload.exe"; chmod +x "$T/bucket/audit-payload.exe"
+rc=0; gate "$T" || rc=$?
+check "an executable that is not a manifest is refused" "1" "$rc"
+check "and the refusal names it" "1" "$(said '  audit-payload.exe')"
+check "and says it is not a manifest" "1" "$(said 'holds a file that is not a manifest')"
+
 # The same planted entries must flip when the refusal is removed.
 for c in link dangling; do
 	T="$WORK/$c"
