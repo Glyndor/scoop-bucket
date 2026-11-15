@@ -95,6 +95,7 @@ jobs:
         ./tests/monitoring/drift-watchers-transfer-cap.test.sh
         ./tests/ci/policy/workflows/workflow-shape.test.sh
         ./tests/ci/policy/workflows/freshness-pr-scope.test.sh
+        ./tests/ci/policy/workflows/published-bytes-order.test.sh
         ./tests/monitoring/check-render-drift.test.sh
         ./tests/monitoring/check-published-manifests.test.sh
         ./tests/monitoring/check-render-drift/check-render-drift-drift.test.sh
