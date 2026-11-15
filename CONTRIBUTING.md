@@ -63,7 +63,10 @@ For a reviewed rollback, take two pull requests. First merge one that adds a lin
 branch, so it cannot arrive together with the rollback, and the version gate then
 lets exactly that manifest go between exactly those two versions and refuses
 anything else. The rollback pull request must also delete the line: an approval is
-single-use, and the gate refuses a tree that is already at the version a line allowed. For the second, make the
+single-use, and the gate refuses a tree that is already at the version a line allowed.
+A pull request that rolls something back may only delete lines; adding or changing one
+in the same change is refused. A malformed approvals file on the base branch grants
+nothing, so the pull request that repairs it can pass. For the second, make the
 desired signed release `latest`: the hourly updater renders each product's latest
 release, so otherwise its next run replaces your change. Then run
 `ALLOW_RELEASE_DOWNGRADE=1 ./scripts/release/render-manifests.sh` manually, validate with
