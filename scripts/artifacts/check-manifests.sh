@@ -51,6 +51,15 @@ if [ -n "$links" ]; then
 	exit 1
 fi
 
+# Only manifests live in the bucket. Scoop reads *.json, but the bucket serves
+# every file in it, so a helper executable there is code the roster never listed.
+stray="$(find "$bucket" -type f ! -iname '*.json' -printf '%P\n' | LC_ALL=C sort || true)"
+if [ -n "$stray" ]; then
+	echo "::error::$bucket holds a file that is not a manifest:" >&2
+	printf '%s\n' "$stray" | sed 's/^/  /' >&2
+	exit 1
+fi
+
 # The glob above reads bucket/<name>.json and nothing else, while Scoop reads a
 # manifest in a subfolder and one whose extension is in capitals. A file the
 # gate never opens is a file it cannot hold to its roster row, so it is refused
