@@ -57,9 +57,14 @@ request: an unsigned human commit would be a red run within a minute.
 
 The renderer refuses versions below the served version using SemVer precedence
 (pre-releases precede stable releases; build metadata does not affect ordering).
-For a reviewed rollback, first make the desired signed release `latest`: the hourly
-updater renders each product's latest release, so otherwise its next run replaces
-your change. Then run
+For a reviewed rollback, take two pull requests. First merge one that adds a line
+`bucket/<name>.json <committed version> <version to go back to>` to
+`scripts/artifacts/approved-rollbacks.txt`: the permission is read from the base
+branch, so it cannot arrive together with the rollback, and the version gate then
+lets exactly that manifest go between exactly those two versions and refuses
+anything else. Remove the line once the rollback has merged. For the second, make the
+desired signed release `latest`: the hourly updater renders each product's latest
+release, so otherwise its next run replaces your change. Then run
 `ALLOW_RELEASE_DOWNGRADE=1 ./scripts/release/render-manifests.sh` manually, validate with
 `./scripts/artifacts/check-manifests.sh`, and submit the generated diff through a pull request.
 The override logs a warning naming the product and both versions; signature and
