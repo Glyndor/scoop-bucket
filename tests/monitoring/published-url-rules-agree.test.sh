@@ -58,6 +58,9 @@ corpus=(
 	"no  https://github.com/Glyndor/./releases/download/v1/podup.exe"
 	"no  https://github.com.evil.example/Glyndor/podup/releases/download/v1/podup.exe"
 	"no  https://github.com/Glyndor/podup/releases/download/v1/a/b.exe"
+	"no  https://github.com/Glyndor/podup/releases/download/v../podup.exe"
+	"no  https://github.com/Glyndor/podup/releases/download/v1.2.3/.."
+	"no  https://github.com/Glyndor/podup/releases/download/v1.2.3/..."
 )
 WATCH_RE="^https://$WATCH_BODY\$"
 for row in "${corpus[@]}"; do

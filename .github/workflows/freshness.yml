@@ -242,7 +242,7 @@ jobs:
   # automatic env vars and reach the script without being listed here.
   suite-on-main:
     concurrency:
-      group: freshness-suite-on-main-${{ github.workflow }}-${{ github.ref }}
+      group: freshness-suite-on-main-${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
       cancel-in-progress: ${{ github.event_name == 'pull_request' }}
     name: suite is green on main
     runs-on: ubuntu-latest
