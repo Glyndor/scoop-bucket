@@ -34,7 +34,7 @@ fails when one does not.
   architecture, and a `bin` mapping (`bucket/podup.json#architecture`).
 - **Windows only** (`scripts/release/render-manifests.sh#PRODUCTS`). There is no winget
   manifest and none is planned: winget means a pull request into
-  `microsoft/winget-pkgs` on every release, and the owner declined that.
+  `microsoft/winget-pkgs` on every release, which this channel does not do.
 - **Pull-based.** No product pushes here and none holds a credential on this
   repository (`.github/workflows/update.yml#update`, `README.md#What you are trusting`).
 
@@ -70,8 +70,7 @@ fails when one does not.
   `createCommitOnBranch` mutation. A leaked key would let its holder push to
   `main` past the required checks, which is why the key is the credential that
   matters here.
-- **A human with Write.** Invitation-only (`CONTRIBUTING.md`); one owner
-  (`.github/CODEOWNERS#*`). Has no bypass: the ruleset requires a pull request,
+- **A human with Write.** Invitation-only (`CONTRIBUTING.md`). Has no bypass: the ruleset requires a pull request,
   eight status checks with the branch up to date, signed commits and CodeQL, so
   a human change reaches `main` only through a reviewed-by-CI pull request.
 - **A Windows user.** Runs the three lines in the README. Scoop clones
@@ -188,17 +187,17 @@ still verifies`; `tests/release/render-manifests.test.sh#the first key alone sti
 
 ## Residual risks
 
-Accepted by the owner; recorded here so they are read as decisions rather than
+Accepted risks, recorded here so they are read as decisions rather than
 oversights.
 
 - **A human who merges past a red check.** `dco` and the rest are required,
-  and the ruleset gives humans no bypass, so the remaining case is the owner
-  changing the ruleset itself. `dco-on-main.yml` reports anything that lands
+  and the ruleset gives humans no bypass, so the remaining case is a repository
+  administrator changing the ruleset itself. `dco-on-main.yml` reports anything that lands
   unsigned despite that.
-- **One maintainer** (`.github/CODEOWNERS#.github/workflows/`). A required check is matched
-  by name, so a pull request with Write can replace a caller with a stub that
-  emits the name. The mitigation, Code Owner review on `.github/workflows/`,
-  waits for the day a second human gets access.
+- **A gate replaced in the pull request that should be judged by it**
+  (`.github/CODEOWNERS`). A required check is matched by name, so a pull request
+  with write access can replace a caller with a stub that emits the name. The
+  mitigation is Code Owner review on `.github/workflows/`.
 - **The roster is trusted, and its names are checked anyway.** The renderer
   holds a manifest name to lowercase letters, digits, dot, hyphen and
   underscore, starting with a letter or a digit, and refuses anything else

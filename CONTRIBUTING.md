@@ -15,8 +15,8 @@ It is the Scoop bucket for Glyndor's products. It carries no product source:
 `bucket/*.json` is generated from each product's latest signed release, with
 the release signature verified before anything is written. Edit
 `scripts/release/render-manifests.sh`, never the manifests themselves: the next
-scheduled run overwrites them, so a hand edit survives until the next hourly
-run and then disappears without a trace.
+scheduled run rewrites them whenever a product has a verified release to render, so a
+hand edit is lost the next time its manifest is regenerated.
 
 **Its git content IS the published artifact.** A commit on `main` is what
 `scoop install` reads. There is no build step between them and no CDN in front.
@@ -99,7 +99,7 @@ There is no `develop`. Branch from `main`, open a pull request against
 
 ## Tests
 
-The suites need `shellcheck` and `python3-yaml` installed, the same packages `tests.yml` installs in CI.
+The suites need `shellcheck`, `jq`, `python3-yaml` and `python3-cryptography` installed, the same packages `tests.yml` installs in CI.
 
 ```sh
 fail=0
