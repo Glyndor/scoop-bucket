@@ -7,6 +7,10 @@
 # names it. Each pinned call is then replaced by ':' in a copy and must be reported, which shows
 # the check looks at the call and not only at the file.
 #
+# The mutation catalogue's runner is in this list for the same reason as the
+# rest: the weekly sweep is a report, and a report that stops running is a
+# report that reads as all clear.
+#
 # Requires: python3 (standard library only).
 set -euo pipefail
 
@@ -21,6 +25,7 @@ PINNED = {
     "dco-on-main.yml": ["scripts/governance/check-dco-on-main.sh"],
     "drift.yml": ["scripts/monitoring/check-channel-drift.sh", "scripts/monitoring/check-render-drift.sh", "scripts/monitoring/check-reusable-drift.sh"],
     "freshness.yml": ["scripts/monitoring/check-suite-on-main.sh"],
+    "mutation.yml": ["tests/mutation/run-mutations.sh"],
     "published-bytes.yml": ["scripts/artifacts/check-manifests.sh", "scripts/monitoring/check-published-manifests.sh"],
     "tests.yml": ["scripts/artifacts/check-manifests.sh", "scripts/artifacts/check-products-consistent.sh", "scripts/artifacts/check-version-monotonic.sh"],
     "update.yml": ["scripts/artifacts/check-manifests.sh", "scripts/release/render-manifests.sh"],

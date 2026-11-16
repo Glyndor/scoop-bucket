@@ -1,0 +1,59 @@
+name: Mutation
+
+# The catalogue of mutations: every entry breaks one guard of the scripts of this
+# repository on purpose and names the tests that must notice. A guard that no
+# test notices is decoration, and reading the suite cannot tell which ones are
+# decoration: the only way to know is to break them and watch it go red.
+#
+# The catalogue and its runner live in tests/mutation/. The entries were
+# derived from the guards the recent test commits closed, and each one was
+# checked by hand: with the mutation applied at least one named test fails,
+# and with the tree unmutated every one of them passes.
+#
+# Weekly and on demand, never on a pull request: the sweep is a report and not a
+# gate. The pull request path already runs the suites, and what the sweep adds
+# is the question the suites cannot answer on their own -- whether they would
+# still notice a guard that was quietly weakened.
+#
+# It is deliberately not a required status check. A survivor is a hole in the
+# suite, not a defect in the pull request in front of it, and a required check
+# would let one repository's weekly report block an unrelated change.
+on:
+  schedule:
+    - cron: "17 4 * * 1" # Monday, 04:17 UTC: a minute nobody else takes
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mutation-${{ github.workflow }}-${{ github.ref }}
+  # A scheduled run is never replaced by the next one (see cancel-policy.test.sh).
+  cancel-in-progress: false
+
+jobs:
+  mutations:
+    name: the guards still die under their mutations
+    runs-on: ubuntu-latest
+    # Measured at 3 minutes 33 seconds over the 39 entries of the catalogue,
+    # each one a copy of the tree and the suite it names, on an otherwise idle
+    # machine. Twenty minutes is more than five times that and still short of
+    # a hang.
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # The manifest suites read the manifests with jq, and the runner image is
+      # not promised to carry it. The job holds no secret, so installing a
+      # package from the distribution's own archive is the same shape as every
+      # other job in this repository.
+      - name: Install the tools the suites need
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq jq
+
+      - name: Run the catalogue
+        run: ./tests/mutation/run-mutations.sh

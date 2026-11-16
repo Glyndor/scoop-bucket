@@ -179,6 +179,7 @@ after staging or it will tell you a new file is fine when it is not.
 | `update.yml` | the hourly regeneration, which commits to `main` |
 | `drift.yml` | a copy this repository shares with a sibling channel no longer agrees: a reusable workflow, the renderer's verification logic, or one of the scripts and tests the bucket and the tap carry as exact copies |
 | `dco-on-main.yml` | a human commit reached `main` without a `Signed-off-by` trailer; detection after the push, not prevention |
+| `mutation.yml` | a guard of `scripts/` was weakened and no suite noticed; the weekly sweep breaks each guard on purpose and requires a suite to see it |
 
 Every reusable lives in `.github/workflows/reusable-*.yml` as a copy kept identical in logic to the
 copies in the sibling channels (`scripts/monitoring/check-reusable-drift.sh` compares
