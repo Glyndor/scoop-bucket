@@ -209,6 +209,15 @@ check "a malformed architecture fails" "1" "$exit_code"
 check "the malformed architecture emits a GitHub error annotation" "1" \
 	"$(grep -c '::error file=' "$WORK/err")"
 
+# The architecture name goes into a log line and an annotation: a name that is not a plain
+# identifier (a space here) is refused by name rather than carried along.
+write_manifest "$WORK/root/bucket/one.json" "1.0.0" "64 bit" \
+	"https://github.com/Glyndor/example/releases/download/v1.0.0/one.exe" "$current_hash"
+run_watcher
+check "an architecture name that is not a plain identifier fails" "1" "$exit_code"
+check "and the error says it is not a plain identifier" "1" \
+	"$(grep -c 'architecture name is not a plain identifier' "$WORK/err")"
+
 write_manifest "$WORK/root/bucket/one.json" "1.0.0" "64bit" \
 	"https://github.com/Glyndor/example/releases/download/v1.0.0/one.exe" "$current_hash"
 python3 - "$WORK/root/bucket/one.json" <<'PY'
