@@ -67,6 +67,8 @@ description-missing|del(.description)|missing required top-level field "descript
 description-empty|.description = ""|must be a non-empty string|s/elif (\.description | length) == 0 then/elif false then/
 bin-other-asset|.architecture["64bit"].bin = [["other-windows-x86_64.exe", "podup"]]|but this architecture downloads|s/elif \$asset != null and \$e\[0\] != \$asset/elif false/
 bin-outside-install-dir|.architecture["64bit"].bin = [["../podup-windows-x86_64.exe", "podup"]]|but this architecture downloads|s/elif \$asset != null and \$e\[0\] != \$asset/elif false/
+architecture-extra-key|.architecture["64bit"].extra = "x"|has unexpected key(s)|s/^SUB_KEYS=.*/SUB_KEYS='["url","hash","bin","extra"]'/
+hash-upper-case|.architecture["64bit"].hash = "A" + .architecture["64bit"].hash[1:]|must match ^[0-9a-f]{64}$ exactly|s/^HASH_RE=.*/HASH_RE='\\A[0-9a-fA-F]{64}\\z'/
 bin-other-alias|.architecture["64bit"].bin = [["podup-windows-x86_64.exe", "other"]]|names the alias|s/elif \$e\[1\] != \$product/elif false/
 bin-with-arguments|.architecture["64bit"].bin = [["podup-windows-x86_64.exe", "podup", "--evil"]]|exactly two elements|s/elif (\$e | length) != 2/elif false/
 CASES
