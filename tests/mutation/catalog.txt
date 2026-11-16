@@ -1,0 +1,76 @@
+# The catalogue of mutations: one entry per line, five fields separated by TAB.
+#
+#   id <TAB> file to mutate <TAB> exact text to replace <TAB> text that replaces it
+#        <TAB> tests of tests/ that must fail when the mutation is applied
+#
+# The text to replace has to appear EXACTLY ONCE in the file: a text that appears nowhere
+# changes nothing and proves nothing, and one that appears twice is ambiguous. The runner
+# refuses both, so an inert entry cannot sit in this file unnoticed. A text holds no TAB:
+# the line carries exactly four, and a fifth would move every field after it.
+#
+# The tests named by an entry are the ones that must notice when it is applied. Every
+# entry below was checked: with the mutation applied at least one of the named tests
+# fails, and with the tree unmutated every one of them passes.
+#
+# WHAT IS EXCLUDED, AND WHY
+#
+# The suites are run over a copy of the tree made with `git archive HEAD`, which carries
+# no git metadata. A suite that needs the history of the repository is red there whatever
+# the mutant is, and counting it as a kill would be a kill that never happened. These
+# are excluded, and no entry below names them:
+#
+#   tests/ci/suites/check-suite-completeness.test.sh
+#       It is the runner of the suites: it takes the list of suites as its arguments, so
+#       it cannot be run on its own, and it reads HEAD^1 to decide whether a pull request
+#       may narrow the suite set. A copy made with `git archive` has no HEAD^1.
+#
+#   tests/quality/check-editorconfig.test.sh
+#       The gate it covers enumerates the files with `git ls-files`. A copy made with
+#       `git archive` is not a repository, so the walk finds nothing, and a gate that
+#       inspected nothing is the failure this gate exists to catch.
+#
+# No suite of this repository needs the network or a tool that is absent here: the
+# watchers that fetch from GitHub are tested against a fake curl on PATH, and the
+# manifest tests need jq and python3, which are installed. The scripts that would need
+# reprepro, brew or scoop are not part of this repository.
+#
+# Run: tests/mutation/run-mutations.sh [--list] [<id>]
+manifests-empty-bucket	scripts/artifacts/check-manifests.sh	if [ ${#manifests[@]} -eq 0 ]; then	if [ ${#manifests[@]} -eq -1 ]; then	tests/artifacts/check-manifests.test.sh
+manifests-top-keys	scripts/artifacts/check-manifests.sh	TOP_KEYS='["version","description","homepage","license","architecture"]'	TOP_KEYS='["version","description","homepage","architecture"]'	tests/artifacts/check-manifests.test.sh
+manifests-arch-keys	scripts/artifacts/check-manifests.sh	ARCH_KEYS='["64bit","32bit","arm64"]'	ARCH_KEYS='["64bit","32bit"]'	tests/artifacts/check-manifests.test.sh
+manifests-url-dot	scripts/artifacts/check-manifests.sh	github\.com	github.com	tests/artifacts/check-manifests.test.sh
+manifests-hash-anchor	scripts/artifacts/check-manifests.sh	HASH_RE='\A[0-9a-f]{64}\z'	HASH_RE='\A[0-9a-f]{64}'	tests/artifacts/check-manifests.test.sh
+manifests-one-document	scripts/artifacts/check-manifests.sh	if [ "$(jq -s 'length' "$m")" != 1 ]; then	if false; then	tests/artifacts/check-manifests.test.sh
+products-bucket-symlink	scripts/artifacts/check-products-consistent.sh	if [ -L "$root/bucket" ]; then	if false; then	tests/artifacts/check-products-consistent.test.sh
+products-directory-manifest	scripts/artifacts/check-products-consistent.sh	-o \( -type d -iname '*.json' \)	-o \( -type d -iname '*.xml' \)	tests/artifacts/check-products-consistent.test.sh
+version-downgrade	scripts/artifacts/check-version-monotonic.sh	if precedence(new_version, name) < old:	if False:	tests/artifacts/check-version-monotonic.test.sh
+version-no-manifests	scripts/artifacts/check-version-monotonic.sh	if not names:	if False:	tests/artifacts/check-version-monotonic.test.sh
+version-approval-single-use	scripts/artifacts/check-version-monotonic.sh	if core(here) == core(goes_to):	if False:	tests/artifacts/check-version-monotonic.test.sh
+version-approval-carried	scripts/artifacts/check-version-monotonic.sh	carried = sorted(set(tree_entries) - approved)	carried = []	tests/artifacts/check-version-monotonic.test.sh
+coverage-python-extension	scripts/quality/check-test-coverage.sh	find "$root/scripts" -type f \( -name '*.sh' -o -name '*.py' \) -print0	find "$root/scripts" -type f \( -name '*.sh' \) -print0	tests/quality/check-test-coverage.test.sh
+coverage-no-scripts-directory	scripts/quality/check-test-coverage.sh	[ -d "$root/scripts" ] || { echo "no scripts/ directory under $root" >&2; exit 1; }	[ -d "$root/scripts" ] || { echo "no scripts/ directory under $root" >&2; exit 0; }	tests/quality/check-test-coverage.test.sh
+pins-sha-length	scripts/quality/check-action-pins.sh	if [[ "$ref" =~ ^[0-9a-f]{40}$ ]]; then	if [[ "$ref" =~ ^[0-9a-f]{7,40}$ ]]; then	tests/quality/check-action-pins.test.sh
+pins-no-workflow-file	scripts/quality/check-action-pins.sh	if [ "$files" -eq 0 ]; then	if [ "$files" -eq -1 ]; then	tests/quality/check-action-pins.test.sh
+pins-local-scope	scripts/quality/check-action-pins.sh	./*)	x/*)	tests/quality/check-action-pins.test.sh
+anchors-name-lookup	scripts/quality/check-doc-anchors.sh	if ! grep -Fxq -- "$name" <<<"$declared"; then	if ! grep -Fxq -- "$name" <<<""; then	tests/quality/check-doc-anchors.test.sh
+dco-updater-app-bot	scripts/governance/check-dco-on-main.sh	"github-actions[bot]"|"glyndor-updater[bot]") return 0 ;;	"github-actions[bot]") return 0 ;;	tests/governance/check-dco-on-main.test.sh
+dco-range-enumeration	scripts/governance/check-dco-on-main.sh	if ! commits="$(git rev-list --no-merges $range)"; then	if ! commits="$(git rev-list --no-merges $range 2>/dev/null || true)"; then	tests/governance/check-dco-on-main.test.sh
+dco-trailer-address	scripts/governance/check-dco-on-main.sh	grep -qE '^Signed-off-by: .+ <[^<>@ ]+@[^<>@ ]+>$'	grep -qE '^Signed-off-by: '	tests/governance/check-dco-on-main.test.sh
+dco-author-fallback	scripts/governance/check-dco-on-main.sh	if is_bot "$author"; then	if false; then	tests/governance/check-dco-on-main.test.sh
+channel-usable-path	scripts/monitoring/check-channel-drift.sh	[[ "$1" =~ ^[A-Za-z0-9._/-]+$ ]] || return 1	[[ "$1" =~ ^[A-Za-z0-9._/?=+-]+$ ]] || return 1	tests/monitoring/check-channel-drift.test.sh
+channel-empty-list	scripts/monitoring/check-channel-drift.sh	if [ "$listed" -eq 0 ]; then	if [ "$listed" -eq -1 ]; then	tests/monitoring/check-channel-drift.test.sh
+channel-nothing-compared	scripts/monitoring/check-channel-drift.sh	if [ "$compared" -eq 0 ]; then	if [ "$compared" -eq -1 ]; then	tests/monitoring/check-channel-drift.test.sh
+lint-no-blocks	scripts/quality/lint-workflow-shell.sh	if [ "$blocks" -eq 0 ]; then	if [ "$blocks" -eq -1 ]; then	tests/quality/lint-workflow-shell.test.sh
+lint-header-comment	scripts/quality/lint-workflow-shell.sh	run:[[:space:]]*[|>]([-+]?[0-9]*)?[[:space:]]*(#.*)?$/ {	run:[[:space:]]*[|>]([-+]?[0-9]*)?[[:space:]]*$/ {	tests/quality/lint-workflow-shell.test.sh
+published-digest	scripts/monitoring/check-published-manifests.sh	if [ "$actual" != "$expected" ]; then	if false; then	tests/monitoring/check-published-manifests.test.sh
+published-download-timeout	scripts/monitoring/check-published-manifests.sh	--max-time 120	--max-time 121	tests/monitoring/check-published-manifests.test.sh
+published-asset-cap	scripts/monitoring/check-published-manifests.sh	MAX_ASSET_BYTES=104857600	MAX_ASSET_BYTES=104857601	tests/monitoring/check-published-manifests.test.sh
+reusable-nothing-compared	scripts/monitoring/check-reusable-drift.sh	if [ "$compared" -eq 0 ]; then	if [ "$compared" -eq -1 ]; then	tests/monitoring/check-reusable-drift.test.sh
+reusable-block-comment	scripts/monitoring/check-reusable-drift.sh	inblock && ind > key { print; next }	inblock && ind > key { next }	tests/monitoring/check-reusable-drift.test.sh
+render-strip-comments	scripts/monitoring/check-render-drift.sh	'/^[[:space:]]*#/d'	'/^[[:space:]]*#X/d'	tests/monitoring/check-render-drift.test.sh
+render-py-block	scripts/monitoring/check-render-drift.sh	awk '/<<.*PY/{found=1} found{print; if(/^PY$/){exit}}' "$file"	awk '/<<.*PY/{found=1} found{print; if(/^PYX$/){exit}}' "$file"	tests/monitoring/check-render-drift.test.sh
+templates-other-platforms	scripts/governance/check-issue-templates.sh	other_platforms="Ubuntu Debian Fedora openSUSE SUSE Arch Alpine Gentoo"	other_platforms="Debian Fedora openSUSE SUSE Arch Alpine Gentoo"	tests/governance/check-issue-templates.test.sh
+templates-os-field	scripts/governance/check-issue-templates.sh	if [ -z "$os_field" ]; then	if false; then	tests/governance/check-issue-templates.test.sh
+scope-candidate-path	scripts/quality/ci-job-scope.sh	if candidate in paths or affects(patterns, paths) or affects(GLOBAL_INPUTS, paths):	if affects(patterns, paths) or affects(GLOBAL_INPUTS, paths):	tests/quality/ci-job-scope-suites.test.sh
+schedule-missing-workflow	scripts/monitoring/check-schedule-history-ready.sh	if [ "$scheduled_found" = false ] && [ "$workflow_missing" = false ]; then	if [ "$scheduled_found" = false ]; then	tests/monitoring/check-schedule-history-ready.test.sh
+schedule-retry	scripts/monitoring/check-schedule-history-ready.sh	for attempt in 1 2 3; do	for attempt in 1; do	tests/monitoring/check-schedule-history-ready.test.sh

@@ -263,13 +263,14 @@ tests/ci/policy/workflows/freshness-pr-scope.test.sh
 tests/ci/policy/workflows/freshness-poll-concurrency.test.sh
 	.github/workflows/freshness.yml
 
-# The script-pinning gate reads the six workflows it pins and the scripts
+# The script-pinning gate reads the seven workflows it pins and the scripts
 # those workflows must run.
 
 tests/ci/policy/workflows/workflows-run-their-scripts.test.sh
 	.github/workflows/dco-on-main.yml
 	.github/workflows/drift.yml
 	.github/workflows/freshness.yml
+	.github/workflows/mutation.yml
 	.github/workflows/published-bytes.yml
 	.github/workflows/tests.yml
 	.github/workflows/update.yml
@@ -283,6 +284,7 @@ tests/ci/policy/workflows/workflows-run-their-scripts.test.sh
 	scripts/monitoring/check-reusable-drift.sh
 	scripts/monitoring/check-suite-on-main.sh
 	scripts/release/render-manifests.sh
+	tests/mutation/run-mutations.sh
 
 # --- the quality gates ------------------------------------------------------
 #
@@ -515,6 +517,16 @@ tests/ci/suites/lint-job-scope.test.sh
 	.github/workflows/reusable-line-limit.yml
 	.github/workflows/reusable-shell-ci.yml
 	.github/workflows/reusable-workflow-lint.yml
+
+# --- the mutation catalogue --------------------------------------------------
+#
+# The runner's own test builds a throwaway repository with a guard of its own
+# and drives the runner against it, so the only file of this repository it
+# reads is the runner itself. The catalogue is not an input of that test: the
+# catalogue is what the weekly sweep reads, and the sweep is the workflow.
+
+tests/mutation/run-mutations.test.sh
+	tests/mutation/run-mutations.sh
 
 # --- the documented command -------------------------------------------------
 
