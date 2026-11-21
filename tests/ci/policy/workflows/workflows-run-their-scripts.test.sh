@@ -28,7 +28,7 @@ PINNED = {
     "mutation.yml": ["tests/mutation/run-mutations.sh"],
     "published-bytes.yml": ["scripts/artifacts/check-manifests.sh", "scripts/monitoring/check-published-manifests.sh"],
     "tests.yml": ["scripts/artifacts/check-manifests.sh", "scripts/artifacts/check-products-consistent.sh", "scripts/artifacts/check-version-monotonic.sh"],
-    "update.yml": ["scripts/artifacts/check-manifests.sh", "scripts/release/render-manifests.sh"],
+    "update.yml": ["scripts/artifacts/check-manifests.sh", "scripts/artifacts/manifest-digests.sh", "scripts/release/render-manifests.sh"],
 }
 passed = failed = 0
 

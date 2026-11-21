@@ -159,7 +159,26 @@ tests/release/render-manifests/render-manifests-symlink.test.sh
 tests/publication/update/update-workflow.test.sh
 	.github/workflows/update.yml
 	scripts/artifacts/check-manifests.sh
+	scripts/artifacts/manifest-digests.sh
 	scripts/release/render-manifests.sh
+	tests/fixtures/publication/**
+	tests/publication/update/**
+
+# The key isolation suite reads the workflow's structure and nothing it runs.
+
+tests/publication/update/update-key-isolation.test.sh
+	.github/workflows/update.yml
+	tests/fixtures/publication/**
+	tests/publication/update/**
+
+# The hand-off suite runs the two digest steps of the workflow against the
+# real digest script and the real manifest gate.
+
+tests/publication/update/update-digest-handoff.test.sh
+	.github/workflows/update.yml
+	scripts/artifacts/check-manifests.sh
+	scripts/artifacts/manifest-digests.sh
+	tests/fixtures/publication/**
 	tests/publication/update/**
 
 # --- the bucket -------------------------------------------------------------
@@ -201,12 +220,19 @@ tests/artifacts/check-manifests/check-manifests-nonregular.test.sh
 	bucket/**
 	tests/artifacts/check-manifests/**
 
+# The digest manifest the commit job of update.yml checks the rendered
+# manifests against. It reads its own script and nothing else: the manifests it
+# digests are fixtures it writes.
+
+tests/artifacts/manifest-digests.test.sh
+	scripts/artifacts/manifest-digests.sh
+
 # The rollback gate compares the committed manifests with the base commit, and
 # the approvals file that permits one rollback is read from the base too.
 
 tests/artifacts/check-version-monotonic.test.sh
 	scripts/artifacts/check-version-monotonic.sh
-	scripts/artifacts/approved-rollbacks.txt
+	scripts/release/render-manifests.sh
 	bucket/**
 
 # --- the CI policy rules ----------------------------------------------------

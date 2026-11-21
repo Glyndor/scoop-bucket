@@ -32,9 +32,10 @@ from creating or approving them, and that setting is locked org-wide. A commit
 that no pull request produced has no checks run on it, so the push needs a
 bypass actor on the ruleset. `github-actions[bot]` cannot be one; a GitHub App
 can. `glyndor-updater` is that app, installed on this repository with
-`contents: write` and nothing else. The job mints a short-lived token from the
+`contents: write` and nothing else. The commit job mints a short-lived token from the
 app's private key (`UPDATER_APP_PRIVATE_KEY`, a repository secret; the id is
-the variable `UPDATER_APP_ID`) on every scheduled run, so a removed
+the variable `UPDATER_APP_ID`), asked for with `permission-contents: write` and
+no other permission, on every scheduled run, so a removed
 installation or a broken key turns into a red run within the hour.
 
 The ruleset on `main` otherwise applies to everyone, humans included, with no
@@ -44,9 +45,24 @@ app's bypass covers the bot's push and nothing a human can do. Commits made
 through `createCommitOnBranch` are GitHub-signed, which is how they satisfy
 `required_signatures` without a signing key in this repository.
 
+**The workflow runs two jobs, and the split is the security boundary.** `render`
+installs the signature verifier, downloads each product's latest signed
+release, re-renders `bucket/`, validates the result and records the SHA-256 of
+every file it wrote. It holds no secret. `commit` mints the app's token, and
+it installs nothing and runs no product's code: it checks the files it is
+about to commit against the digests the render job recorded, and refuses
+anything that does not match. The digests travel through the render job's
+outputs, which no other job can write, and not through the artifact the two
+jobs exchange: the commit job downloads that artifact and holds the token that
+can upload one. `tests/publication/update/update-key-isolation.test.sh` reads the
+workflow and fails if another job references a secret or the commit job installs
+something, and `tests/publication/update/update-digest-handoff.test.sh` runs the
+two steps that pass the digests from one job to the other.
+
 **The validation that runs INSIDE `update.yml` before the commit is the only
 gate between a bad render and `scoop install`**, because the bot's push skips
-the required checks. It is covered by `tests/publication/update/update-workflow.test.sh`, which
+the required checks. It runs in the render job and again in the commit job, on
+the bytes that job is about to commit. It is covered by `tests/publication/update/update-workflow.test.sh`, which
 extracts the workflow's own `run:` blocks and executes them as they ship
 rather than against a copy.
 
@@ -179,7 +195,7 @@ after staging or it will tell you a new file is fine when it is not.
 | `freshness.yml` | something scheduled stopped happening elsewhere |
 | `published-bytes.yml` | a published manifest is invalid, does not declare a Glyndor release asset, or its digest does not match the bytes its URL serves |
 | `dco.yml`, `line-limit.yml`, `workflow-lint.yml` | one rule each |
-| `update.yml` | the hourly regeneration, which commits to `main` |
+| `update.yml` | the hourly regeneration: `render` renders and validates, `commit` mints the app's token and commits to `main` |
 | `drift.yml` | a copy this repository shares with a sibling channel no longer agrees: a reusable workflow, the renderer's verification logic, or one of the scripts and tests the bucket and the tap carry as exact copies |
 | `dco-on-main.yml` | a human commit reached `main` without a `Signed-off-by` trailer; detection after the push, not prevention |
 | `mutation.yml` | a guard of `scripts/` was weakened and no suite noticed; the weekly sweep breaks each guard on purpose and requires a suite to see it |

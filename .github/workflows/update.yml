@@ -12,15 +12,38 @@ name: update
 # apt-style "open an auto-merging PR" path is unavailable. Unlike Glyndor/apt,
 # whose automation never writes git but publishes to R2, a bucket's git content
 # *is* the published artifact, so the update must land as a commit. It lands on
-# `main` directly, validated in this job *before* it lands (there is no PR gate
-# standing between the commit and `scoop install`), and signed by GitHub so
+# `main` directly, validated in this workflow *before* it lands (there is no PR
+# gate standing between the commit and `scoop install`), and signed by GitHub so
 # `main`'s require-signed-commits rule accepts it without a signing key here.
-
+#
 # Schedule plus dispatch, no push and no pull_request, by design. This
 # is not about a pull request at all: it reads each product's latest
 # signed release and re-renders the published artifact. Validation
-# runs inside the job before the commit, because no pull request review
+# runs inside the workflow before the commit, because no pull request review
 # stands between the commit and `scoop install`.
+#
+# Two jobs, and the split is the security boundary, not tidiness:
+#
+#   render    installs the signature verifier, downloads each product's latest
+#             signed release, renders bucket/, validates the manifests it
+#             rendered, and records the SHA-256 of every file it wrote. It
+#             holds no secret.
+#   commit    the only job that mints the updater app's token. It installs
+#             nothing and runs no product's code: it checks out the tree, asks
+#             for the digests the render job recorded, and commits only the
+#             files whose bytes match them.
+#
+# When all of this was one job, the package installed from the distribution's
+# archive and the renderer that reads what a product published ran in the same
+# workspace as the step that used the app's token. Secrets are injected per
+# step, not per job, so the installed package could not read the key; what it
+# could do was persist into the step that does, by rewriting a script the
+# commit step then runs. Separate jobs share no workspace, and the digests
+# travel through the render job's outputs, which no other job can write.
+#
+# The digests travel in the outputs and not in the artifact on purpose. The
+# commit job downloads the artifact and holds the token that can upload one,
+# so a manifest carried inside it is a manifest it could replace.
 
 on:
   schedule:
@@ -37,9 +60,6 @@ on:
     # distribution channels, and a channel-write token would put signing, the
     # registry and both channels behind one compromise. Pulling more often buys
     # most of the latency back and moves no credential.
-    #
-    # Cheap, measured rather than assumed: a run takes 13 to 20 seconds and
-    # short-circuits when nothing changed.
     - cron: "30 * * * *"
   workflow_dispatch:
   # Optional instant trigger: a product's release workflow may
@@ -53,29 +73,44 @@ permissions:
 
 # Never run two updates at once: they would race on main's HEAD (the second
 # would fail its expectedHeadOid check and drop the update to the next run).
+# The group covers the whole run, both jobs.
 concurrency:
   group: update-manifests
   cancel-in-progress: false
 
 jobs:
-  update:
-    name: Render, validate, and commit
+  render:
+    name: Render
     runs-on: ubuntu-latest
-    # contents:read is enough for GITHUB_TOKEN now: the write goes through the
-    # updater app's token, minted below.
+    # contents:read is enough: this job writes nothing outside its own
+    # workspace, and the write happens in the commit job with the app's token.
     permissions:
       contents: read
     # The concurrency group above serialises the hourly runs, so one run that
     # hangs on a download holds every later one behind it until the six-hour
-    # default kills it. Measured over the last eight runs the job takes 13 to
-    # 20 seconds; ten minutes is far above any honest run and bounds the
+    # default kills it. Ten minutes is far above an honest run and bounds the
     # worst case to one missed hour instead of six.
+    #
+    # The figure this used to quote (13 to 20 seconds) was measured before the
+    # renderer began verifying each asset's provenance, which downloads every
+    # release asset on every run, and no run duration is recorded in this
+    # repository. The bound is therefore declared, not derived: a run costs a
+    # download of the release assets and a hash of each.
     timeout-minutes: 10
+    outputs:
+      changed: ${{ steps.render.outputs.changed }}
+      partial: ${{ steps.render.outputs.partial }}
+      digests: ${{ steps.digests.outputs.digests }}
+      head: ${{ steps.digests.outputs.head }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
+      # The verifier of the org's release signature comes from the
+      # distribution's own archive, so it is an install this repository trusts
+      # as much as it trusts its base image. It is here, in the job that holds
+      # no secret, and not in the job that does.
       - name: Install the signature verifier
         run: |
           sudo apt-get update -qq
@@ -90,7 +125,7 @@ jobs:
           # Exit 3 means the generator skipped at least one product and rendered
           # the rest: its release was unreadable, its SHA256SUMS did not verify,
           # or an asset the table names was missing. Carry on and commit what did
-          # render, then fail the job in the last step so the skip is loud.
+          # render, then fail the run in the last step so the skip is loud.
           # Holding a good update back because an unrelated product's release is
           # broken is exactly what this replaced. Any other non-zero is a failure
           # before any product was reached, and stops the run here.
@@ -158,7 +193,106 @@ jobs:
           # succeeds, so "every manifest is valid" would be true of a bucket
           # that serves nobody -- which is how an emptied bucket reaches
           # `scoop install` with nothing between it and the user.
+          #
+          # The gate needs no toolchain beyond what the runner image already
+          # carries, which is why it runs here and not in the job that holds
+          # the key. It runs again in that job, on the bytes that job is about
+          # to commit.
           ./scripts/artifacts/check-manifests.sh
+
+      # The manifest goes to the next job twice, and only one copy counts.
+      # The copy in the artifact is for a person reading a run. The one the
+      # commit job checks travels in this job's outputs: the commit job
+      # downloads the artifact and holds the token that can upload one, so
+      # anything inside the artifact is something it could replace. A job's
+      # outputs are written by that job alone. The head this job rendered from
+      # travels the same way, because the commit job's diff is only right
+      # against the same parent.
+      - name: Record the digest of every rendered manifest
+        id: digests
+        if: steps.render.outputs.changed == '1'
+        run: |
+          set -euo pipefail
+          staged="$RUNNER_TEMP/rendered"
+          manifest="$RUNNER_TEMP/manifests.sha256"
+          bash ./scripts/artifacts/manifest-digests.sh list . > "$manifest"
+          rm -rf "$staged"
+          mkdir -p "$staged"
+          cp -R bucket "$staged/bucket"
+          cp "$manifest" "$staged/manifests.sha256"
+          bash ./scripts/artifacts/manifest-digests.sh check "$staged" "$manifest"
+          echo "digests=$(base64 -w0 < "$manifest")" >> "$GITHUB_OUTPUT"
+          echo "head=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      # Seven days so a red run can still be read; the artifact is only a
+      # carrier between the jobs of one run.
+      - name: Upload the rendered manifests
+        if: steps.render.outputs.changed == '1'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: rendered-manifests
+          path: ${{ runner.temp }}/rendered
+          if-no-files-found: error
+          retention-days: 7
+
+  commit:
+    name: Commit
+    # With the default rule: this job runs only when the render succeeded. It
+    # carries no `if:` of its own, because any status function there
+    # (`always()`, `!cancelled()`) would let it run after a failed render.
+    needs: render
+    runs-on: ubuntu-latest
+    # contents:read is enough for GITHUB_TOKEN: the write goes through the
+    # updater app's token, minted below.
+    permissions:
+      contents: read
+    # A checkout, a download, two checks with no toolchain and two API calls.
+    # Ten minutes bounds a stalled API call far below the six-hour default,
+    # and the same bound the render job carries is far above an honest run.
+    timeout-minutes: 10
+    # Nothing in this job installs anything, and that is the rule it exists
+    # to keep: it is the only job that holds a secret. What it runs is the
+    # runner image (git, gh, jq, python3), this repository's own scripts from
+    # a fresh checkout, and three first-party actions pinned by commit.
+    steps:
+      - if: needs.render.outputs.changed == '1'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Download the rendered manifests
+        if: needs.render.outputs.changed == '1'
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: rendered-manifests
+          path: ${{ runner.temp }}/rendered
+
+      # The bytes committed are the bytes the render job recorded, or nothing
+      # is committed. The digests come from the render job's outputs and not
+      # from the artifact, which this job could have replaced. The manifest
+      # gate runs again on the placed files, because it is the last reader of
+      # their meaning and it costs nothing here. All of it runs before the key
+      # is used, so a run that refuses its bytes never mints.
+      - name: Check the rendered bytes against the render job's digests
+        if: needs.render.outputs.changed == '1'
+        env:
+          RENDERED_DIGESTS: ${{ needs.render.outputs.digests }}
+          RENDERED_HEAD: ${{ needs.render.outputs.head }}
+        run: |
+          set -euo pipefail
+          # The commit step diffs the placed files against this checkout and
+          # pins this checkout's HEAD as the parent. Against any other parent
+          # than the one the render read, that diff would undo whatever landed
+          # in between.
+          head="$(git rev-parse HEAD)"
+          if [ "$head" != "$RENDERED_HEAD" ]; then
+            echo "::error::this checkout is at ${head:-nothing}, the render read ${RENDERED_HEAD:-nothing}; refusing to commit against another parent"
+            exit 1
+          fi
+          expected="$RUNNER_TEMP/expected.sha256"
+          printf '%s' "$RENDERED_DIGESTS" | base64 -d > "$expected"
+          bash ./scripts/artifacts/manifest-digests.sh place "$RUNNER_TEMP/rendered" . "$expected"
+          bash ./scripts/artifacts/check-manifests.sh
 
       # main now has required status checks, and a direct push has none, so
       # the commit below needs a bypass actor. github-actions[bot] cannot be
@@ -180,9 +314,15 @@ jobs:
         with:
           app-id: ${{ vars.UPDATER_APP_ID }}
           private-key: ${{ secrets.UPDATER_APP_PRIVATE_KEY }}
+          # The token is asked for with the one permission the commit needs.
+          # Without this it carries whatever the installation grants, and
+          # those settings live on GitHub where this tree cannot check them:
+          # widening the installation for another use would widen this token
+          # with no change here.
+          permission-contents: write
 
       - name: Commit the update to main (GitHub-signed)
-        if: steps.render.outputs.changed == '1'
+        if: needs.render.outputs.changed == '1'
         env:
           GH_TOKEN: ${{ steps.app.outputs.token }}
           REPO: ${{ github.repository }}
@@ -237,7 +377,7 @@ jobs:
           echo "Committed the manifest update to main."
 
       - name: Fail if any product was skipped
-        if: steps.render.outputs.partial == '1'
+        if: needs.render.outputs.partial == '1'
         run: |
           # Last, on purpose: the products that did render are already committed
           # by now, so a broken release in one product costs that product's

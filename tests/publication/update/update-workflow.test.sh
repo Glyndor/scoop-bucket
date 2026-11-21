@@ -20,109 +20,16 @@
 # conditions wiring these outputs to the later steps, and the createCommitOnBranch
 # call itself. Those are asserted by reading the workflow, not by running it.
 #
-# Requires: python3, git.
+# The extractor and the sandbox are in tests/fixtures/publication/update-fixture.sh,
+# shared with the other suites of this folder.
+#
+# Requires: python3, git, jq.
 
-set -euo pipefail
-
-HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
-WORKFLOW="$HERE/.github/workflows/update.yml"
-WORK="$(mktemp -d)"
-
-cleanup() { rm -rf "$WORK"; }
-trap cleanup EXIT
-
+HERE_FIXTURE="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../fixtures/publication" && pwd)"
+# shellcheck disable=SC1091
+. "$HERE_FIXTURE/update-fixture.sh"
 pass=0
 fail=0
-
-check() { # <description> <expected> <actual>
-	if [ "$2" = "$3" ]; then
-		echo "ok    $1"
-		pass=$((pass + 1))
-	else
-		echo "FAIL  $1"
-		echo "        expected: $2"
-		echo "        actual:   $3"
-		fail=$((fail + 1))
-	fi
-}
-
-# Pull one step's `run:` body out of the workflow, dedented, so it can be run.
-step_script() { # $1=step name substring
-	python3 - "$WORKFLOW" "$1" <<'PY'
-import sys
-lines = open(sys.argv[1]).read().splitlines()
-start = next(i for i, l in enumerate(lines) if "name: " + sys.argv[2] in l)
-run = next(i for i, l in enumerate(lines) if i > start and l.strip() == "run: |")
-body = []
-for line in lines[run + 1:]:
-    if not line.strip():
-        body.append("")
-        continue
-    if not line.startswith(" " * 10):
-        break
-    body.append(line[10:])
-print("\n".join(body))
-PY
-}
-
-# A repository the step can run in: a git repo with a committed manifest/ and a
-# stub generator whose behaviour each case chooses.
-sandbox() { # $1=path $2=code $3=writes? (yes|no|empty|new|del|del-multi)
-	local dir="$1" code="$2" mode="$3"
-	rm -rf "$dir"; mkdir -p "$dir/scripts" "$dir/scripts/artifacts" "$dir/scripts/release" "$dir/bucket"
-	printf '{"version":"1"}\n' > "$dir/bucket/podup.json"
-	# del-multi starts with a second tracked manifest so a deletion can leave
-	# the channel with one left, which exercises the deletion-only path
-	# without also tripping the empty-bucket refusal.
-	if [ "$mode" = "del-multi" ]; then
-		printf '{"version":"1"}\n' > "$dir/bucket/zzz.json"
-	fi
-	cat > "$dir/scripts/release/render-manifests.sh" <<SH
-#!/usr/bin/env bash
-# The roster check-manifests.sh binds each manifest url to (it reads this table).
-PRODUCTS=(
-	"Glyndor/podup|podup|stub|podup-windows-x86_64.exe"
-)
-case "$mode" in
-	yes)       printf '{"version":"2"}\n' > "$dir/bucket/podup.json" ;;
-	empty)     rm -f "$dir"/bucket/*.json ;;
-	new)       printf '{"version":"1"}\n' > "$dir/bucket/newproduct.json" ;;
-	del)       rm -f "$dir/bucket/podup.json" ;;
-	del-multi) rm -f "$dir/bucket/podup.json" ;;
-esac
-exit $code
-SH
-	chmod +x "$dir/scripts/release/render-manifests.sh"
-	# The validate step calls scripts/artifacts/check-manifests.sh rather than carrying a
-	# copy of the jq filter, so the sandbox needs the real script. Copying it
-	# is the point: the step is exercised with the code that ships, and a
-	# workflow that stopped calling it would fail here rather than pass on a
-	# stub that happens to agree.
-	cp "$HERE/scripts/artifacts/check-manifests.sh" "$dir/scripts/artifacts/check-manifests.sh"
-	chmod +x "$dir/scripts/artifacts/check-manifests.sh"
-	git -C "$dir" init -q
-	git -C "$dir" -c user.email=t@t -c user.name=t add -A
-	git -C "$dir" -c user.email=t@t -c user.name=t commit -qm init
-	# Re-apply after the commit, so the working tree differs from HEAD the way
-	# it does in a real run.
-	:
-}
-
-run_step() { # $1=script $2=dir ; sets GITHUB_OUTPUT, returns the step's status
-	: > "$WORK/gh-output"
-	( cd "$2" && GITHUB_OUTPUT="$WORK/gh-output" bash "$1" ) > "$WORK/out" 2>&1
-}
-
-output() { # $1=key
-	awk -F= -v k="$1" '$1 == k { print $2 }' "$WORK/gh-output"
-}
-
-RENDER="$WORK/render.sh"
-VALIDATE="$WORK/validate.sh"
-COMMIT="$WORK/commit.sh"
-step_script "Render manifests" > "$RENDER"
-step_script "Validate the re-rendered manifests" > "$VALIDATE"
-step_script "Commit the update to main" > "$COMMIT"
 
 check "the render step was extracted from the workflow" "1" \
 	"$(grep -c 'render-manifests.sh' "$RENDER")"
@@ -144,6 +51,14 @@ check "the commit step authenticates with the app token" "1" \
 	"$(grep -c 'GH_TOKEN: ${{ steps.app.outputs.token }}' "$WORKFLOW")"
 check "and no step commits with github.token" "0" \
 	"$(awk '/name: Commit the update to main/,/run: \|/' "$WORKFLOW" | grep -c 'github.token')"
+
+# The token is narrowed where it is minted. Left out, it carries every permission
+# the installation has, and nothing in this tree can see what those are.
+mint="$(awk '/uses: actions\/create-github-app-token@/,/^$/' "$WORKFLOW")"
+check "the app token is asked for with contents: write" "1" \
+	"$(printf '%s\n' "$mint" | grep -c '^ *permission-contents: write$')"
+check "and with no other permission" "1" \
+	"$(printf '%s\n' "$mint" | grep -c '^ *permission-[a-z-]*:')"
 
 # --- exit code becomes `partial` -------------------------------------------
 
@@ -463,15 +378,22 @@ check "and sets no changed output" "" "$(output changed)"
 # These conditions are evaluated by the Actions engine, so they can be read but
 # not executed here. Reading them still catches the wiring being dropped.
 
-check "the validate and commit steps are gated on changed, the mint step is not" "2" \
+# The change is decided in the render job and read by the commit job, so the
+# gate is spelled twice: against the step that produced the output, and
+# against the job that inherits it. The render job gates the validation, the
+# digest record and the upload; the commit job gates the checkout, the
+# download, the digest check and the commit itself.
+check "the render job's steps are gated on the change it produced" "3" \
 	"$(grep -c "if: steps.render.outputs.changed == '1'" "$WORKFLOW")"
+check "and the commit job's steps are gated on the change it inherits" "4" \
+	"$(grep -c "if: needs.render.outputs.changed == '1'" "$WORKFLOW")"
 # The mint step has no `if:` on purpose. A removed installation or an invalid
 # private key used to stay invisible until the next run that had something to
 # publish; reading the step's own block confirms the gate is not there.
 check "the mint step has no if: so a broken credential fails the next scheduled run" "0" \
 	"$(awk '/name: Mint a token/,/uses: actions\/create-github-app-token/' "$WORKFLOW" | grep -c 'if:')"
 check "the failure step is gated on partial" "1" \
-	"$(grep -c "if: steps.render.outputs.partial == '1'" "$WORKFLOW")"
+	"$(grep -c "if: needs.render.outputs.partial == '1'" "$WORKFLOW")"
 check "the failure step is last, after the commit" "1" \
 	"$(awk '/name: Commit the update/ { c = NR } /name: Fail if any product was skipped/ { f = NR } END { print (c && f && f > c) ? 1 : 0 }' "$WORKFLOW")"
 
