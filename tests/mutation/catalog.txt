@@ -30,6 +30,10 @@
 #       It is the runner of the suites: it takes the list of suites as its arguments, so
 #       it cannot be run on its own, and it reads HEAD^1 to decide whether a pull request
 #       may narrow the suite set. A copy made with `git archive` has no HEAD^1.
+#       Its verdict lines (the exit status, the count in the sentinel and the sentinel
+#       itself) are mutated below by entries that name
+#       tests/ci/suites/check-suite-completeness-verdict.test.sh, which runs the runner
+#       over suites it writes and needs no history.
 #
 #   tests/quality/hygiene/check-editorconfig.test.sh
 #       The gate it covers enumerates the files with `git ls-files`. A copy made with
@@ -202,3 +206,6 @@ line-limit-txt-comments	.github/workflows/reusable-line-limit.yml	*.yml|*.yaml|*
 line-limit-caller-txt	.github/workflows/line-limit.yml	svelte yml yaml txt"	svelte yml yaml"	tests/ci/reusable/reusable-line-limit.test.sh
 pq-transfer-404	scripts/release/release-signature.sh	if [ "$pq_rc" -ne 0 ]; then	if [ "$pq_rc" -ne 0 ] && [ "$pq_code" != "404" ]; then	tests/release/release-signature.test.sh
 drift-checkout-keeps-no-token	.github/workflows/drift.yml	persist-credentials: false	persist-credentials: true	tests/ci/policy/workflows/persist-credentials.test.sh
+suite-runner-exit	tests/ci/suites/check-suite-completeness.test.sh	check "$basename exited 0" "0" "$rc"	true "$rc"	tests/ci/suites/check-suite-completeness-verdict.test.sh
+suite-runner-count	tests/ci/suites/check-suite-completeness.test.sh	check "$basename reported no failed check" "0" "${fields[3]}"	true "${fields[3]}"	tests/ci/suites/check-suite-completeness-verdict.test.sh
+suite-runner-sentinel	tests/ci/suites/check-suite-completeness.test.sh	check "$basename reached its end" "1" "$has_sentinel"	check "$basename reached its end" "1" "1"	tests/ci/suites/check-suite-completeness-verdict.test.sh

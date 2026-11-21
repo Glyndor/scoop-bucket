@@ -51,6 +51,7 @@ jobs:
       # purpose.
       test-command: >-
         ./tests/ci/suites/check-suite-completeness.test.sh
+        ./tests/ci/suites/check-suite-completeness-verdict.test.sh
         ./tests/release/render-manifests.test.sh
         ./tests/release/render-manifests/render-manifests-attestation.test.sh
         ./tests/release/render-manifests/render-manifests-sums-selection.test.sh

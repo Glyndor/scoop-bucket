@@ -18,6 +18,7 @@
 
 # nothing beyond the runner image
 tests/release/products.test.sh -
+tests/ci/suites/check-suite-completeness-verdict.test.sh -
 tests/mutation/catalog-reaches-every-script.test.sh -
 tests/release/render-manifests.test.sh -
 tests/release/render-manifests/render-manifests-attestation.test.sh -
