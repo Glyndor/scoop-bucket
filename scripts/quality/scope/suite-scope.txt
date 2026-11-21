@@ -300,6 +300,9 @@ tests/ci/policy/rules/network-calls-are-bounded.test.sh
 tests/ci/policy/workflows/workflow-shape.test.sh
 	.github/workflows/**
 
+tests/ci/policy/workflows/persist-credentials.test.sh
+	.github/workflows/**
+
 tests/ci/policy/rules/jobs-are-bounded.test.sh
 	.github/workflows/**
 
