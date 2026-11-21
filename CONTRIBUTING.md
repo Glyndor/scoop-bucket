@@ -223,7 +223,7 @@ catch, because a count per file cannot tell one guard from another.
 |---|---|
 | `tests.yml` | four jobs. `shell`: a suite or shellcheck. `ML-DSA-65 verifier`: the second signature verified with real ML-DSA-65 keys, in a virtual environment built from `scripts/release/render-requirements.txt`, so a red there can be that pinned wheel failing to install as well as the verifier. `products match the generator`: `bucket/` no longer matches `PRODUCTS`. `validate manifests`: a manifest is malformed, or goes back to an older release |
 | `pr-hygiene.yml` | the pull request itself is malformed |
-| `freshness.yml` | something scheduled stopped happening elsewhere |
+| `freshness.yml` | something scheduled stopped happening elsewhere, or a tool pinned in a reusable fell behind its upstream release |
 | `published-bytes.yml` | a published manifest is invalid, does not declare a Glyndor release asset, or its digest does not match the bytes its URL serves |
 | `dco.yml`, `line-limit.yml`, `workflow-lint.yml` | one rule each |
 | `update.yml` | the hourly regeneration: `render` renders and validates, `commit` mints the app's token and commits to `main` |
