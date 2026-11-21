@@ -64,14 +64,7 @@ on:
   workflow_dispatch:
   # Optional instant trigger: a product's release workflow may
   # POST /repos/Glyndor/scoop-bucket/dispatches with event_type "release".
-  # Nothing is wired to it today; the hourly schedule is the baseline, and the
-  # render job below refuses a dispatch so that this trigger cannot be used to
-  # ask for the updater app's token as often as somebody likes. The trigger
-  # itself stays because the exact event set of a publishing workflow is
-  # pinned by tests/ci/policy/workflows/workflow-publish-triggers.test.sh, a
-  # file this repository carries byte for byte with the Homebrew tap: dropping
-  # it here alone would make the two copies disagree, and the check that
-  # compares them is the one that would say so.
+  # Nothing is wired to it today; the hourly schedule is the baseline.
   repository_dispatch:
     types: [release]
 
@@ -104,15 +97,6 @@ jobs:
     # repository. The bound is therefore declared, not derived: a run costs a
     # download of the release assets and a hash of each.
     timeout-minutes: 10
-    # A dispatch is refused here, and not at the trigger, because the trigger
-    # cannot be removed: the exact event set of a publishing workflow is pinned
-    # by a test this repository shares byte for byte with the Homebrew tap.
-    # What the dispatch can do is what has to be bounded, and the thing it must
-    # not be able to do is mint the updater app's token: an actor with write
-    # access could otherwise ask for that credential as often as it liked.
-    # The hourly schedule is the baseline and it exercises the credential
-    # every hour, so nothing is lost.
-    if: github.event_name != 'repository_dispatch'
     outputs:
       changed: ${{ steps.render.outputs.changed }}
       partial: ${{ steps.render.outputs.partial }}
