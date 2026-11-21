@@ -112,6 +112,7 @@ tests/ci/suites/check-suite-completeness.test.sh
 
 tests/release/render-manifests.test.sh
 	scripts/release/render-manifests.sh
+	scripts/release/release-signature.sh
 	tests/fixtures/release/**
 	tests/release/render-manifests.test.sh
 
@@ -120,37 +121,44 @@ tests/release/render-manifests.test.sh
 
 tests/release/render-manifests/render-manifests-attestation.test.sh
 	scripts/release/render-manifests.sh
+	scripts/release/release-signature.sh
 	tests/fixtures/release/**
 	tests/release/render-manifests/**
 	.github/workflows/update.yml
 
 tests/release/render-manifests/render-manifests-sums-selection.test.sh
 	scripts/release/render-manifests.sh
+	scripts/release/release-signature.sh
 	tests/fixtures/release/**
 	tests/release/render-manifests/**
 
 tests/release/render-manifests/render-manifests-inputs.test.sh
 	scripts/release/render-manifests.sh
+	scripts/release/release-signature.sh
 	tests/fixtures/release/**
 	tests/release/render-manifests/**
 
 tests/release/render-manifests/render-manifests-transfer-limits.test.sh
 	scripts/release/render-manifests.sh
+	scripts/release/release-signature.sh
 	tests/fixtures/release/**
 	tests/release/render-manifests/**
 
 tests/release/render-manifests/render-manifests-products.test.sh
 	scripts/release/render-manifests.sh
+	scripts/release/release-signature.sh
 	tests/fixtures/release/**
 	tests/release/render-manifests/**
 
 tests/release/render-manifests/render-manifests-guards.test.sh
 	scripts/release/render-manifests.sh
+	scripts/release/release-signature.sh
 	tests/fixtures/release/**
 	tests/release/render-manifests/**
 
 tests/release/render-manifests/render-manifests-symlink.test.sh
 	scripts/release/render-manifests.sh
+	scripts/release/release-signature.sh
 	tests/fixtures/release/**
 	tests/release/render-manifests/**
 

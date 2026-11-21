@@ -315,6 +315,8 @@ SIGN
 # A copy of the generator whose PRODUCTS table is replaced wholesale. Replacing
 # the block rather than editing fields keeps these tests working when the table
 # gains a column, which is what happened to the Homebrew tap's.
+# The renderer sources scripts/release/release-signature.sh from its own
+# folder, so every copy made here carries that file beside it.
 generator_with() { # $1=destination $2...=table rows
 	local dest="$1"; shift
 	local rows
@@ -325,13 +327,17 @@ generator_with() { # $1=destination $2...=table rows
 		!inside        { print }
 	' "$GENERATOR" > "$dest"
 	chmod +x "$dest"
+	cp "$(dirname "$GENERATOR")/release-signature.sh" "$(dirname "$dest")/"
 }
 
 run() { # $1=script $2=repo root
 	( cd "$2" && "$1" --pubkey "$PUBKEY" ) > "$WORK/out" 2>&1
 }
 
-new_root() { rm -rf "$1"; mkdir -p "$1/scripts" "$1/scripts/release" "$1/bucket"; }
+new_root() {
+	rm -rf "$1"; mkdir -p "$1/scripts" "$1/scripts/release" "$1/bucket"
+	cp "$(dirname "$GENERATOR")/release-signature.sh" "$1/scripts/release/"
+}
 
 # The digests and the product row both files build their tables from. The
 # linter cannot see the sourcing files, so it reads these as unused.
