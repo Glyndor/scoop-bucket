@@ -176,6 +176,7 @@ tests/release/release-signature.test.sh
 tests/publication/update/update-workflow.test.sh
 	.github/workflows/update.yml
 	scripts/artifacts/check-manifests.sh
+	scripts/release/products.sh
 	scripts/artifacts/manifest-digests.sh
 	scripts/release/render-manifests.sh
 	tests/fixtures/publication/**
@@ -194,6 +195,7 @@ tests/publication/update/update-key-isolation.test.sh
 tests/publication/update/update-digest-handoff.test.sh
 	.github/workflows/update.yml
 	scripts/artifacts/check-manifests.sh
+	scripts/release/products.sh
 	scripts/artifacts/manifest-digests.sh
 	tests/fixtures/publication/**
 	tests/publication/update/**
@@ -208,36 +210,48 @@ tests/publication/update/update-mldsa-venv.test.sh
 # The three gates that read the bucket read the roster it is held to, and the
 # roster is the PRODUCTS table inside the renderer.
 
+# The reader of the PRODUCTS table reads the renderer that declares it, and
+# compares what it prints with what bash declares from the same file.
+tests/release/products.test.sh
+	scripts/release/products.sh
+	scripts/release/render-manifests.sh
+
 tests/artifacts/check-products-consistent.test.sh
 	scripts/artifacts/check-products-consistent.sh
+	scripts/release/products.sh
 	scripts/release/render-manifests.sh
 	bucket/**
 
 tests/artifacts/check-manifests.test.sh
 	scripts/artifacts/check-manifests.sh
+	scripts/release/products.sh
 	scripts/release/render-manifests.sh
 	bucket/**
 
 tests/artifacts/check-manifests/check-manifests-identity.test.sh
 	scripts/artifacts/check-manifests.sh
+	scripts/release/products.sh
 	scripts/release/render-manifests.sh
 	bucket/**
 	tests/artifacts/check-manifests/**
 
 tests/artifacts/check-manifests/check-manifests-binding.test.sh
 	scripts/artifacts/check-manifests.sh
+	scripts/release/products.sh
 	scripts/release/render-manifests.sh
 	bucket/**
 	tests/artifacts/check-manifests/**
 
 tests/artifacts/check-manifests/check-manifests-duplicate-keys.test.sh
 	scripts/artifacts/check-manifests.sh
+	scripts/release/products.sh
 	scripts/release/render-manifests.sh
 	bucket/**
 	tests/artifacts/check-manifests/**
 
 tests/artifacts/check-manifests/check-manifests-nonregular.test.sh
 	scripts/artifacts/check-manifests.sh
+	scripts/release/products.sh
 	scripts/release/render-manifests.sh
 	bucket/**
 	tests/artifacts/check-manifests/**
@@ -505,6 +519,7 @@ tests/monitoring/check-published-manifests.test.sh
 tests/monitoring/published-url-rules-agree.test.sh
 	scripts/monitoring/check-published-manifests.sh
 	scripts/artifacts/check-manifests.sh
+	scripts/release/products.sh
 
 # --- the reusable gates -----------------------------------------------------
 #

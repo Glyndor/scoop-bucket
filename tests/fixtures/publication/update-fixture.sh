@@ -108,6 +108,8 @@ SH
 	cp "$HERE/scripts/artifacts/check-manifests.sh" "$HERE/scripts/artifacts/manifest-digests.sh" \
 		"$dir/scripts/artifacts/"
 	chmod +x "$dir/scripts/artifacts/check-manifests.sh" "$dir/scripts/artifacts/manifest-digests.sh"
+	# check-manifests.sh reads the roster through the shared table reader.
+	cp "$HERE/scripts/release/products.sh" "$dir/scripts/release/"
 	git -C "$dir" init -q
 	git -C "$dir" -c user.email=t@t -c user.name=t add -A
 	git -C "$dir" -c user.email=t@t -c user.name=t commit -qm init

@@ -142,3 +142,6 @@ pq-venv-second-slot	.github/workflows/update.yml	^RELEASE_PQ_PUBKEY2?_B64=	^RELE
 pq-venv-path	.github/workflows/update.yml	PATH="$mldsa_venv/bin:$PATH"	:	tests/publication/update/update-mldsa-venv.test.sh
 suite-on-main-push-filter	scripts/monitoring/check-suite-on-main.sh	?branch=main&head_sha=${PUSH_SHA}&per_page=30"	?branch=main&per_page=30"	tests/monitoring/check-suite-on-main/check-suite-on-main-push.test.sh
 suite-on-main-completed	scripts/monitoring/check-suite-on-main.sh	| map(select(.status == "completed")) as $done	| map(.) as $done	tests/monitoring/check-suite-on-main/check-suite-on-main-order.test.sh
+products-row-shape	scripts/release/products.sh	if ($0 !~ /^[[:space:]]*"([^"\\]|\\.)*"[[:space:]]*$/) {	if (0) {	tests/release/products.test.sh
+products-no-row	scripts/release/products.sh	if (!rows) fail("the PRODUCTS table holds no row")	if (0) fail("the PRODUCTS table holds no row")	tests/release/products.test.sh
+products-unclosed	scripts/release/products.sh	if (!closed) fail(	if (0) fail(	tests/release/products.test.sh
