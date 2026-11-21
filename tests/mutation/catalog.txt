@@ -12,6 +12,13 @@
 # entry below was checked: with the mutation applied at least one of the named tests
 # fails, and with the tree unmutated every one of them passes.
 #
+# A change that adds a guard adds the entry that breaks it, in the same change,
+# naming the suite that notices. tests/mutation/catalog-reaches-every-script.test.sh
+# holds the floor of that rule on every pull request: a script under scripts/ that
+# no entry mutates fails there, unless its suite is one the runner excludes. It
+# cannot count the guards inside a file, so a guard added without its entry to a
+# file that already has entries is for the review to catch.
+#
 # WHAT IS EXCLUDED, AND WHY
 #
 # The suites are run over a copy of the tree made with `git archive HEAD`, which carries
@@ -117,11 +124,20 @@ pq-signature-length	scripts/release/release-signature.sh	[ "$pq_size" -eq "$PQ_S
 pq-required-missing	scripts/release/release-signature.sh	if not pq_present:	if False:	tests/release/release-signature.test.sh
 pq-no-key	scripts/release/release-signature.sh	if not pq_keys_b64:	if False:	tests/release/release-signature.test.sh
 pq-no-library	scripts/release/release-signature.sh	    sys.exit(3)	    sys.exit(0)	tests/release/release-signature.test.sh
-pq-guard-base64	scripts/release/release-signature.sh	bytes="$(printf '%s' "$padded" | base64 -d 2>/dev/null | wc -c)" || {	bytes="$(printf '%s' "$padded" | wc -c)" || {	tests/release/release-signature.test.sh
+key-guard-base64	scripts/release/release-signature.sh	printf '%s' "$padded" | base64 -d > /dev/null 2>&1 || {	true || {	tests/release/release-signature.test.sh
 pq-guard-key-length	scripts/release/release-signature.sh	[ "$bytes" -eq 1952 ] || {	true || {	tests/release/release-signature.test.sh
 pq-guard-whitespace	scripts/release/release-signature.sh	*[[:space:]]*)	"no whitespace check")	tests/release/release-signature.test.sh
 pq-guard-one-line	scripts/release/release-signature.sh	*$'\n'*)	"no line check")	tests/release/release-signature.test.sh
 pq-guard-roster	scripts/release/release-signature.sh	if [ "$product" = "$name" ]; then	if true; then	tests/release/release-signature.test.sh
 pq-guard-call	scripts/release/render-manifests.sh	check_release_configuration || exit 2	true || exit 2	tests/release/release-signature.test.sh
+ed-guard-key-length	scripts/release/release-signature.sh	[ "$bytes" -eq 32 ] || {	true || {	tests/release/release-signature.test.sh
+ed-guard-no-key	scripts/release/release-signature.sh	[ "$ed_keys" -gt 0 ] || {	true || {	tests/release/release-signature.test.sh
+key-base64-python	scripts/release/release-signature.sh	    return base64.b64decode(b64, validate=True)	    return base64.b64decode(b64)	tests/release/release-signature.test.sh
+ed-key-length-python	scripts/release/release-signature.sh	    if len(raw) != 32:	    if False:	tests/release/release-signature.test.sh
+pq-key-length-python	scripts/release/release-signature.sh	    if len(raw) != 1952:	    if False:	tests/release/release-signature.test.sh
+trust-constants-readonly	scripts/release/render-manifests.sh	readonly RELEASE_PUBKEY_B64 RELEASE_PUBKEY2_B64 RELEASE_PQ_PUBKEY_B64 RELEASE_PQ_PUBKEY2_B64 RELEASE_PQ_REQUIRED \	: RELEASE_PUBKEY_B64 RELEASE_PUBKEY2_B64 RELEASE_PQ_PUBKEY_B64 RELEASE_PQ_PUBKEY2_B64 RELEASE_PQ_REQUIRED \	tests/release/release-signature.test.sh
+trust-caps-readonly	scripts/release/render-manifests.sh	MAX_SUMS_BYTES MAX_SIG_BYTES MAX_PQ_SIG_BYTES PQ_SIG_LENGTH	MAX_SUMS_BYTES MAX_SIG_BYTES MAX_PQ_SIG_BYTES	tests/release/release-signature.test.sh
 pq-venv-second-slot	.github/workflows/update.yml	^RELEASE_PQ_PUBKEY2?_B64=	^RELEASE_PQ_PUBKEY(_2)?_B64=	tests/publication/update/update-mldsa-venv.test.sh
 pq-venv-path	.github/workflows/update.yml	PATH="$mldsa_venv/bin:$PATH"	:	tests/publication/update/update-mldsa-venv.test.sh
+suite-on-main-push-filter	scripts/monitoring/check-suite-on-main.sh	?branch=main&head_sha=${PUSH_SHA}&per_page=30"	?branch=main&per_page=30"	tests/monitoring/check-suite-on-main/check-suite-on-main-push.test.sh
+suite-on-main-completed	scripts/monitoring/check-suite-on-main.sh	| map(select(.status == "completed")) as $done	| map(.) as $done	tests/monitoring/check-suite-on-main/check-suite-on-main-order.test.sh
