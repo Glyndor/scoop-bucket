@@ -139,6 +139,12 @@ tests/release/render-manifests/render-manifests-sums-selection.test.sh
 	tests/fixtures/release/**
 	tests/release/render-manifests/**
 
+# hash_of is read out of the renderer and run over a SHA256SUMS the suite writes.
+
+tests/release/render-manifests/render-manifests-hash-of.test.sh
+	scripts/release/render-manifests.sh
+	tests/release/render-manifests/render-manifests-hash-of.test.sh
+
 tests/release/render-manifests/render-manifests-inputs.test.sh
 	scripts/release/render-manifests.sh
 	scripts/release/release-signature.sh

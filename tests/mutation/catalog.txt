@@ -227,3 +227,4 @@ manifests-license-bound	scripts/artifacts/check-manifests.sh	elif .license != $l
 manifests-asset-bound	scripts/artifacts/check-manifests.sh	elif $asset != $named	elif false	tests/artifacts/check-manifests/check-manifests-binding.test.sh
 manifests-asset-unpublished	scripts/artifacts/check-manifests.sh	elif $named == "-"	elif false	tests/artifacts/check-manifests/check-manifests-binding.test.sh
 manifests-description-unescape	scripts/artifacts/check-manifests.sh	$(printf '%s' "$description" | sed -E 's/\\([\\"$`])/\1/g')	$(printf '%s' "$description" | cat)	tests/artifacts/check-manifests/check-manifests-binding.test.sh
+hash-of-string-compare	scripts/release/render-manifests.sh	$2 "" == a ""	$2 == a	tests/release/render-manifests/render-manifests-hash-of.test.sh

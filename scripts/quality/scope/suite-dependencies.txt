@@ -23,6 +23,7 @@ tests/mutation/catalog-reaches-every-script.test.sh -
 tests/release/render-manifests.test.sh -
 tests/release/render-manifests/render-manifests-attestation.test.sh -
 tests/release/render-manifests/render-manifests-sums-selection.test.sh -
+tests/release/render-manifests/render-manifests-hash-of.test.sh -
 tests/release/render-manifests/render-manifests-inputs.test.sh -
 tests/release/render-manifests/render-manifests-transfer-limits.test.sh -
 tests/release/render-manifests/render-manifests-products.test.sh -
