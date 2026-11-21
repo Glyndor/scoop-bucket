@@ -36,7 +36,10 @@ concurrency:
 jobs:
   verify:
     name: Verify published bytes
-    runs-on: ubuntu-latest
+    # ubuntu-latest resolved to ubuntu-26.04 in apt's publish runs on
+    # 2026-11-20. The image is named because this job's verdict depends on the
+    # tools it ships, so a new image arrives as a commit and not overnight.
+    runs-on: ubuntu-26.04
     # Two current assets at three 120-second attempts each leave under twelve
     # minutes of transfer budget. Thirty also covers three assets (under
     # nineteen minutes) and four (under twenty-five), with margin.

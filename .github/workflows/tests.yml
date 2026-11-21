@@ -104,6 +104,7 @@ jobs:
         ./tests/ci/policy/rules/drift-watchers-transfer-cap.test.sh
         ./tests/ci/policy/workflows/workflow-shape.test.sh
         ./tests/ci/policy/workflows/freshness-pr-scope.test.sh
+        ./tests/ci/policy/workflows/scheduled-workflows-are-watched.test.sh
         ./tests/ci/policy/workflows/freshness-poll-concurrency.test.sh
         ./tests/ci/policy/workflows/dependabot-groups.test.sh
         ./tests/ci/policy/workflows/workflows-run-their-scripts.test.sh
@@ -118,18 +119,25 @@ jobs:
         ./tests/monitoring/check-render-drift/check-render-drift-version.test.sh
         ./tests/ci/reusable/reusable-dependabot-freshness.test.sh
         ./tests/ci/reusable/reusable-schedule-freshness.test.sh
+        ./tests/ci/reusable/reusable-schedule-freshness/reusable-schedule-freshness-grace.test.sh
         ./tests/ci/reusable/reusable-workflow-lint.test.sh
-        ./tests/ci/reusable/reusable-workflow-lint-install.test.sh
+        ./tests/monitoring/check-tool-versions.test.sh
+        ./tests/quality/check-test-job-not-switchable.test.sh
+        ./tests/quality/check-tooling-isolation.test.sh
         ./tests/ci/policy/rules/jobs-are-bounded.test.sh
         ./tests/ci/policy/rules/network-calls-are-bounded.test.sh
         ./tests/mutation/run-mutations.test.sh
         ./tests/mutation/catalog-reaches-every-script.test.sh
       # shellcheck: tests/quality/lint-workflow-shell.test.sh plants a violation and
-      # requires the linter to report it, so it needs the linter. The gate
-      # itself runs in the shellcheck job against the pinned binary; this one
-      # asserts behaviour, which does not turn on the exact version.
-      # python3-yaml: the tooling-isolation step tests/ci/reusable/reusable-workflow-lint.test.sh
-      # executes imports it, exactly as the workflow-lint job installs it.
+      # requires the linter to report it, so it needs the linter. The reusable
+      # installs the release the shellcheck job pins, never the distribution's,
+      # so the suite asks the linter the gate uses. On a pull request only the
+      # packages of the suites it selects are installed, as
+      # scripts/quality/suite-dependencies.txt lists them.
+      # python3-yaml: the two workflow-lint scripts import it, and their suites,
+      # tests/quality/check-test-job-not-switchable.test.sh and
+      # tests/quality/check-tooling-isolation.test.sh, run them exactly as the
+      # workflow-lint job does.
       apt-packages: shellcheck python3-yaml
 
   # The ML-DSA-65 half of the release signature check, verified for real. It
@@ -145,7 +153,10 @@ jobs:
   # needs a library the distribution does not carry. It holds no secret.
   mldsa:
     name: ML-DSA-65 verifier
-    runs-on: ubuntu-latest
+    # ubuntu-latest resolved to ubuntu-26.04 in apt's publish runs on
+    # 2026-11-20. The image is named because this job's verdict depends on the
+    # tools it ships, so a new image arrives as a commit and not overnight.
+    runs-on: ubuntu-26.04
     permissions:
       contents: read
     # Measured 10 seconds locally for the venv, the three wheels and the suite.
@@ -176,7 +187,10 @@ jobs:
       group: products-${{ github.workflow }}-${{ github.ref }}
       cancel-in-progress: ${{ github.event_name == 'pull_request' }}
     name: products match the generator
-    runs-on: ubuntu-latest
+    # ubuntu-latest resolved to ubuntu-26.04 in apt's publish runs on
+    # 2026-11-20. The image is named because this job's verdict depends on the
+    # tools it ships, so a new image arrives as a commit and not overnight.
+    runs-on: ubuntu-26.04
     # Measured at 5 seconds.
     timeout-minutes: 10
     steps:
@@ -197,7 +211,10 @@ jobs:
       group: manifests-${{ github.workflow }}-${{ github.ref }}
       cancel-in-progress: ${{ github.event_name == 'pull_request' }}
     name: validate manifests
-    runs-on: ubuntu-latest
+    # ubuntu-latest resolved to ubuntu-26.04 in apt's publish runs on
+    # 2026-11-20. The image is named because this job's verdict depends on the
+    # tools it ships, so a new image arrives as a commit and not overnight.
+    runs-on: ubuntu-26.04
     # Measured at 4 seconds.
     timeout-minutes: 10
     steps:
