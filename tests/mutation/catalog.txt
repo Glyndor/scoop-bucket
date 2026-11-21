@@ -235,3 +235,10 @@ netflags-max-time	tests/ci/policy/rules/workflow-network-calls-are-bounded.test.
 netflags-max-filesize	tests/ci/policy/rules/workflow-network-calls-are-bounded.test.sh	(?:^|\s)--max-filesize\s+[0-9$]	(?:^|\s)--max-filesize\s*	tests/ci/policy/rules/workflow-network-calls-are-bounded.test.sh
 netflags-comment-skipped	tests/ci/policy/rules/workflow-network-calls-are-bounded.test.sh	if line.lstrip().startswith("#") or not CURL.search(line):	if not CURL.search(line):	tests/ci/policy/rules/workflow-network-calls-are-bounded.test.sh
 netflags-empty-scan	tests/ci/policy/rules/workflow-network-calls-are-bounded.test.sh	if curls == 0:	if False:	tests/ci/policy/rules/workflow-network-calls-are-bounded.test.sh
+verify-published-digest	scripts/release/render-manifests.sh	if [ "$signed" != "$digest" ]; then	if false; then	tests/release/render-manifests/render-manifests-verify-published.test.sh
+verify-published-listed	scripts/release/render-manifests.sh	signed="$(hash_of "$asset")" || {	signed="$(hash_of "$asset" || echo "$digest")" || {	tests/release/render-manifests/render-manifests-verify-published.test.sh
+verify-published-signature	scripts/release/render-manifests.sh	verify_sha256sums "$repo" "$tag" "$name" || {	verify_sha256sums "$repo" "$tag" "$name" || : || {	tests/release/render-manifests/render-manifests-verify-published.test.sh
+verify-published-repository	scripts/release/render-manifests.sh	"$prefix"*) rest="${url#"$prefix"}" ;;	*) rest="${url#*/releases/download/}" ;;	tests/release/render-manifests/render-manifests-verify-published.test.sh
+verify-published-no-row	scripts/release/render-manifests.sh	if [ -z "$repo" ]; then	if false; then	tests/release/render-manifests/render-manifests-verify-published.test.sh
+verify-published-nothing-read	scripts/release/render-manifests.sh	if [ "$checked" -eq 0 ]; then	if false; then	tests/release/render-manifests/render-manifests-verify-published.test.sh
+verify-published-failures	scripts/release/render-manifests.sh	if [ "$failed" -ne 0 ]; then	if false; then	tests/release/render-manifests/render-manifests-verify-published.test.sh

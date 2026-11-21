@@ -139,6 +139,14 @@ tests/release/render-manifests/render-manifests-sums-selection.test.sh
 	tests/fixtures/release/**
 	tests/release/render-manifests/**
 
+# The published digests are read against a release the suite signs itself.
+
+tests/release/render-manifests/render-manifests-verify-published.test.sh
+	scripts/release/render-manifests.sh
+	scripts/release/release-signature.sh
+	tests/fixtures/release/**
+	tests/release/render-manifests/render-manifests-verify-published.test.sh
+
 # hash_of is read out of the renderer and run over a SHA256SUMS the suite writes.
 
 tests/release/render-manifests/render-manifests-hash-of.test.sh
@@ -344,6 +352,7 @@ tests/ci/policy/workflows/workflow-publish-triggers.test.sh
 
 tests/ci/policy/workflows/published-bytes-order.test.sh
 	.github/workflows/published-bytes.yml
+	.github/workflows/update.yml
 
 # The freshness gates read the workflow that fires them and the reusables it
 # names. The path filter of freshness.yml lists those reusables and the two

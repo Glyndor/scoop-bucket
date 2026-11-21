@@ -146,10 +146,19 @@ accepts. The published-bytes watcher closes that gap after publication by
 running the structural gate first, then downloading every declared
 architecture URL over HTTPS and comparing its SHA-256 with the manifest digest
 (`scripts/monitoring/check-published-manifests.sh#download_asset`,
-`scripts/monitoring/check-published-manifests.sh#check_asset`). It runs after
+`scripts/monitoring/check-published-manifests.sh#check_asset`). It then reads
+each digest against the signed list: for every manifest and architecture it
+verifies the `SHA256SUMS` signature of the release the URL names with the key
+the renderer pins, and requires the digest to be that list's entry for the
+asset the URL names (`scripts/release/render-manifests.sh#verify_published`).
+The byte comparison alone cannot tell a signed asset from a file added to the
+same release by someone who cannot forge the signature, since the digest of
+that file is the digest of its own bytes. It runs after
 every push to `main` that touches `bucket/`, on demand, and daily
-(`.github/workflows/published-bytes.yml#verify`). A mismatch, failed transfer
-or oversized asset emits a GitHub error and fails the run.
+(`.github/workflows/published-bytes.yml#verify`). A mismatch, failed transfer,
+unsigned digest or oversized asset emits a GitHub error and fails the run. The
+workflow is not a required check, so it reports after the merge and does not
+block it.
 
 On the generated path, the renderer constructs URL and executable mapping
 from the repository-controlled `PRODUCTS` row and candidate tag, verifies
