@@ -77,3 +77,13 @@ scope-candidate-path	scripts/quality/ci-job-scope.sh	if candidate in paths or af
 schedule-missing-workflow	scripts/monitoring/check-schedule-history-ready.sh	if [ "$scheduled_found" = false ] && [ "$workflow_missing" = false ]; then	if [ "$scheduled_found" = false ]; then	tests/monitoring/check-schedule-history-ready.test.sh
 schedule-retry	scripts/monitoring/check-schedule-history-ready.sh	for attempt in 1 2 3; do	for attempt in 1; do	tests/monitoring/check-schedule-history-ready.test.sh
 render-empty-signature	scripts/release/render-manifests.sh	sys.exit("SHA256SUMS does not verify against any configured release key")	sys.exit(print("SHA256SUMS signature verified") if not sig else "SHA256SUMS does not verify against any configured release key")	tests/release/render-manifests/render-manifests-guards.test.sh
+manifest-digests-empty-bucket	scripts/artifacts/manifest-digests.sh	[ "$count" -gt 0 ] || die	[ "$count" -ge 0 ] || die	tests/artifacts/manifest-digests.test.sh
+manifest-digests-no-compare	scripts/artifacts/manifest-digests.sh	if [ "$actual" != "$want" ]; then	if false; then	tests/artifacts/manifest-digests.test.sh
+manifest-digests-empty-expected	scripts/artifacts/manifest-digests.sh	[ -s "$expected" ] || die	[ -e "$expected" ] || die	tests/artifacts/manifest-digests.test.sh
+manifest-digests-bucket-symlink	scripts/artifacts/manifest-digests.sh	[ ! -L "$root/bucket" ] || die	true || die	tests/artifacts/manifest-digests.test.sh
+manifest-digests-nonregular-entry	scripts/artifacts/manifest-digests.sh	[ -z "$odd" ] || die	true || die	tests/artifacts/manifest-digests.test.sh
+manifest-digests-control-char	scripts/artifacts/manifest-digests.sh	*[[:cntrl:]]* | *\\*) return 0 ;;	*\\*) return 0 ;;	tests/artifacts/manifest-digests.test.sh
+manifest-digests-backslash	scripts/artifacts/manifest-digests.sh	*[[:cntrl:]]* | *\\*) return 0 ;;	*[[:cntrl:]]*) return 0 ;;	tests/artifacts/manifest-digests.test.sh
+manifest-digests-place-source-unchecked	scripts/artifacts/manifest-digests.sh	check_manifest "$from" "$expected"	true	tests/artifacts/manifest-digests.test.sh
+manifest-digests-place-copy-unchecked	scripts/artifacts/manifest-digests.sh	check_manifest "$root" "$expected"	true	tests/artifacts/manifest-digests.test.sh
+manifest-digests-bytewise-order	scripts/artifacts/manifest-digests.sh	export LC_ALL=C	export LC_ALL=en_US.UTF-8	tests/artifacts/manifest-digests.test.sh
