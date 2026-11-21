@@ -159,7 +159,9 @@ tests/release/render-manifests/render-manifests-symlink.test.sh
 tests/publication/update/update-workflow.test.sh
 	.github/workflows/update.yml
 	scripts/artifacts/check-manifests.sh
+	scripts/artifacts/manifest-digests.sh
 	scripts/release/render-manifests.sh
+	tests/fixtures/publication/**
 	tests/publication/update/**
 
 # --- the bucket -------------------------------------------------------------

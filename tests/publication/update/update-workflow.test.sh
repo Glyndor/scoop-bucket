@@ -20,109 +20,16 @@
 # conditions wiring these outputs to the later steps, and the createCommitOnBranch
 # call itself. Those are asserted by reading the workflow, not by running it.
 #
-# Requires: python3, git.
+# The extractor and the sandbox are in tests/fixtures/publication/update-fixture.sh,
+# shared with the other suites of this folder.
+#
+# Requires: python3, git, jq.
 
-set -euo pipefail
-
-HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
-WORKFLOW="$HERE/.github/workflows/update.yml"
-WORK="$(mktemp -d)"
-
-cleanup() { rm -rf "$WORK"; }
-trap cleanup EXIT
-
+HERE_FIXTURE="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../fixtures/publication" && pwd)"
+# shellcheck disable=SC1091
+. "$HERE_FIXTURE/update-fixture.sh"
 pass=0
 fail=0
-
-check() { # <description> <expected> <actual>
-	if [ "$2" = "$3" ]; then
-		echo "ok    $1"
-		pass=$((pass + 1))
-	else
-		echo "FAIL  $1"
-		echo "        expected: $2"
-		echo "        actual:   $3"
-		fail=$((fail + 1))
-	fi
-}
-
-# Pull one step's `run:` body out of the workflow, dedented, so it can be run.
-step_script() { # $1=step name substring
-	python3 - "$WORKFLOW" "$1" <<'PY'
-import sys
-lines = open(sys.argv[1]).read().splitlines()
-start = next(i for i, l in enumerate(lines) if "name: " + sys.argv[2] in l)
-run = next(i for i, l in enumerate(lines) if i > start and l.strip() == "run: |")
-body = []
-for line in lines[run + 1:]:
-    if not line.strip():
-        body.append("")
-        continue
-    if not line.startswith(" " * 10):
-        break
-    body.append(line[10:])
-print("\n".join(body))
-PY
-}
-
-# A repository the step can run in: a git repo with a committed manifest/ and a
-# stub generator whose behaviour each case chooses.
-sandbox() { # $1=path $2=code $3=writes? (yes|no|empty|new|del|del-multi)
-	local dir="$1" code="$2" mode="$3"
-	rm -rf "$dir"; mkdir -p "$dir/scripts" "$dir/scripts/artifacts" "$dir/scripts/release" "$dir/bucket"
-	printf '{"version":"1"}\n' > "$dir/bucket/podup.json"
-	# del-multi starts with a second tracked manifest so a deletion can leave
-	# the channel with one left, which exercises the deletion-only path
-	# without also tripping the empty-bucket refusal.
-	if [ "$mode" = "del-multi" ]; then
-		printf '{"version":"1"}\n' > "$dir/bucket/zzz.json"
-	fi
-	cat > "$dir/scripts/release/render-manifests.sh" <<SH
-#!/usr/bin/env bash
-# The roster check-manifests.sh binds each manifest url to (it reads this table).
-PRODUCTS=(
-	"Glyndor/podup|podup|stub|podup-windows-x86_64.exe"
-)
-case "$mode" in
-	yes)       printf '{"version":"2"}\n' > "$dir/bucket/podup.json" ;;
-	empty)     rm -f "$dir"/bucket/*.json ;;
-	new)       printf '{"version":"1"}\n' > "$dir/bucket/newproduct.json" ;;
-	del)       rm -f "$dir/bucket/podup.json" ;;
-	del-multi) rm -f "$dir/bucket/podup.json" ;;
-esac
-exit $code
-SH
-	chmod +x "$dir/scripts/release/render-manifests.sh"
-	# The validate step calls scripts/artifacts/check-manifests.sh rather than carrying a
-	# copy of the jq filter, so the sandbox needs the real script. Copying it
-	# is the point: the step is exercised with the code that ships, and a
-	# workflow that stopped calling it would fail here rather than pass on a
-	# stub that happens to agree.
-	cp "$HERE/scripts/artifacts/check-manifests.sh" "$dir/scripts/artifacts/check-manifests.sh"
-	chmod +x "$dir/scripts/artifacts/check-manifests.sh"
-	git -C "$dir" init -q
-	git -C "$dir" -c user.email=t@t -c user.name=t add -A
-	git -C "$dir" -c user.email=t@t -c user.name=t commit -qm init
-	# Re-apply after the commit, so the working tree differs from HEAD the way
-	# it does in a real run.
-	:
-}
-
-run_step() { # $1=script $2=dir ; sets GITHUB_OUTPUT, returns the step's status
-	: > "$WORK/gh-output"
-	( cd "$2" && GITHUB_OUTPUT="$WORK/gh-output" bash "$1" ) > "$WORK/out" 2>&1
-}
-
-output() { # $1=key
-	awk -F= -v k="$1" '$1 == k { print $2 }' "$WORK/gh-output"
-}
-
-RENDER="$WORK/render.sh"
-VALIDATE="$WORK/validate.sh"
-COMMIT="$WORK/commit.sh"
-step_script "Render manifests" > "$RENDER"
-step_script "Validate the re-rendered manifests" > "$VALIDATE"
-step_script "Commit the update to main" > "$COMMIT"
 
 check "the render step was extracted from the workflow" "1" \
 	"$(grep -c 'render-manifests.sh' "$RENDER")"
