@@ -6,6 +6,13 @@
 # This requires the two to be the same expression and to answer the same on a corpus of
 # urls, one engine each: bash for the watcher, jq for the check.
 #
+# The size cap on an asset is the same kind of pair: the renderer downloads every asset
+# each hour under one MAX_ASSET_BYTES and the watcher checks them daily under another.
+# check-render-drift compares the renderer's with the tap's and says nothing about the
+# watcher's, and each is anchored by its own suite, so raising one and not the other
+# left every suite green with the two gates imposing different ceilings. The two
+# literals have to be the same number, and the check is shown telling two apart.
+#
 # Requires: bash, jq, python3.
 set -u
 
@@ -71,6 +78,20 @@ for row in "${corpus[@]}"; do
 	check "watcher: $want for $url" "$want" "$bash_says"
 	check "check:   $want for $url" "$want" "$jq_says"
 done
+
+# --- the size cap ----------------------------------------------------------------------
+cap_of() { sed -n 's/^MAX_ASSET_BYTES=\([0-9][0-9]*\)$/\1/p' "$1"; }
+RENDER_CAP="$(cap_of "$HERE/scripts/release/render-manifests.sh")"
+WATCHER_CAP="$(cap_of "$HERE/scripts/monitoring/check-published-manifests.sh")"
+check "the renderer states its cap as a number" "1" "$([ -n "$RENDER_CAP" ] && echo 1 || echo 0)"
+check "and the watcher states the same number" "$RENDER_CAP" "$WATCHER_CAP"
+WORK="$(mktemp -d)"
+trap 'rm -rf "$WORK"' EXIT
+sed 's/^MAX_ASSET_BYTES=.*/MAX_ASSET_BYTES=1048576/' "$HERE/scripts/monitoring/check-published-manifests.sh" > "$WORK/raised.sh"
+check "a watcher with another cap is told apart from the renderer" "1" "$([ "$(cap_of "$WORK/raised.sh")" != "$RENDER_CAP" ] && echo 1 || echo 0)"
+# shellcheck disable=SC2016 # the arithmetic is text for the planted script
+sed 's/^MAX_ASSET_BYTES=.*/MAX_ASSET_BYTES="$((100 * 1024 * 1024))"/' "$HERE/scripts/monitoring/check-published-manifests.sh" > "$WORK/expression.sh"
+check "a cap written as an expression is not read as a number, so it cannot pass as the same" "" "$(cap_of "$WORK/expression.sh")"
 
 echo "$pass passed, $fail failed"
 printf 'DONE %s %d %d\n' "${BASH_SOURCE[0]##*/}" "$pass" "$fail"

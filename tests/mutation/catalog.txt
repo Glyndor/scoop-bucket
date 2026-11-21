@@ -255,3 +255,5 @@ step-script-indicator	tests/fixtures/ci/step-script.sh	indent = key + explicit i
 step-script-missing	tests/fixtures/ci/step-script.sh	sys.exit("step_script: no step named %r in %s" % (name, path))	pass	tests/ci/suites/step-script.test.sh
 step-script-block	tests/fixtures/ci/step-script.sh	sys.exit("step_script: the step %r of %s has no block scalar run:" % (name, path))	pass	tests/ci/suites/step-script.test.sh
 step-script-next-step	tests/fixtures/ci/step-script.sh	    if re.match(r"^\s*-\s+(name|uses):", lines[i]) and i > start + 1:	    if False:	tests/ci/suites/step-script.test.sh
+asset-cap-watcher	scripts/monitoring/check-published-manifests.sh	MAX_ASSET_BYTES=104857600	MAX_ASSET_BYTES=1048576	tests/monitoring/published-url-rules-agree.test.sh
+asset-cap-renderer	scripts/release/render-manifests.sh	MAX_ASSET_BYTES=104857600	MAX_ASSET_BYTES=1048576	tests/monitoring/published-url-rules-agree.test.sh
