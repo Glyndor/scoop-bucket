@@ -121,7 +121,7 @@ There is no `develop`. Branch from `main`, open a pull request against
 
 ## Tests
 
-The suites need `shellcheck`, `jq`, `python3-yaml` and `python3-cryptography` installed, the same packages `tests.yml` installs in CI.
+The suites need `shellcheck`, `jq`, `python3-yaml` and `python3-cryptography` installed. In CI, shellcheck is the pinned release the shellcheck job uses, and a pull request installs only what the suites it selects need (`scripts/quality/suite-dependencies.txt`).
 
 ```sh
 fail=0
