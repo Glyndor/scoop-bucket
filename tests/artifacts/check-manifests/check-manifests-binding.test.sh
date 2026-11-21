@@ -63,8 +63,13 @@ while IFS="|" read -r label filter text cut; do
 done <<'CASES'
 homepage-other-repo|.homepage = "https://github.com/Glyndor/other-product"|must be exactly|s/elif \.homepage != ("https:\/\/github.com\/" + \$repo)/elif false/
 homepage-javascript|.homepage = "javascript:alert(1)"|must be exactly|s/elif \.homepage != ("https:\/\/github.com\/" + \$repo)/elif false/
-description-missing|del(.description)|missing required top-level field "description"|s/if has("description") | not then/if false then/;s/elif (\.description | type) != "string" then/elif false then/;s/elif (\.description | length) == 0 then/elif false then/
-description-empty|.description = ""|must be a non-empty string|s/elif (\.description | length) == 0 then/elif false then/
+description-missing|del(.description)|missing required top-level field "description"|s/if has("description") | not then/if false then/;s/elif (\.description | type) != "string" then/elif false then/;s/elif (\.description | length) == 0 then/elif false then/;s/elif \.description != \$description/elif false/
+description-empty|.description = ""|must be a non-empty string|s/elif (\.description | length) == 0 then/elif false then/;s/elif \.description != \$description/elif false/
+description-other|.description = "Runs things at install time; powershell -enc AAAA"|the description of the PRODUCTS row of this product|s/elif \.description != \$description/elif false/
+license-other|.license = "GPL-3.0-only"|the licence the renderer writes|s/elif \.license != \$license/elif false/
+asset-not-the-rows|.architecture["64bit"] = {url: ("https://github.com/Glyndor/podup/releases/download/v" + .version + "/evil.exe"), hash: .architecture["64bit"].hash, bin: [["evil.exe", "podup"]]}|the one the PRODUCTS row names for it|s/elif \$asset != \$named/elif false/
+asset-of-the-other-architecture|.architecture["64bit"] = {url: ("https://github.com/Glyndor/podup/releases/download/v" + .version + "/podup-windows-arm64.exe"), hash: .architecture["64bit"].hash, bin: [["podup-windows-arm64.exe", "podup"]]}|the one the PRODUCTS row names for it|s/elif \$asset != \$named/elif false/
+architecture-without-an-asset|.architecture["32bit"] = .architecture["64bit"]|which names no asset for it|s/elif \$named == "-"/elif false/;s/elif \$asset != \$named/elif false/
 bin-other-asset|.architecture["64bit"].bin = [["other-windows-x86_64.exe", "podup"]]|but this architecture downloads|s/elif \$asset != null and \$e\[0\] != \$asset/elif false/
 bin-outside-install-dir|.architecture["64bit"].bin = [["../podup-windows-x86_64.exe", "podup"]]|but this architecture downloads|s/elif \$asset != null and \$e\[0\] != \$asset/elif false/
 architecture-extra-key|.architecture["64bit"].extra = "x"|has unexpected key(s)|s/^SUB_KEYS=.*/SUB_KEYS='["url","hash","bin","extra"]'/
@@ -72,6 +77,49 @@ hash-upper-case|.architecture["64bit"].hash = "A" + .architecture["64bit"].hash[
 bin-other-alias|.architecture["64bit"].bin = [["podup-windows-x86_64.exe", "other"]]|names the alias|s/elif \$e\[1\] != \$product/elif false/
 bin-with-arguments|.architecture["64bit"].bin = [["podup-windows-x86_64.exe", "podup", "--evil"]]|exactly two elements|s/elif (\$e | length) != 2/elif false/
 CASES
+
+# --- the description is read as bash reads the row ---------------------------
+#
+# The renderer takes the row from a double-quoted bash string, so \" in the row is a
+# quote in the description it writes. The gate reads the row as it is written and
+# applies the same reading, or it would refuse the manifest the renderer renders.
+ROW_TEXT='Runs \"rootless\" Podman, costs \$0 and \\ays'
+WRITTEN='Runs "rootless" Podman, costs $0 and \ays'
+plant_row() { # $1=tree
+	ROW="$(printf '\t"Glyndor/podup|podup|%s|podup-windows-x86_64.exe|podup-windows-arm64.exe"' "$ROW_TEXT")" \
+		awk '/^\t"Glyndor\/podup\|/ { print ENVIRON["ROW"]; next } { print }' \
+		"$HERE/scripts/release/render-manifests.sh" > "$1/scripts/release/render-manifests.sh"
+}
+T="$(mktree escaped)"; plant_row "$T"
+check "the escaped row was planted" "1" "$(grep -cF "podup|$ROW_TEXT|" "$T/scripts/release/render-manifests.sh")"
+manifest "$T" podup.json ".description = $(jq -Rn --arg d "$WRITTEN" '$d')"
+rc=0; gate "$T" || rc=$?
+check "a description that is the row as bash reads it is accepted" "0" "$rc"
+manifest "$T" podup.json ".description = $(jq -Rn --arg d "$ROW_TEXT" '$d')"
+rc=0; gate "$T" || rc=$?
+check "the row as it is written, backslashes and all, is refused" "1" "$rc"
+check "and the refusal is for the description" "1" "$(said 'the description of the PRODUCTS row of this product')"
+S="$(mktree escaped-cut)"; plant_row "$S"
+sed "s/| sed -E 's.*)\"\$/| cat)\"/" "$HERE/scripts/artifacts/check-manifests.sh" > "$S/scripts/artifacts/check-manifests.sh"
+chmod +x "$S/scripts/artifacts/check-manifests.sh"
+check "the sabotage for the reading of the row changed the gate" "1" \
+	"$(cmp -s "$HERE/scripts/artifacts/check-manifests.sh" "$S/scripts/artifacts/check-manifests.sh" && echo 0 || echo 1)"
+manifest "$S" podup.json ".description = $(jq -Rn --arg d "$WRITTEN" '$d')"
+rc=0; gate "$S" || rc=$?
+check "without it the description the renderer writes is refused" "1" "$rc"
+
+# --- the licence the gate requires is the one the renderer writes --------------
+#
+# The gate holds a literal and the renderer writes a literal, and the renderer cannot
+# be run here. Each is read from its file, so changing one alone is red.
+licence_of_gate() { sed -n "s/^LICENSE='\\([^']*\\)'\$/\\1/p" "$1"; }
+licence_of_renderer() { sed -n 's/.*license: "\([^"]*\)".*/\1/p' "$1"; }
+check "the gate names the licence the renderer writes" "$(licence_of_renderer "$HERE/scripts/release/render-manifests.sh")" \
+	"$(licence_of_gate "$HERE/scripts/artifacts/check-manifests.sh")"
+check "and that licence is not empty" "1" "$([ -n "$(licence_of_gate "$HERE/scripts/artifacts/check-manifests.sh")" ] && echo 1 || echo 0)"
+sed 's/license: "MIT"/license: "Apache-2.0"/' "$HERE/scripts/release/render-manifests.sh" > "$WORK/renderer-other-licence.sh"
+check "a renderer that writes another licence is told apart from the gate" "1" \
+	"$([ "$(licence_of_renderer "$WORK/renderer-other-licence.sh")" != "$(licence_of_gate "$HERE/scripts/artifacts/check-manifests.sh")" ] && echo 1 || echo 0)"
 
 # --- a value taken from the manifest is printed escaped -----------------------
 # A newline in the homepage would otherwise start a line of the CI log of its own.

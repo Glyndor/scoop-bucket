@@ -35,7 +35,7 @@ bucket() { # $1=name, stdin=the manifest text
 	echo "$d"
 }
 
-GOOD_TAIL='"description": "test", "homepage": "https://github.com/Glyndor/podup", "license": "MIT"'
+GOOD_TAIL='"description": "Docker-compose translator and runner for rootless Podman", "homepage": "https://github.com/Glyndor/podup", "license": "MIT"'
 URL='https://github.com/Glyndor/podup/releases/download/v1.0.0/podup-windows-x86_64.exe'
 HASH=0000000000000000000000000000000000000000000000000000000000000000
 ARCH="\"architecture\": {\"64bit\": {\"url\": \"$URL\", \"hash\": \"$HASH\", \"bin\": [[\"podup-windows-x86_64.exe\", \"podup\"]]}}"

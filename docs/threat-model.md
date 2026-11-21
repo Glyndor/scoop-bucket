@@ -124,10 +124,14 @@ for another Glyndor product, or for another tag of this one, is refused by
 name.
 
 The rest of what the renderer derives from that same row is bound to it too.
-`description` has to be present and not empty, because the renderer always
-emits it. `homepage` has to be exactly `https://github.com/` followed by the
-repository of the row, so a manifest cannot send the reader of it to another
-page. Every `bin` entry has to be the pair the renderer writes
+`description` has to be exactly the description of the row, because it is the
+text Scoop shows before anything is installed. `license` has to be the one the
+renderer writes. `homepage` has to be exactly `https://github.com/` followed by
+the repository of the row, so a manifest cannot send the reader of it to another
+page. Each architecture has to download the asset the row names for it, and
+only an architecture the row publishes may appear, so a manifest cannot point at
+another file of the same release (a checksum file, a source archive, a binary
+nobody attested). Every `bin` entry has to be the pair the renderer writes
 (`scripts/release/render-manifests.sh#render_product`): the file name that
 architecture downloads, and the product the shim is called after. A third
 element is the `[exe, alias, args]` form Scoop accepts, and those arguments

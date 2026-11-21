@@ -78,7 +78,7 @@ case "$mode" in
 	valid)     cat > "$dir/bucket/podup.json" <<'JSON'
 {
   "version": "1.0.0",
-  "description": "d",
+  "description": "stub",
   "homepage": "https://github.com/Glyndor/podup",
   "license": "MIT",
   "architecture": {

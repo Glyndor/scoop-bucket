@@ -222,3 +222,8 @@ group-per-run-products	.github/workflows/tests.yml	products-${{ github.workflow 
 group-rule-push	tests/ci/policy/rules/cancel-policy.test.sh	grep -qE '^  (push|workflow_call):' "$f" || continue	grep -qE '^  (workflow_call):' "$f" || continue	tests/ci/policy/rules/cancel-policy.test.sh
 group-rule-reusable	tests/ci/policy/rules/cancel-policy.test.sh	grep -qE '^  (push|workflow_call):' "$f" || continue	grep -qE '^  (push):' "$f" || continue	tests/ci/policy/rules/cancel-policy.test.sh
 group-rule-form	tests/ci/policy/rules/cancel-policy.test.sh	*"$PER_RUN"*) continue ;;	*"github.run_id"*) continue ;;	tests/ci/policy/rules/cancel-policy.test.sh
+manifests-description-bound	scripts/artifacts/check-manifests.sh	elif .description != $description	elif false	tests/artifacts/check-manifests/check-manifests-binding.test.sh
+manifests-license-bound	scripts/artifacts/check-manifests.sh	elif .license != $license	elif false	tests/artifacts/check-manifests/check-manifests-binding.test.sh
+manifests-asset-bound	scripts/artifacts/check-manifests.sh	elif $asset != $named	elif false	tests/artifacts/check-manifests/check-manifests-binding.test.sh
+manifests-asset-unpublished	scripts/artifacts/check-manifests.sh	elif $named == "-"	elif false	tests/artifacts/check-manifests/check-manifests-binding.test.sh
+manifests-description-unescape	scripts/artifacts/check-manifests.sh	$(printf '%s' "$description" | sed -E 's/\\([\\"$`])/\1/g')	$(printf '%s' "$description" | cat)	tests/artifacts/check-manifests/check-manifests-binding.test.sh
