@@ -22,10 +22,8 @@ scoop install podup
 A bucket is a git clone, so Scoop refuses to add one without git. Skip the
 first line if you already have it.
 
-| Package | What it is | On Windows |
-| --- | --- | --- |
-| [`podup`](https://github.com/Glyndor/podup) | Docker-compose translator and runner for rootless Podman | this bucket |
-| [`helmly-agent`](https://github.com/Glyndor/helmly-agent) | Hardened server agent for the Glyndor panel: signed commands over WireGuard and mTLS | not built |
+This bucket carries one package, [`podup`](https://github.com/Glyndor/podup):
+a Docker-compose translator and runner for rootless Podman.
 
 ## Upgrades
 
