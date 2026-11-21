@@ -28,6 +28,8 @@ jobs:
   empty-diff:
     name: empty diff
     if: github.event_name == 'pull_request'
+    # ubuntu-latest on purpose: this job only asks GitHub or git for data and
+    # compares strings, so a new image cannot change its verdict.
     runs-on: ubuntu-latest
     # Measured at 5 to 6 seconds across recent runs.
     timeout-minutes: 10

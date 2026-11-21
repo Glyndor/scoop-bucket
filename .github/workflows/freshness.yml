@@ -199,6 +199,8 @@ jobs:
     permissions:
       contents: read
       actions: read
+    # ubuntu-latest on purpose: this job only asks GitHub or git for data and
+    # compares strings, so a new image cannot change its verdict.
     runs-on: ubuntu-latest
     # Two `gh run list` calls normally complete in under two seconds; ten
     # minutes leaves ample room for a slow API without approaching the default.
@@ -284,6 +286,8 @@ jobs:
       group: freshness-suite-on-main-${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
       cancel-in-progress: ${{ github.event_name == 'pull_request' }}
     name: suite is green on main
+    # ubuntu-latest on purpose: this job only asks GitHub or git for data and
+    # compares strings, so a new image cannot change its verdict.
     runs-on: ubuntu-latest
     # Bound at 20 minutes by the script's retry budget (80 attempts of
     # 15 seconds); a suite behind a slow queue measured ten minutes on
@@ -330,6 +334,8 @@ jobs:
     concurrency:
       group: freshness-tool-versions-${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
       cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+    # ubuntu-latest on purpose: this job only asks GitHub or git for data and
+    # compares strings, so a new image cannot change its verdict.
     runs-on: ubuntu-latest
     # Two `gh release list` calls and a checkout, seconds when measured
     # locally against stubs; the real calls are two API requests. Ten minutes
