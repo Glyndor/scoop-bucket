@@ -164,6 +164,13 @@ tests/publication/update/update-workflow.test.sh
 	tests/fixtures/publication/**
 	tests/publication/update/**
 
+# The key isolation suite reads the workflow's structure and nothing it runs.
+
+tests/publication/update/update-key-isolation.test.sh
+	.github/workflows/update.yml
+	tests/fixtures/publication/**
+	tests/publication/update/**
+
 # --- the bucket -------------------------------------------------------------
 #
 # The three gates that read the bucket read the roster it is held to, and the
