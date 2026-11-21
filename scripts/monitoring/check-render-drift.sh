@@ -28,11 +28,10 @@
 #       hash_of           the function that pulls a single asset's hex digest
 #                         out of the verified SHA256SUMS
 #       release_keys      the two top-level RELEASE_PUBKEY_B64= and
-#                         RELEASE_PUBKEY2_B64= declarations. The logic is
-#                         identical on both sides; the keys themselves are not.
-#                         A rotation applied in one channel and not the other
-#                         leaves both scripts accepting different signing keys,
-#                         and every check stays green because the code matches.
+#                         RELEASE_PUBKEY2_B64= declarations. The key material
+#                         is part of the compared text, so a rotation applied
+#                         in one channel and not the other is reported as
+#                         drift. Apply a rotation to both repositories at once.
 #       verify_attestation the function that downloads one asset, checks its
 #                         digest against the SHA256SUMS entry, and runs
 #                         `gh attestation verify` with --source-ref pinned
