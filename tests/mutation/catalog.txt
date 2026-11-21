@@ -49,6 +49,8 @@ version-approval-single-use	scripts/artifacts/check-version-monotonic.sh	if core
 version-approval-carried	scripts/artifacts/check-version-monotonic.sh	carried = sorted(set(tree_entries) - approved)	carried = []	tests/artifacts/check-version-monotonic.test.sh
 coverage-python-extension	scripts/quality/check-test-coverage.sh	find "$root/scripts" -type f \( -name '*.sh' -o -name '*.py' \) -print0	find "$root/scripts" -type f \( -name '*.sh' \) -print0	tests/quality/check-test-coverage.test.sh
 coverage-no-scripts-directory	scripts/quality/check-test-coverage.sh	[ -d "$root/scripts" ] || { echo "no scripts/ directory under $root" >&2; exit 1; }	[ -d "$root/scripts" ] || { echo "no scripts/ directory under $root" >&2; exit 0; }	tests/quality/check-test-coverage.test.sh
+suites-wired-watcher-dropped	.github/workflows/tests.yml	./tests/ci/suites/ci-runs-every-test.test.sh	./tests/quality/check-test-coverage.test.sh	tests/quality/check-suites-wired.test.sh
+suites-wired-unwired	scripts/quality/check-suites-wired.sh	for path in sorted(suites - wired - set(exempt)):	for path in []:	tests/quality/check-suites-wired.test.sh
 pins-sha-length	scripts/quality/check-action-pins.sh	if [[ "$ref" =~ ^[0-9a-f]{40}$ ]]; then	if [[ "$ref" =~ ^[0-9a-f]{7,40}$ ]]; then	tests/quality/check-action-pins.test.sh
 pins-no-workflow-file	scripts/quality/check-action-pins.sh	if [ "$files" -eq 0 ]; then	if [ "$files" -eq -1 ]; then	tests/quality/check-action-pins.test.sh
 pins-local-scope	scripts/quality/check-action-pins.sh	./*)	x/*)	tests/quality/check-action-pins.test.sh
