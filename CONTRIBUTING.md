@@ -53,7 +53,10 @@ about to commit against the digests the render job recorded, and refuses
 anything that does not match. The digests travel through the render job's
 outputs, which no other job can write, and not through the artifact the two
 jobs exchange: the commit job downloads that artifact and holds the token that
-can upload one.
+can upload one. `tests/publication/update/update-key-isolation.test.sh` reads the
+workflow and fails if another job references a secret or the commit job installs
+something, and `tests/publication/update/update-digest-handoff.test.sh` runs the
+two steps that pass the digests from one job to the other.
 
 **The validation that runs INSIDE `update.yml` before the commit is the only
 gate between a bad render and `scoop install`**, because the bot's push skips
