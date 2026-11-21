@@ -50,7 +50,8 @@ is refused.
 flowchart LR
   R["Product release<br/>SHA256SUMS + .sig"] -->|hourly pull| V["Verify signature<br/>org Ed25519 release key"]
   V -->|verified| G["Re-render bucket/*.json<br/>version, URLs, hashes"]
-  G --> C["Validate, then commit to main<br/>GitHub-signed"]
+  G --> D["Validate, then record the<br/>SHA-256 of every file"]
+  D --> C["Commit to main<br/>GitHub-signed"]
   C -->|scoop update| U["User"]
   V -.->|bad signature| X["run fails<br/>manifests unchanged"]
 ```
@@ -60,6 +61,13 @@ credential on this repository. A product whose signature does not verify is skip
 last verified release and the run fails at the end; the other products still
 update. The failure mode is a manifest that stops updating, never one that ships
 an unverified binary.
+
+The one credential here, the GitHub App's private key, is read in one job of
+the workflow that refreshes the bucket, and that job runs nothing it did not
+write itself: it commits only the files whose SHA-256 matches the ones the job
+that downloaded and rendered the releases recorded. A download that failed
+closed, or a file that changed on the way to the commit, stops the run instead
+of being published.
 
 The [threat model](docs/threat-model.md) lists each threat, the control that
 answers it, and the evidence for it: a test that fails when the control is
