@@ -132,6 +132,7 @@ jobs:
         ./tests/quality/lint/check-tooling-isolation.test.sh
         ./tests/ci/policy/rules/jobs-are-bounded.test.sh
         ./tests/ci/policy/rules/network-calls-are-bounded.test.sh
+        ./tests/ci/policy/rules/workflow-network-calls-are-bounded.test.sh
         ./tests/mutation/run-mutations.test.sh
         ./tests/mutation/catalog-reaches-every-script.test.sh
       # shellcheck: tests/quality/lint/lint-workflow-shell.test.sh plants a violation and

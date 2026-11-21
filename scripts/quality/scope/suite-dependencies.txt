@@ -72,6 +72,7 @@ tests/monitoring/check-render-drift/check-render-drift-version.test.sh -
 tests/ci/reusable/reusable-dependabot-freshness.test.sh -
 tests/ci/reusable/reusable-schedule-freshness.test.sh -
 tests/ci/policy/rules/network-calls-are-bounded.test.sh -
+tests/ci/policy/rules/workflow-network-calls-are-bounded.test.sh -
 tests/mutation/run-mutations.test.sh -
 
 # python3-yaml
