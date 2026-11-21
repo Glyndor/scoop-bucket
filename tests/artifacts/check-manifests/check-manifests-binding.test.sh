@@ -128,6 +128,19 @@ rc=0; gate "$T" || rc=$?
 check "a homepage with a newline is refused" "1" "$rc"
 check "and the newline does not start a line of the log" "0" "$(grep -c '^::error::forged line' "$WORK/out")"
 
+# --- a product declared twice ---------------------------------------------------------
+# Which row a manifest is held to would be whichever came last, so the gate refuses the
+# table, by the words the renderer uses.
+T="$(mktree twice)"; manifest "$T" podup.json '.'
+awk '/^\t"Glyndor\/podup\|/ { print; print; next } { print }' "$HERE/scripts/release/render-manifests.sh" > "$T/scripts/release/render-manifests.sh"
+check "the row was written twice" "2" "$(grep -cE '^[[:space:]]+"Glyndor/podup\|podup\|' "$T/scripts/release/render-manifests.sh")"
+rc=0; gate "$T" || rc=$?
+check "a roster that declares a product twice is refused" "1" "$rc"
+check "and the refusal names the product" "1" "$(said 'the PRODUCTS roster declares podup twice')"
+T="$(mktree once)"; manifest "$T" podup.json '.'
+rc=0; gate "$T" || rc=$?
+check "the same roster with the row once is accepted" "0" "$rc"
+
 # --- a roster that cannot be read --------------------------------------------
 #
 # Without the roster no manifest can be bound to its product, so the gate

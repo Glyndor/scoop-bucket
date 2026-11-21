@@ -88,6 +88,14 @@ declare -A roster_asset_arm=()
 rows="$(bash "$(dirname "${BASH_SOURCE[0]}")/../release/products.sh" "$roster_file")" || rows=""
 while IFS='|' read -r repo product description asset_64 asset_arm; do
 	if [ -n "$product" ] && [ -n "$repo" ]; then
+		# A product declared twice is rendered twice, the second row over the
+		# first, and which row this gate binds a manifest to would be whichever
+		# came last. The renderer refuses it before it reads a release, by the
+		# same words.
+		if [ -n "${roster[$product]:-}" ]; then
+			echo "::error::the PRODUCTS roster declares $product twice" >&2
+			exit 1
+		fi
 		roster["$product"]="$repo"
 		# The renderer reads the row with bash, which takes a backslash before
 		# a double quote, a dollar sign, a backtick or another backslash as that

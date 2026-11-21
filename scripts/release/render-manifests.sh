@@ -767,6 +767,20 @@ verify_published() {
 # required product this repository does not publish is not a bad release.
 check_release_configuration || exit 2
 
+# One manifest declared twice is rendered twice, the second row over the first, and the
+# file that is committed is whichever came last. The roster gate reads the same table
+# and refuses it, and the renderer refuses it before it reads a release, by the same
+# words.
+declare -A seen_manifests=()
+for entry in "${PRODUCTS[@]}"; do
+	IFS='|' read -r _ manifest _ <<<"$entry"
+	if [ -n "${seen_manifests[$manifest]:-}" ]; then
+		echo "::error::the PRODUCTS roster declares $manifest twice" >&2
+		exit 2
+	fi
+	seen_manifests["$manifest"]=1
+done
+
 if [ "$VERIFY_PUBLISHED" = 1 ]; then
 	verify_published
 	exit $?
