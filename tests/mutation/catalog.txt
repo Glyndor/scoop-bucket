@@ -31,7 +31,7 @@
 #       it cannot be run on its own, and it reads HEAD^1 to decide whether a pull request
 #       may narrow the suite set. A copy made with `git archive` has no HEAD^1.
 #
-#   tests/quality/check-editorconfig.test.sh
+#   tests/quality/hygiene/check-editorconfig.test.sh
 #       The gate it covers enumerates the files with `git ls-files`. A copy made with
 #       `git archive` is not a repository, so the walk finds nothing, and a gate that
 #       inspected nothing is the failure this gate exists to catch.
@@ -66,26 +66,26 @@ version-downgrade	scripts/artifacts/check-version-monotonic.sh	if precedence(new
 version-no-manifests	scripts/artifacts/check-version-monotonic.sh	if not names:	if False:	tests/artifacts/check-version-monotonic.test.sh
 version-approval-single-use	scripts/artifacts/check-version-monotonic.sh	if core(here) == core(goes_to):	if False:	tests/artifacts/check-version-monotonic.test.sh
 version-approval-carried	scripts/artifacts/check-version-monotonic.sh	carried = sorted(set(tree_entries) - approved)	carried = []	tests/artifacts/check-version-monotonic.test.sh
-coverage-python-extension	scripts/quality/check-test-coverage.sh	find "$root/scripts" -type f \( -name '*.sh' -o -name '*.py' \) -print0	find "$root/scripts" -type f \( -name '*.sh' \) -print0	tests/quality/check-test-coverage.test.sh
-coverage-no-scripts-directory	scripts/quality/check-test-coverage.sh	[ -d "$root/scripts" ] || { echo "no scripts/ directory under $root" >&2; exit 1; }	[ -d "$root/scripts" ] || { echo "no scripts/ directory under $root" >&2; exit 0; }	tests/quality/check-test-coverage.test.sh
-suites-wired-watcher-dropped	.github/workflows/tests.yml	./tests/ci/suites/ci-runs-every-test.test.sh	./tests/quality/check-test-coverage.test.sh	tests/quality/check-suites-wired.test.sh
-suites-wired-unwired	scripts/quality/check-suites-wired.sh	for path in sorted(suites - wired - set(exempt)):	for path in []:	tests/quality/check-suites-wired.test.sh
-suites-wired-needs	scripts/quality/check-suites-wired.sh	                    if "needs" in job else "") \	                    if False else "") \	tests/quality/check-suites-wired.test.sh
-lint-caller-needs	scripts/quality/check-test-job-not-switchable.sh	            if "needs" in job:	            if False:	tests/quality/check-test-job-not-switchable.test.sh
-lint-caller-continue	scripts/quality/check-test-job-not-switchable.sh	            if "continue-on-error" in job:	            if False:	tests/quality/check-test-job-not-switchable.test.sh
-lint-callers-none	scripts/quality/check-test-job-not-switchable.sh	    if callers == 0:	    if False:	tests/quality/check-test-job-not-switchable.test.sh
-lint-callers-verdict	scripts/quality/check-test-job-not-switchable.sh	    if violations:	    if False:	tests/quality/check-test-job-not-switchable.test.sh
-lint-tooling-verdict	scripts/quality/check-tooling-isolation.sh	    if violations:	    if False:	tests/quality/check-tooling-isolation.test.sh
-tooling-token-write	scripts/quality/check-tooling-isolation.sh	        if not (holds_secret or writes):	        if not holds_secret:	tests/quality/check-tooling-isolation.test.sh
-tooling-token-default	scripts/quality/check-tooling-isolation.sh	        return "no `permissions` at the job or the workflow, so the repository default applies"	        return None	tests/quality/check-tooling-isolation.test.sh
-tooling-token-writeall	scripts/quality/check-tooling-isolation.sh	        return None if perms == "read-all" else f"`permissions: {perms}`"	        return None	tests/quality/check-tooling-isolation.test.sh
-tooling-token-job-first	scripts/quality/check-tooling-isolation.sh	    if "permissions" in job:	    if False:	tests/quality/check-tooling-isolation.test.sh
+coverage-python-extension	scripts/quality/coverage/check-test-coverage.sh	find "$root/scripts" -type f \( -name '*.sh' -o -name '*.py' \) -print0	find "$root/scripts" -type f \( -name '*.sh' \) -print0	tests/quality/coverage/check-test-coverage.test.sh
+coverage-no-scripts-directory	scripts/quality/coverage/check-test-coverage.sh	[ -d "$root/scripts" ] || { echo "no scripts/ directory under $root" >&2; exit 1; }	[ -d "$root/scripts" ] || { echo "no scripts/ directory under $root" >&2; exit 0; }	tests/quality/coverage/check-test-coverage.test.sh
+suites-wired-watcher-dropped	.github/workflows/tests.yml	./tests/ci/suites/ci-runs-every-test.test.sh	./tests/quality/coverage/check-test-coverage.test.sh	tests/quality/coverage/check-suites-wired.test.sh
+suites-wired-unwired	scripts/quality/coverage/check-suites-wired.sh	for path in sorted(suites - wired - set(exempt)):	for path in []:	tests/quality/coverage/check-suites-wired.test.sh
+suites-wired-needs	scripts/quality/coverage/check-suites-wired.sh	                    if "needs" in job else "") \	                    if False else "") \	tests/quality/coverage/check-suites-wired.test.sh
+lint-caller-needs	scripts/quality/lint/check-test-job-not-switchable.sh	            if "needs" in job:	            if False:	tests/quality/lint/check-test-job-not-switchable.test.sh
+lint-caller-continue	scripts/quality/lint/check-test-job-not-switchable.sh	            if "continue-on-error" in job:	            if False:	tests/quality/lint/check-test-job-not-switchable.test.sh
+lint-callers-none	scripts/quality/lint/check-test-job-not-switchable.sh	    if callers == 0:	    if False:	tests/quality/lint/check-test-job-not-switchable.test.sh
+lint-callers-verdict	scripts/quality/lint/check-test-job-not-switchable.sh	    if violations:	    if False:	tests/quality/lint/check-test-job-not-switchable.test.sh
+lint-tooling-verdict	scripts/quality/lint/check-tooling-isolation.sh	    if violations:	    if False:	tests/quality/lint/check-tooling-isolation.test.sh
+tooling-token-write	scripts/quality/lint/check-tooling-isolation.sh	        if not (holds_secret or writes):	        if not holds_secret:	tests/quality/lint/check-tooling-isolation.test.sh
+tooling-token-default	scripts/quality/lint/check-tooling-isolation.sh	        return "no `permissions` at the job or the workflow, so the repository default applies"	        return None	tests/quality/lint/check-tooling-isolation.test.sh
+tooling-token-writeall	scripts/quality/lint/check-tooling-isolation.sh	        return None if perms == "read-all" else f"`permissions: {perms}`"	        return None	tests/quality/lint/check-tooling-isolation.test.sh
+tooling-token-job-first	scripts/quality/lint/check-tooling-isolation.sh	    if "permissions" in job:	    if False:	tests/quality/lint/check-tooling-isolation.test.sh
 lint-callers-wired	.github/workflows/reusable-workflow-lint.yml	run: bash "$RUNNER_TEMP/lint-rules/check-test-job-not-switchable.sh"	run: "true"	tests/ci/reusable/reusable-workflow-lint.test.sh
 lint-tooling-wired	.github/workflows/reusable-workflow-lint.yml	run: bash "$RUNNER_TEMP/lint-rules/check-tooling-isolation.sh"	run: "true"	tests/ci/reusable/reusable-workflow-lint.test.sh
-lint-rules-from-base	.github/workflows/reusable-workflow-lint.yml	            if [ "$from_base" = true ] && git cat-file -e "${BASE_SHA}:scripts/quality/${file}" 2>/dev/null; then	            if false; then	tests/ci/reusable/reusable-workflow-lint.test.sh,tests/quality/check-suites-wired.test.sh
-lint-rules-event-base	.github/workflows/reusable-workflow-lint.yml	              git show "${BASE_SHA}:scripts/quality/${file}" > "$dir/$file"	              git show "HEAD^1:scripts/quality/${file}" > "$dir/$file"	tests/ci/reusable/reusable-workflow-lint.test.sh,tests/quality/check-suites-wired.test.sh
+lint-rules-from-base	.github/workflows/reusable-workflow-lint.yml	            if git cat-file -e "${BASE_SHA}:${want}" 2>/dev/null; then	            if false; then	tests/ci/reusable/reusable-workflow-lint.test.sh,tests/quality/coverage/check-suites-wired.test.sh
+lint-rules-event-base	.github/workflows/reusable-workflow-lint.yml	              git show "${BASE_SHA}:${from}" > "$dir/$name"	              git show "HEAD^1:${from}" > "$dir/$name"	tests/ci/reusable/reusable-workflow-lint.test.sh,tests/quality/coverage/check-suites-wired.test.sh
 lint-rules-fetch	.github/workflows/reusable-workflow-lint.yml	              git fetch --no-tags --depth=1 origin "$BASE_SHA" 2>/dev/null || true	              true	tests/ci/reusable/reusable-workflow-lint.test.sh
-scope-lint-rule-scripts	scripts/quality/ci-job-scope.sh	    "scripts/quality/check-tooling-isolation.sh",	    "scripts/quality/unused.sh",	tests/quality/ci-job-scope.test.sh
+scope-lint-rule-scripts	scripts/quality/scope/ci-job-scope.sh	    "scripts/quality/lint/check-tooling-isolation.sh",	    "scripts/quality/unused.sh",	tests/quality/scope/ci-job-scope.test.sh
 lint-actionlint-sha256	.github/workflows/reusable-workflow-lint.yml	printf '%s  %s\n' "$ACTIONLINT_SHA256" "$tarball" | sha256sum -c -	true	tests/ci/reusable/reusable-workflow-lint.test.sh
 tools-past-lag	scripts/monitoring/check-tool-versions.sh	    if days > lag_days:	    if False:	tests/monitoring/check-tool-versions.test.sh
 tools-first-newer	scripts/monitoring/check-tool-versions.sh	    days = (now - min(newer)).days	    days = (now - max(newer)).days	tests/monitoring/check-tool-versions.test.sh
@@ -103,16 +103,16 @@ grace-limit	.github/workflows/reusable-schedule-freshness.yml	[ $(( (now_s - add
 grace-no-runs	.github/workflows/reusable-schedule-freshness.yml	            if [ "$any_runs" = 0 ] \	            if true \	tests/ci/reusable/reusable-schedule-freshness/reusable-schedule-freshness-grace.test.sh
 grace-by-default	.github/workflows/reusable-schedule-freshness.yml	            added=""	            added="$now_s"	tests/ci/reusable/reusable-schedule-freshness/reusable-schedule-freshness-grace.test.sh
 grace-future	.github/workflows/reusable-schedule-freshness.yml	            if [[ "$added" =~ ^[0-9]+$ ]] && [ "$added" -gt "$now_s" ]; then	            if false; then	tests/ci/reusable/reusable-schedule-freshness/reusable-schedule-freshness-grace.test.sh
-suites-wired-base-exemptions	scripts/quality/check-suites-wired.sh	    return {path: why for path, why in exempt.items() if path in base}	    return exempt	tests/quality/check-suites-wired.test.sh
-lint-base-exemptions	.github/workflows/reusable-workflow-lint.yml	            git show "${BASE_SHA}:scripts/quality/suite-exemptions.txt" > "$dir/suite-exemptions.base"	            cp scripts/quality/suite-exemptions.txt "$dir/suite-exemptions.base"	tests/quality/check-suites-wired.test.sh
-suites-wired-operators	scripts/quality/check-suites-wired.sh	OPERATOR_RE = re.compile(r"[|&;<>`]|\$\(")	OPERATOR_RE = re.compile(r"(?!)")	tests/quality/check-suites-wired.test.sh
-suites-wired-heredoc	scripts/quality/check-suites-wired.sh	                        if "<<" in run else "") \	                        if False else "") \	tests/quality/check-suites-wired.test.sh
-suites-wired-skip-paths	scripts/quality/check-suites-wired.sh	                             skip_gate, where)	                             job_gate, where)	tests/quality/check-suites-wired.test.sh
-suites-wired-skip-literal	scripts/quality/check-suites-wired.sh	    if [[ "$f" == $pattern ]]; then	    if [[ "$f" == "$pattern" ]]; then	tests/quality/check-suites-wired.test.sh
-pins-sha-length	scripts/quality/check-action-pins.sh	if [[ "$ref" =~ ^[0-9a-f]{40}$ ]]; then	if [[ "$ref" =~ ^[0-9a-f]{7,40}$ ]]; then	tests/quality/check-action-pins.test.sh
-pins-no-workflow-file	scripts/quality/check-action-pins.sh	if [ "$files" -eq 0 ]; then	if [ "$files" -eq -1 ]; then	tests/quality/check-action-pins.test.sh
-pins-local-scope	scripts/quality/check-action-pins.sh	./*)	x/*)	tests/quality/check-action-pins.test.sh
-anchors-name-lookup	scripts/quality/check-doc-anchors.sh	if ! grep -Fxq -- "$name" <<<"$declared"; then	if ! grep -Fxq -- "$name" <<<""; then	tests/quality/check-doc-anchors.test.sh
+suites-wired-base-exemptions	scripts/quality/coverage/check-suites-wired.sh	    return {path: why for path, why in exempt.items() if path in base}	    return exempt	tests/quality/coverage/check-suites-wired.test.sh
+lint-base-exemptions	.github/workflows/reusable-workflow-lint.yml	              git show "${BASE_SHA}:${from}" > "$dir/suite-exemptions.base"	              cp scripts/quality/coverage/suite-exemptions.txt "$dir/suite-exemptions.base"	tests/quality/coverage/check-suites-wired.test.sh
+suites-wired-operators	scripts/quality/coverage/check-suites-wired.sh	OPERATOR_RE = re.compile(r"[|&;<>`]|\$\(")	OPERATOR_RE = re.compile(r"(?!)")	tests/quality/coverage/check-suites-wired.test.sh
+suites-wired-heredoc	scripts/quality/coverage/check-suites-wired.sh	                        if "<<" in run else "") \	                        if False else "") \	tests/quality/coverage/check-suites-wired.test.sh
+suites-wired-skip-paths	scripts/quality/coverage/check-suites-wired.sh	                             skip_gate, where)	                             job_gate, where)	tests/quality/coverage/check-suites-wired.test.sh
+suites-wired-skip-literal	scripts/quality/coverage/check-suites-wired.sh	    if [[ "$f" == $pattern ]]; then	    if [[ "$f" == "$pattern" ]]; then	tests/quality/coverage/check-suites-wired.test.sh
+pins-sha-length	scripts/quality/lint/check-action-pins.sh	if [[ "$ref" =~ ^[0-9a-f]{40}$ ]]; then	if [[ "$ref" =~ ^[0-9a-f]{7,40}$ ]]; then	tests/quality/lint/check-action-pins.test.sh
+pins-no-workflow-file	scripts/quality/lint/check-action-pins.sh	if [ "$files" -eq 0 ]; then	if [ "$files" -eq -1 ]; then	tests/quality/lint/check-action-pins.test.sh
+pins-local-scope	scripts/quality/lint/check-action-pins.sh	./*)	x/*)	tests/quality/lint/check-action-pins.test.sh
+anchors-name-lookup	scripts/quality/hygiene/check-doc-anchors.sh	if ! grep -Fxq -- "$name" <<<"$declared"; then	if ! grep -Fxq -- "$name" <<<""; then	tests/quality/hygiene/check-doc-anchors.test.sh
 dco-updater-app-bot	scripts/governance/check-dco-on-main.sh	"github-actions[bot]"|"glyndor-updater[bot]") return 0 ;;	"github-actions[bot]") return 0 ;;	tests/governance/check-dco-on-main.test.sh
 dco-range-enumeration	scripts/governance/check-dco-on-main.sh	if ! commits="$(git rev-list --no-merges $range)"; then	if ! commits="$(git rev-list --no-merges $range 2>/dev/null || true)"; then	tests/governance/check-dco-on-main.test.sh
 dco-trailer-address	scripts/governance/check-dco-on-main.sh	grep -qE '^Signed-off-by: .+ <[^<>@ ]+@[^<>@ ]+>$'	grep -qE '^Signed-off-by: '	tests/governance/check-dco-on-main.test.sh
@@ -120,8 +120,8 @@ dco-author-fallback	scripts/governance/check-dco-on-main.sh	if is_bot "$author";
 channel-usable-path	scripts/monitoring/check-channel-drift.sh	[[ "$1" =~ ^[A-Za-z0-9._/-]+$ ]] || return 1	[[ "$1" =~ ^[A-Za-z0-9._/?=+-]+$ ]] || return 1	tests/monitoring/check-channel-drift.test.sh
 channel-empty-list	scripts/monitoring/check-channel-drift.sh	if [ "$listed" -eq 0 ]; then	if [ "$listed" -eq -1 ]; then	tests/monitoring/check-channel-drift.test.sh
 channel-nothing-compared	scripts/monitoring/check-channel-drift.sh	if [ "$compared" -eq 0 ]; then	if [ "$compared" -eq -1 ]; then	tests/monitoring/check-channel-drift.test.sh
-lint-no-blocks	scripts/quality/lint-workflow-shell.sh	if [ "$blocks" -eq 0 ]; then	if [ "$blocks" -eq -1 ]; then	tests/quality/lint-workflow-shell.test.sh
-lint-header-comment	scripts/quality/lint-workflow-shell.sh	run:[[:space:]]*[|>]([-+]?[0-9]*)?[[:space:]]*(#.*)?$/ {	run:[[:space:]]*[|>]([-+]?[0-9]*)?[[:space:]]*$/ {	tests/quality/lint-workflow-shell.test.sh
+lint-no-blocks	scripts/quality/lint/lint-workflow-shell.sh	if [ "$blocks" -eq 0 ]; then	if [ "$blocks" -eq -1 ]; then	tests/quality/lint/lint-workflow-shell.test.sh
+lint-header-comment	scripts/quality/lint/lint-workflow-shell.sh	run:[[:space:]]*[|>]([-+]?[0-9]*)?[[:space:]]*(#.*)?$/ {	run:[[:space:]]*[|>]([-+]?[0-9]*)?[[:space:]]*$/ {	tests/quality/lint/lint-workflow-shell.test.sh
 published-digest	scripts/monitoring/check-published-manifests.sh	if [ "$actual" != "$expected" ]; then	if false; then	tests/monitoring/check-published-manifests.test.sh
 published-download-timeout	scripts/monitoring/check-published-manifests.sh	--max-time 120	--max-time 121	tests/monitoring/check-published-manifests.test.sh
 published-asset-cap	scripts/monitoring/check-published-manifests.sh	MAX_ASSET_BYTES=104857600	MAX_ASSET_BYTES=104857601	tests/monitoring/check-published-manifests.test.sh
@@ -130,7 +130,7 @@ reusable-block-comment	scripts/monitoring/check-reusable-drift.sh	inblock && ind
 render-strip-comments	scripts/monitoring/check-render-drift.sh	'/^[[:space:]]*#/d'	'/^[[:space:]]*#X/d'	tests/monitoring/check-render-drift.test.sh
 templates-other-platforms	scripts/governance/check-issue-templates.sh	other_platforms="Ubuntu Debian Fedora openSUSE SUSE Arch Alpine Gentoo"	other_platforms="Debian Fedora openSUSE SUSE Arch Alpine Gentoo"	tests/governance/check-issue-templates.test.sh
 templates-os-field	scripts/governance/check-issue-templates.sh	if [ -z "$os_field" ]; then	if false; then	tests/governance/check-issue-templates.test.sh
-scope-candidate-path	scripts/quality/ci-job-scope.sh	if candidate in paths or affects(patterns, paths) or affects(GLOBAL_INPUTS, paths):	if affects(patterns, paths) or affects(GLOBAL_INPUTS, paths):	tests/quality/ci-job-scope-suites.test.sh
+scope-candidate-path	scripts/quality/scope/ci-job-scope.sh	if candidate in paths or affects(patterns, paths) or affects(GLOBAL_INPUTS, paths):	if affects(patterns, paths) or affects(GLOBAL_INPUTS, paths):	tests/quality/scope/ci-job-scope-suites.test.sh
 schedule-missing-workflow	scripts/monitoring/check-schedule-history-ready.sh	if [ "$scheduled_found" = false ] && [ "$workflow_missing" = false ]; then	if [ "$scheduled_found" = false ]; then	tests/monitoring/check-schedule-history-ready.test.sh
 schedule-retry	scripts/monitoring/check-schedule-history-ready.sh	for attempt in 1 2 3; do	for attempt in 1; do	tests/monitoring/check-schedule-history-ready.test.sh
 render-empty-signature	scripts/release/release-signature.sh	sys.exit("SHA256SUMS does not verify against any configured release key")	sys.exit(print("SHA256SUMS signature verified") if not sig else "SHA256SUMS does not verify against any configured release key")	tests/release/render-manifests/render-manifests-guards.test.sh
@@ -176,3 +176,5 @@ suite-on-main-completed	scripts/monitoring/check-suite-on-main.sh	| map(select(.
 products-row-shape	scripts/release/products.sh	if ($0 !~ /^[[:space:]]*"([^"\\]|\\.)*"[[:space:]]*$/) {	if (0) {	tests/release/products.test.sh
 products-no-row	scripts/release/products.sh	if (!rows) fail("the PRODUCTS table holds no row")	if (0) fail("the PRODUCTS table holds no row")	tests/release/products.test.sh
 products-unclosed	scripts/release/products.sh	if (!closed) fail(	if (0) fail(	tests/release/products.test.sh
+lint-rules-earlier-path	.github/workflows/reusable-workflow-lint.yml	              from="$(base_copy "$file")"	              from=""	tests/ci/reusable/reusable-workflow-lint.test.sh
+lint-rules-ambiguous	.github/workflows/reusable-workflow-lint.yml	            if [ "$count" -gt 1 ]; then	            if false; then	tests/ci/reusable/reusable-workflow-lint.test.sh
