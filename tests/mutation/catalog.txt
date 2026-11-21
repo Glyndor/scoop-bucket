@@ -55,6 +55,8 @@ suites-wired-needs	scripts/quality/check-suites-wired.sh	                    if 
 lint-caller-needs	.github/workflows/reusable-workflow-lint.yml	                      if "needs" in job:	                      if False:	tests/ci/reusable/reusable-workflow-lint.test.sh
 suites-wired-base-exemptions	scripts/quality/check-suites-wired.sh	    return {path: why for path, why in exempt.items() if path in base}	    return exempt	tests/quality/check-suites-wired.test.sh
 lint-base-exemptions	.github/workflows/reusable-workflow-lint.yml	            && git show "HEAD^1:$exemptions" > "$script.exempt" 2>/dev/null; then	            && cp "$exemptions" "$script.exempt" 2>/dev/null; then	tests/quality/check-suites-wired.test.sh
+suites-wired-operators	scripts/quality/check-suites-wired.sh	OPERATOR_RE = re.compile(r"[|&;<>`]|\$\(")	OPERATOR_RE = re.compile(r"(?!)")	tests/quality/check-suites-wired.test.sh
+suites-wired-heredoc	scripts/quality/check-suites-wired.sh	                        if "<<" in run else "") \	                        if False else "") \	tests/quality/check-suites-wired.test.sh
 pins-sha-length	scripts/quality/check-action-pins.sh	if [[ "$ref" =~ ^[0-9a-f]{40}$ ]]; then	if [[ "$ref" =~ ^[0-9a-f]{7,40}$ ]]; then	tests/quality/check-action-pins.test.sh
 pins-no-workflow-file	scripts/quality/check-action-pins.sh	if [ "$files" -eq 0 ]; then	if [ "$files" -eq -1 ]; then	tests/quality/check-action-pins.test.sh
 pins-local-scope	scripts/quality/check-action-pins.sh	./*)	x/*)	tests/quality/check-action-pins.test.sh
