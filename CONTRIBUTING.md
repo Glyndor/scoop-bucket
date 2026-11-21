@@ -18,6 +18,12 @@ the release signature verified before anything is written. Edit
 scheduled run rewrites them whenever a product has a verified release to render, so a
 hand edit is lost the next time its manifest is regenerated.
 
+The renderer verifies the Ed25519 release signature, and the ML-DSA-65
+signature a release may carry beside it. The second one is a hybrid and never
+a replacement, so the Ed25519 signature is checked first and always. No product
+carries that second signature yet, so every release today is admitted on the
+Ed25519 signature alone.
+
 **Its git content IS the published artifact.** A commit on `main` is what
 `scoop install` reads. There is no build step between them and no CDN in front.
 
@@ -140,6 +146,21 @@ counts the failures -- but its exit status says only that something failed.
 The `FAIL` lines it prints are what say which, and they scroll. The flag turns
 them back into something a script can read. This is the command the workflow
 runs, so a local run and a CI run judge the same thing.
+
+`tests/release/release-signature/release-signature-mldsa.test.sh` also needs
+`cryptography` 50.0.2 or later, for ML-DSA-65, which no Ubuntu release packages
+yet. Without it that suite fails and says so, and the command above goes red.
+Install the pinned wheel into a virtual environment that still sees the system
+packages, and put it first on `PATH` before running the command:
+
+```bash
+python3 -m venv --system-site-packages ~/.cache/bucket-mldsa
+~/.cache/bucket-mldsa/bin/python -m pip install --require-hashes --only-binary=:all: \
+  -r scripts/release/render-requirements.txt
+export PATH="$HOME/.cache/bucket-mldsa/bin:$PATH"
+```
+
+CI runs that suite in its own job, `ML-DSA-65 verifier` in `tests.yml`.
 
 **Every script in `scripts/` needs a test.**
 `scripts/quality/check-test-coverage.sh` fails when one does not, itself included --

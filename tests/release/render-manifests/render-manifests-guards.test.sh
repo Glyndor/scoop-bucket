@@ -64,7 +64,8 @@ check "and the message says it does not start with a digit" "1" "$(grep -c 'does
 
 # An empty signature, with the size check out of the way. The check measures the
 # signature before python reads it, so it refuses a 0-byte file first and hides
-# whether python would. The copy replaces that one comparison and nothing else;
+# whether python would. The copy of scripts/release/release-signature.sh, which
+# holds the check, replaces that one comparison and nothing else;
 # the two greps below fail the suite if the replacement did not take, because a
 # copy that still carries the check would pass the refusal for the wrong reason.
 # The genuine signature goes through the same copy and renders, so the refusal
@@ -74,13 +75,13 @@ new_root "$WORK/nosize"
 generator_with "$WORK/nosize/scripts/release/render-manifests.sh" "$PODUP"
 # shellcheck disable=SC2016 # the renderer's literal shell is under test
 sed -i 's/\[ "\$sig_size" -eq "\$MAX_SIG_BYTES" \]/[ "$sig_size" -ge 0 ]/' \
-	"$WORK/nosize/scripts/release/render-manifests.sh"
+	"$WORK/nosize/scripts/release/release-signature.sh"
 # shellcheck disable=SC2016 # the renderer's literal shell is under test
 check "the copy no longer compares the signature size to MAX_SIG_BYTES" "0" \
-	"$(grep -c -e '-eq "\$MAX_SIG_BYTES"' "$WORK/nosize/scripts/release/render-manifests.sh" || true)"
+	"$(grep -c -e '-eq "\$MAX_SIG_BYTES"' "$WORK/nosize/scripts/release/release-signature.sh" || true)"
 # shellcheck disable=SC2016 # the renderer's literal shell is under test
 check "and the copy carries the replacement" "1" \
-	"$(grep -c -e '\[ "\$sig_size" -ge 0 \]' "$WORK/nosize/scripts/release/render-manifests.sh" || true)"
+	"$(grep -c -e '\[ "\$sig_size" -ge 0 \]' "$WORK/nosize/scripts/release/release-signature.sh" || true)"
 
 rc=0
 out="$( cd "$WORK/nosize" && "$WORK/nosize/scripts/release/render-manifests.sh" --pubkey "$PUBKEY" 2>&1 )" || rc=$?
