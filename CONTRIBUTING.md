@@ -97,6 +97,11 @@ The override logs a warning naming the product and both versions; signature and
 provenance checks still apply. `update.yml` never sets this variable, including
 on `workflow_dispatch`, so dispatching the scheduled updater cannot enable it.
 
+The renderer reads the release it renders, so the rollback run needs more than the
+suites do: `gh`, authenticated and able to read releases and to verify
+attestations, and `curl`, besides the `python3-cryptography` package above. No
+suite stands in for them.
+
 ## Branch flow
 
 ```
@@ -121,7 +126,7 @@ There is no `develop`. Branch from `main`, open a pull request against
 
 ## Tests
 
-The suites need `shellcheck`, `jq`, `python3-yaml` and `python3-cryptography` installed. In CI, shellcheck is the pinned release the shellcheck job uses, and a pull request installs only what the suites it selects need (`scripts/quality/scope/suite-dependencies.txt`).
+The suites need `shellcheck`, `jq`, `python3-yaml` and `python3-cryptography` installed. The ML-DSA-65 setup below also needs `python3-venv`, which Debian and Ubuntu package apart from `python3`. In CI, shellcheck is the pinned release the shellcheck job uses, and a pull request installs only what the suites it selects need (`scripts/quality/scope/suite-dependencies.txt`).
 
 ```sh
 fail=0
@@ -144,8 +149,14 @@ find scripts tests -name '*.sh' -print0 | xargs -0 shellcheck || fail=1
 Keep the flag. The runner carries on past a failure -- it runs every suite and
 counts the failures -- but its exit status says only that something failed.
 The `FAIL` lines it prints are what say which, and they scroll. The flag turns
-them back into something a script can read. This is the command the workflow
-runs, so a local run and a CI run judge the same thing.
+them back into something a script can read.
+
+The command runs every suite under `tests/`. CI runs them in two jobs:
+`shell / test` runs all of them but the ML-DSA-65 verifier suite, and the
+`ML-DSA-65 verifier` job runs that one, or skips it when nothing it reads
+changed. A local run therefore covers more than the required `shell / test`
+check, and without the wheel below it goes red on the one suite that check does
+not run.
 
 `tests/release/release-signature/release-signature-mldsa.test.sh` also needs
 `cryptography` 50.0.2 or later, for ML-DSA-65, which no Ubuntu release packages
@@ -212,8 +223,11 @@ than the one it names; or the same tool that made the change also confirmed it.
 Confirm from something that took no part in the change, and read the failure
 message, not the colour.
 
-Assert **which** failure fired, never that some failure did. Scripts run under
-`set -euo pipefail`, so almost any mistake exits non-zero.
+Assert **which** failure fired, never that some failure did. The scripts run
+under `set -euo pipefail` and stop at the first error. Many suites do not: they
+start with `set -u` or `set -uo pipefail`, count their own failures and carry on,
+so a mistake in one of them is a `FAIL` line, not an exit. Read those lines, not
+only the exit status.
 
 Two failures that only appear after the commit:
 

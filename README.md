@@ -59,12 +59,14 @@ is refused.
 
 ```mermaid
 flowchart LR
-  R["Product release<br/>SHA256SUMS + .sig"] -->|hourly pull| V["Verify signature<br/>org Ed25519 release key"]
-  V -->|verified| G["Re-render bucket/*.json<br/>version, URLs, hashes"]
+  R["Product release<br/>SHA256SUMS + .sig"] -->|hourly pull| V["Verify signature<br/>org Ed25519 release key,<br/>and ML-DSA-65 when the release carries one"]
+  V -->|verified| P["Check each asset<br/>checksum + provenance for the tag"]
+  P --> G["Re-render bucket/*.json<br/>version, URLs, hashes"]
   G --> D["Validate, then record the<br/>SHA-256 of every file"]
   D --> C["Commit to main<br/>GitHub-signed"]
   C -->|scoop update| U["User"]
   V -.->|bad signature| X["run fails<br/>manifests unchanged"]
+  P -.->|no provenance, or another tag| X
 ```
 
 Nothing is pushed here from a product, and no product holds a write

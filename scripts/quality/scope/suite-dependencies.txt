@@ -106,6 +106,7 @@ tests/ci/policy/rules/jobs-are-bounded.test.sh python3-yaml
 
 # shellcheck
 tests/ci/docs/documented-test-command.test.sh shellcheck
+tests/ci/docs/documented-claims.test.sh -
 tests/quality/lint/lint-workflow-shell.test.sh shellcheck
 
 # shellcheck, python3-yaml
