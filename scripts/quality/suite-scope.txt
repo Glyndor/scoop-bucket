@@ -171,6 +171,16 @@ tests/publication/update/update-key-isolation.test.sh
 	tests/fixtures/publication/**
 	tests/publication/update/**
 
+# The hand-off suite runs the two digest steps of the workflow against the
+# real digest script and the real manifest gate.
+
+tests/publication/update/update-digest-handoff.test.sh
+	.github/workflows/update.yml
+	scripts/artifacts/check-manifests.sh
+	scripts/artifacts/manifest-digests.sh
+	tests/fixtures/publication/**
+	tests/publication/update/**
+
 # --- the bucket -------------------------------------------------------------
 #
 # The three gates that read the bucket read the roster it is held to, and the
