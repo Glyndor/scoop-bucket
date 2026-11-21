@@ -201,12 +201,19 @@ tests/artifacts/check-manifests/check-manifests-nonregular.test.sh
 	bucket/**
 	tests/artifacts/check-manifests/**
 
+# The digest manifest the commit job of update.yml checks the rendered
+# manifests against. It reads its own script and nothing else: the manifests it
+# digests are fixtures it writes.
+
+tests/artifacts/manifest-digests.test.sh
+	scripts/artifacts/manifest-digests.sh
+
 # The rollback gate compares the committed manifests with the base commit, and
 # the approvals file that permits one rollback is read from the base too.
 
 tests/artifacts/check-version-monotonic.test.sh
 	scripts/artifacts/check-version-monotonic.sh
-	scripts/artifacts/approved-rollbacks.txt
+	scripts/release/render-manifests.sh
 	bucket/**
 
 # --- the CI policy rules ----------------------------------------------------
