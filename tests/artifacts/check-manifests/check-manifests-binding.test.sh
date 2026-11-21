@@ -34,7 +34,7 @@ mktree() { # $1=name -> prints the tree
 	local t="$WORK/$1"
 	mkdir -p "$t/scripts/artifacts" "$t/scripts/release" "$t/bucket"
 	cp "$HERE/scripts/artifacts/check-manifests.sh" "$t/scripts/artifacts/"
-	cp "$HERE/scripts/release/render-manifests.sh" "$t/scripts/release/"
+	cp "$HERE/scripts/release/render-manifests.sh" "$HERE/scripts/release/products.sh" "$t/scripts/release/"
 	echo "$t"
 }
 manifest() { jq "$3" "$HERE/bucket/podup.json" > "$1/bucket/$2"; }

@@ -58,6 +58,7 @@ jobs:
         ./tests/release/render-manifests/render-manifests-transfer-limits.test.sh
         ./tests/release/render-manifests/render-manifests-products.test.sh
         ./tests/release/render-manifests/render-manifests-guards.test.sh
+        ./tests/release/products.test.sh
         ./tests/release/render-manifests/render-manifests-symlink.test.sh
         ./tests/release/release-signature.test.sh
         ./tests/publication/update/update-workflow.test.sh
@@ -100,7 +101,7 @@ jobs:
         ./tests/quality/check-editorconfig.test.sh
         ./tests/monitoring/check-reusable-drift.test.sh
         ./tests/monitoring/check-channel-drift.test.sh
-        ./tests/monitoring/drift-watchers-transfer-cap.test.sh
+        ./tests/ci/policy/rules/drift-watchers-transfer-cap.test.sh
         ./tests/ci/policy/workflows/workflow-shape.test.sh
         ./tests/ci/policy/workflows/freshness-pr-scope.test.sh
         ./tests/ci/policy/workflows/freshness-poll-concurrency.test.sh

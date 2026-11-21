@@ -74,17 +74,16 @@ fi
 # The roster: one row per product, `repository|manifest|description|...`, read
 # out of the table the renderer declares it in. PRODUCTS in
 # scripts/release/render-manifests.sh is the only place a product is declared,
-# and check-products-consistent.sh reads the same table: one list of products.
+# and check-products-consistent.sh reads the same table through the same
+# reader, scripts/release/products.sh: one list of products, one grammar.
 roster_file="$root/scripts/release/render-manifests.sh"
 declare -A roster=()
-while IFS='|' read -r product repo; do
+rows="$(bash "$(dirname "${BASH_SOURCE[0]}")/../release/products.sh" "$roster_file")" || rows=""
+while IFS='|' read -r repo product _; do
 	if [ -n "$product" ] && [ -n "$repo" ]; then
 		roster["$product"]="$repo"
 	fi
-done < <(awk '/^PRODUCTS=\(/ { inside = 1; next }
-                inside && /^\)/  { exit }
-                inside           { print }' "$roster_file" 2>/dev/null \
-	| sed -n 's/^[^"]*"\([^|]*\)|\([^|]*\)|.*/\2|\1/p')
+done <<<"$rows"
 # A roster that declares no product leaves nothing to bind a url to. That is an
 # error, not a pass: a gate that cannot establish which repository a manifest
 # may name cannot certify that it names the right one.
