@@ -198,6 +198,11 @@ tests/publication/update/update-digest-handoff.test.sh
 	tests/fixtures/publication/**
 	tests/publication/update/**
 
+tests/publication/update/update-mldsa-venv.test.sh
+	.github/workflows/update.yml
+	scripts/release/render-manifests.sh
+	tests/publication/update/update-mldsa-venv.test.sh
+
 # --- the bucket -------------------------------------------------------------
 #
 # The three gates that read the bucket read the roster it is held to, and the

@@ -63,6 +63,7 @@ jobs:
         ./tests/publication/update/update-workflow.test.sh
         ./tests/publication/update/update-key-isolation.test.sh
         ./tests/publication/update/update-digest-handoff.test.sh
+        ./tests/publication/update/update-mldsa-venv.test.sh
         ./tests/artifacts/check-products-consistent.test.sh
         ./tests/artifacts/check-manifests.test.sh
         ./tests/artifacts/check-manifests/check-manifests-identity.test.sh
