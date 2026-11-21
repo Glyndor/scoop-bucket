@@ -259,7 +259,7 @@ jobs:
 
   products:
     concurrency:
-      group: products-${{ github.workflow }}-${{ github.ref }}
+      group: products-${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
       cancel-in-progress: ${{ github.event_name == 'pull_request' }}
     name: products match the generator
     # ubuntu-latest resolved to ubuntu-26.04 in apt's publish runs on
@@ -283,7 +283,7 @@ jobs:
 
   manifests:
     concurrency:
-      group: manifests-${{ github.workflow }}-${{ github.ref }}
+      group: manifests-${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
       cancel-in-progress: ${{ github.event_name == 'pull_request' }}
     name: validate manifests
     # ubuntu-latest resolved to ubuntu-26.04 in apt's publish runs on
