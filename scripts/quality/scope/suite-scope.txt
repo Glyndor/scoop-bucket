@@ -339,6 +339,12 @@ tests/ci/policy/workflows/workflow-shape.test.sh
 tests/ci/policy/workflows/persist-credentials.test.sh
 	.github/workflows/**
 
+# The workflows are read for the concurrency of every job of their own.
+
+tests/ci/policy/workflows/pull-request-runs-are-superseded.test.sh
+	.github/workflows/**
+	tests/ci/policy/workflows/pull-request-runs-are-superseded.test.sh
+
 tests/ci/policy/rules/jobs-are-bounded.test.sh
 	.github/workflows/**
 
