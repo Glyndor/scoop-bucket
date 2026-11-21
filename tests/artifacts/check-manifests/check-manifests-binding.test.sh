@@ -80,6 +80,27 @@ rc=0; gate "$T" || rc=$?
 check "a homepage with a newline is refused" "1" "$rc"
 check "and the newline does not start a line of the log" "0" "$(grep -c '^::error::forged line' "$WORK/out")"
 
+# --- a roster that cannot be read --------------------------------------------
+#
+# Without the roster no manifest can be bound to its product, so the gate
+# refuses before it reads one. It would still fail without that guard, one
+# manifest at a time, with the message for a product the roster does not list,
+# so each case names the message of the guard and requires the other to be
+# absent.
+T="$(mktree no-table)"; manifest "$T" podup.json '.'
+printf '#!/usr/bin/env bash\n' > "$T/scripts/release/render-manifests.sh"
+rc=0; gate "$T" || rc=$?
+check "a renderer with no PRODUCTS table is refused" "1" "$rc"
+check "and the refusal says the roster is missing" "1" "$(said 'no PRODUCTS roster in')"
+check "and no manifest was read against an empty roster" "0" "$(said 'has no row for')"
+
+T="$(mktree no-renderer)"; manifest "$T" podup.json '.'
+rm "$T/scripts/release/render-manifests.sh"
+rc=0; gate "$T" || rc=$?
+check "a tree with no renderer is refused" "1" "$rc"
+check "and the refusal says the roster is missing" "1" "$(said 'no PRODUCTS roster in')"
+check "and no manifest was read against an empty roster" "0" "$(said 'has no row for')"
+
 echo "$pass passed, $fail failed"
 printf 'DONE %s %d %d\n' "${0##*/}" "$pass" "$fail"
 [ "$fail" -eq 0 ]
