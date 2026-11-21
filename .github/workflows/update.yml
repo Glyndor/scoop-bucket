@@ -180,7 +180,7 @@ jobs:
           # never be a deletion.
           adds="$(
             { git diff --name-only --diff-filter=ACMR -- bucket
-              git ls-files -o --exclude-standard -- bucket; } | sort -u
+              git ls-files -o --exclude-standard -- bucket; } | LC_ALL=C sort -u
           )"
           dels="$(git diff --name-only --diff-filter=D -- bucket)"
           # Refuse a deletion-only render that would empty the bucket. The
@@ -376,7 +376,7 @@ jobs:
           # into a variable first so that a failure stops the step.
           adds="$(
             { git -c core.quotePath=off diff -z --name-only --diff-filter=ACMR -- bucket
-              git -c core.quotePath=off ls-files -z -o --exclude-standard -- bucket; } | sort -zu \
+              git -c core.quotePath=off ls-files -z -o --exclude-standard -- bucket; } | LC_ALL=C sort -zu \
             | while IFS= read -r -d '' f; do
               contents="$(base64 -w0 "$f")" || { echo "::error::cannot read $f" >&2; exit 1; }
               jq -cn --arg path "$f" --arg contents "$contents" '{path:$path, contents:$contents}'
