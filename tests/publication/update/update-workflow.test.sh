@@ -463,15 +463,22 @@ check "and sets no changed output" "" "$(output changed)"
 # These conditions are evaluated by the Actions engine, so they can be read but
 # not executed here. Reading them still catches the wiring being dropped.
 
-check "the validate and commit steps are gated on changed, the mint step is not" "2" \
+# The change is decided in the render job and read by the commit job, so the
+# gate is spelled twice: against the step that produced the output, and
+# against the job that inherits it. The render job gates the validation, the
+# digest record and the upload; the commit job gates the checkout, the
+# download, the digest check and the commit itself.
+check "the render job's steps are gated on the change it produced" "3" \
 	"$(grep -c "if: steps.render.outputs.changed == '1'" "$WORKFLOW")"
+check "and the commit job's steps are gated on the change it inherits" "4" \
+	"$(grep -c "if: needs.render.outputs.changed == '1'" "$WORKFLOW")"
 # The mint step has no `if:` on purpose. A removed installation or an invalid
 # private key used to stay invisible until the next run that had something to
 # publish; reading the step's own block confirms the gate is not there.
 check "the mint step has no if: so a broken credential fails the next scheduled run" "0" \
 	"$(awk '/name: Mint a token/,/uses: actions\/create-github-app-token/' "$WORKFLOW" | grep -c 'if:')"
 check "the failure step is gated on partial" "1" \
-	"$(grep -c "if: steps.render.outputs.partial == '1'" "$WORKFLOW")"
+	"$(grep -c "if: needs.render.outputs.partial == '1'" "$WORKFLOW")"
 check "the failure step is last, after the commit" "1" \
 	"$(awk '/name: Commit the update/ { c = NR } /name: Fail if any product was skipped/ { f = NR } END { print (c && f && f > c) ? 1 : 0 }' "$WORKFLOW")"
 
