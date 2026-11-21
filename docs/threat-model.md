@@ -66,7 +66,9 @@ fails when one does not.
   re-renders `bucket/` and validates it, on a read-only `GITHUB_TOKEN`
   (`contents: read`) and holding no secret. The `commit` job is the only one
   that holds a credential: a token minted for the `glyndor-updater` GitHub App
-  (`contents: write` on this repository only) by `actions/create-github-app-token`,
+  (`contents: write` on this repository only, asked for with
+  `permission-contents: write` so it never carries more than the installation
+  happens to grant) by `actions/create-github-app-token`,
   from a long-lived private key held as the repository secret
   `UPDATER_APP_PRIVATE_KEY`. The app is a bypass actor on the `main` ruleset.
   It commits through the GraphQL `createCommitOnBranch` mutation. A leaked key

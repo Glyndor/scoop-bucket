@@ -34,7 +34,8 @@ bypass actor on the ruleset. `github-actions[bot]` cannot be one; a GitHub App
 can. `glyndor-updater` is that app, installed on this repository with
 `contents: write` and nothing else. The commit job mints a short-lived token from the
 app's private key (`UPDATER_APP_PRIVATE_KEY`, a repository secret; the id is
-the variable `UPDATER_APP_ID`) on every scheduled run, so a removed
+the variable `UPDATER_APP_ID`), asked for with `permission-contents: write` and
+no other permission, on every scheduled run, so a removed
 installation or a broken key turns into a red run within the hour.
 
 The ruleset on `main` otherwise applies to everyone, humans included, with no
