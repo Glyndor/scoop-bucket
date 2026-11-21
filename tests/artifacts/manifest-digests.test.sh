@@ -170,6 +170,23 @@ check "placing a tampered tree is refused" "1" "$rc"
 check "and the checkout is left as it was" "$before" \
 	"$(cd "$WORK/root" && find bucket -type f | sort | xargs sha256sum)"
 
+# What counts is the tree the next step reads, so the copy is checked too. A
+# `cp` that writes something else than it was given (a full disk, a filesystem
+# that rewrites) must not be taken on trust: put one on PATH that adds a byte.
+tree "$WORK/from"
+bash "$DIGESTS" list "$WORK/from" > "$WORK/from.sha256"
+mkdir -p "$WORK/badcp" "$WORK/root2"
+cat > "$WORK/badcp/cp" <<'CP'
+#!/usr/bin/env bash
+/bin/cp "$@" || exit
+printf 'x' >> "${@: -1}/podup.json"
+CP
+chmod +x "$WORK/badcp/cp"
+rc=0
+PATH="$WORK/badcp:$PATH" bash "$DIGESTS" place "$WORK/from" "$WORK/root2" "$WORK/from.sha256" > "$WORK/out" 2>&1 || rc=$?
+check "a copy that does not match the record is refused" "1" "$rc"
+check "and the message says the files are not the recorded ones" "1" "$(said 'are not the ones the render job recorded')"
+
 # --- usage ----------------------------------------------------------------------
 
 run frobnicate
