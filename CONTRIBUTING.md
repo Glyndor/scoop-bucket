@@ -210,6 +210,13 @@ set, `chmod +x` changes nothing git records, and a test file that landed
 checker walks tracked files on purpose, and a test holds it to that, so run it
 after staging or it will tell you a new file is fine when it is not.
 
+**A new guard brings its catalogue entry.** A change that adds a refusal under
+`scripts/` adds the line of `tests/mutation/catalog.txt` that breaks it and names the
+suite that notices; `tests/mutation/run-mutations.sh <id>` runs that one entry.
+`tests/mutation/catalog-reaches-every-script.test.sh` fails a script that no entry
+mutates at all. A guard added to a file that already has entries is for the review to
+catch, because a count per file cannot tell one guard from another.
+
 ## Workflows
 
 | file | what a red means |

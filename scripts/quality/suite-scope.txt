@@ -584,6 +584,13 @@ tests/ci/suites/lint-job-scope.test.sh
 tests/mutation/run-mutations.test.sh
 	tests/mutation/run-mutations.sh
 
+# The floor under the catalogue reads the catalogue, the runner's list of
+# excluded suites and the names of the scripts it walks, nothing in them.
+tests/mutation/catalog-reaches-every-script.test.sh
+	tests/mutation/catalog.txt
+	tests/mutation/run-mutations.sh
+	scripts/**
+
 # --- the documented command -------------------------------------------------
 
 # The documented test command is read from CONTRIBUTING.md, and the pull

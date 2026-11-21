@@ -12,6 +12,13 @@
 # entry below was checked: with the mutation applied at least one of the named tests
 # fails, and with the tree unmutated every one of them passes.
 #
+# A change that adds a guard adds the entry that breaks it, in the same change,
+# naming the suite that notices. tests/mutation/catalog-reaches-every-script.test.sh
+# holds the floor of that rule on every pull request: a script under scripts/ that
+# no entry mutates fails there, unless its suite is one the runner excludes. It
+# cannot count the guards inside a file, so a guard added without its entry to a
+# file that already has entries is for the review to catch.
+#
 # WHAT IS EXCLUDED, AND WHY
 #
 # The suites are run over a copy of the tree made with `git archive HEAD`, which carries
@@ -132,3 +139,5 @@ trust-constants-readonly	scripts/release/render-manifests.sh	readonly RELEASE_PU
 trust-caps-readonly	scripts/release/render-manifests.sh	MAX_SUMS_BYTES MAX_SIG_BYTES MAX_PQ_SIG_BYTES PQ_SIG_LENGTH	MAX_SUMS_BYTES MAX_SIG_BYTES MAX_PQ_SIG_BYTES	tests/release/release-signature.test.sh
 pq-venv-second-slot	.github/workflows/update.yml	^RELEASE_PQ_PUBKEY2?_B64=	^RELEASE_PQ_PUBKEY(_2)?_B64=	tests/publication/update/update-mldsa-venv.test.sh
 pq-venv-path	.github/workflows/update.yml	PATH="$mldsa_venv/bin:$PATH"	:	tests/publication/update/update-mldsa-venv.test.sh
+suite-on-main-push-filter	scripts/monitoring/check-suite-on-main.sh	?branch=main&head_sha=${PUSH_SHA}&per_page=30"	?branch=main&per_page=30"	tests/monitoring/check-suite-on-main/check-suite-on-main-push.test.sh
+suite-on-main-completed	scripts/monitoring/check-suite-on-main.sh	| map(select(.status == "completed")) as $done	| map(.) as $done	tests/monitoring/check-suite-on-main/check-suite-on-main-order.test.sh
