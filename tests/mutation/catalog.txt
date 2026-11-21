@@ -60,6 +60,7 @@ manifests-arch-keys	scripts/artifacts/check-manifests.sh	ARCH_KEYS='["64bit","32
 manifests-url-dot	scripts/artifacts/check-manifests.sh	github\.com	github.com	tests/artifacts/check-manifests.test.sh
 manifests-hash-anchor	scripts/artifacts/check-manifests.sh	HASH_RE='\A[0-9a-f]{64}\z'	HASH_RE='\A[0-9a-f]{64}'	tests/artifacts/check-manifests.test.sh
 manifests-one-document	scripts/artifacts/check-manifests.sh	if [ "$(jq -s 'length' "$m")" != 1 ]; then	if false; then	tests/artifacts/check-manifests.test.sh
+manifests-roster-unread	scripts/artifacts/check-manifests.sh	if [ ${#roster[@]} -eq 0 ]; then	if false; then	tests/artifacts/check-manifests/check-manifests-binding.test.sh
 products-bucket-symlink	scripts/artifacts/check-products-consistent.sh	if [ -L "$root/bucket" ]; then	if false; then	tests/artifacts/check-products-consistent.test.sh
 products-directory-manifest	scripts/artifacts/check-products-consistent.sh	-o \( -type d -iname '*.json' \)	-o \( -type d -iname '*.xml' \)	tests/artifacts/check-products-consistent.test.sh
 version-downgrade	scripts/artifacts/check-version-monotonic.sh	if precedence(new_version, name) < old:	if False:	tests/artifacts/check-version-monotonic.test.sh
@@ -114,6 +115,7 @@ pins-sha-length	scripts/quality/lint/check-action-pins.sh	if [[ "$ref" =~ ^[0-9a
 pins-no-workflow-file	scripts/quality/lint/check-action-pins.sh	if [ "$files" -eq 0 ]; then	if [ "$files" -eq -1 ]; then	tests/quality/lint/check-action-pins.test.sh
 pins-local-scope	scripts/quality/lint/check-action-pins.sh	./*)	x/*)	tests/quality/lint/check-action-pins.test.sh
 anchors-name-lookup	scripts/quality/hygiene/check-doc-anchors.sh	if ! grep -Fxq -- "$name" <<<"$declared"; then	if ! grep -Fxq -- "$name" <<<""; then	tests/quality/hygiene/check-doc-anchors.test.sh
+anchors-documents-zero	scripts/quality/hygiene/check-doc-anchors.sh	if [ "$documents" -eq 0 ]; then	if false; then	tests/quality/hygiene/check-doc-anchors.test.sh
 dco-updater-app-bot	scripts/governance/check-dco-on-main.sh	"github-actions[bot]"|"glyndor-updater[bot]") return 0 ;;	"github-actions[bot]") return 0 ;;	tests/governance/check-dco-on-main.test.sh
 dco-range-enumeration	scripts/governance/check-dco-on-main.sh	if ! commits="$(git rev-list --no-merges $range)"; then	if ! commits="$(git rev-list --no-merges $range 2>/dev/null || true)"; then	tests/governance/check-dco-on-main.test.sh
 dco-trailer-address	scripts/governance/check-dco-on-main.sh	grep -qE '^Signed-off-by: .+ <[^<>@ ]+@[^<>@ ]+>$'	grep -qE '^Signed-off-by: '	tests/governance/check-dco-on-main.test.sh
@@ -129,6 +131,7 @@ published-asset-cap	scripts/monitoring/check-published-manifests.sh	MAX_ASSET_BY
 reusable-nothing-compared	scripts/monitoring/check-reusable-drift.sh	if [ "$compared" -eq 0 ]; then	if [ "$compared" -eq -1 ]; then	tests/monitoring/check-reusable-drift.test.sh
 reusable-block-comment	scripts/monitoring/check-reusable-drift.sh	inblock && ind > key { print; next }	inblock && ind > key { next }	tests/monitoring/check-reusable-drift.test.sh
 render-strip-comments	scripts/monitoring/check-render-drift.sh	'/^[[:space:]]*#/d'	'/^[[:space:]]*#X/d'	tests/monitoring/check-render-drift.test.sh
+render-drift-compared-zero	scripts/monitoring/check-render-drift.sh	if [ "$compared" -eq 0 ]; then	if false; then	tests/monitoring/check-render-drift.test.sh
 templates-other-platforms	scripts/governance/check-issue-templates.sh	other_platforms="Ubuntu Debian Fedora openSUSE SUSE Arch Alpine Gentoo"	other_platforms="Debian Fedora openSUSE SUSE Arch Alpine Gentoo"	tests/governance/check-issue-templates.test.sh
 templates-os-field	scripts/governance/check-issue-templates.sh	if [ -z "$os_field" ]; then	if false; then	tests/governance/check-issue-templates.test.sh
 scope-candidate-path	scripts/quality/scope/ci-job-scope.sh	if candidate in paths or affects(patterns, paths) or affects(GLOBAL_INPUTS, paths):	if affects(patterns, paths) or affects(GLOBAL_INPUTS, paths):	tests/quality/scope/ci-job-scope-suites.test.sh
@@ -170,6 +173,10 @@ ed-key-length-python	scripts/release/release-signature.sh	    if len(raw) != 32:
 pq-key-length-python	scripts/release/release-signature.sh	    if len(raw) != 1952:	    if False:	tests/release/release-signature.test.sh
 trust-constants-readonly	scripts/release/render-manifests.sh	readonly RELEASE_PUBKEY_B64 RELEASE_PUBKEY2_B64 RELEASE_PQ_PUBKEY_B64 RELEASE_PQ_PUBKEY2_B64 RELEASE_PQ_REQUIRED \	: RELEASE_PUBKEY_B64 RELEASE_PUBKEY2_B64 RELEASE_PQ_PUBKEY_B64 RELEASE_PQ_PUBKEY2_B64 RELEASE_PQ_REQUIRED \	tests/release/release-signature.test.sh
 trust-caps-readonly	scripts/release/render-manifests.sh	MAX_SUMS_BYTES MAX_SIG_BYTES MAX_PQ_SIG_BYTES PQ_SIG_LENGTH	MAX_SUMS_BYTES MAX_SIG_BYTES MAX_PQ_SIG_BYTES	tests/release/release-signature.test.sh
+renderer-manifest-widen	scripts/release/render-manifests.sh	'^[a-z0-9][a-z0-9._-]*$'	'^[a-z0-9][a-z0-9._:-]*$'	tests/release/render-manifests/render-manifests-products.test.sh
+renderer-repository-widen	scripts/release/render-manifests.sh	'^[A-Za-z0-9][A-Za-z0-9._-]*/[A-Za-z0-9][A-Za-z0-9._-]*$'	'^[A-Za-z0-9][A-Za-z0-9._-]*/[A-Za-z0-9][A-Za-z0-9._:-]*$'	tests/release/render-manifests/render-manifests-products.test.sh
+renderer-organization-widen	scripts/release/render-manifests.sh	Glyndor/*) ;;	*/*) ;;	tests/release/render-manifests/render-manifests-products.test.sh
+renderer-asset-widen	scripts/release/render-manifests.sh	'^[A-Za-z0-9][A-Za-z0-9._-]*$'	'^[A-Za-z0-9][A-Za-z0-9._:-]*$'	tests/release/render-manifests/render-manifests-products.test.sh
 pq-venv-second-slot	.github/workflows/update.yml	^RELEASE_PQ_PUBKEY2?_B64=	^RELEASE_PQ_PUBKEY(_2)?_B64=	tests/publication/update/update-mldsa-venv.test.sh
 pq-venv-path	.github/workflows/update.yml	PATH="$mldsa_venv/bin:$PATH"	:	tests/publication/update/update-mldsa-venv.test.sh
 suite-on-main-push-filter	scripts/monitoring/check-suite-on-main.sh	?branch=main&head_sha=${PUSH_SHA}&per_page=30"	?branch=main&per_page=30"	tests/monitoring/check-suite-on-main/check-suite-on-main-push.test.sh
