@@ -121,6 +121,30 @@ for bad in 'Glyndor' 'Glyndor/' '/podup' 'Glyndor/pod"up' 'Glyndor/a/b' 'Gl yndo
 	check "and it is named as an invalid repository ($bad)" "1" "$(grep -c 'invalid repository' "$WORK/out" || true)"
 done
 
+# The edge of each rule, one character outside it. The lists above name hostile
+# values, none of which a rule widened by one more allowed character would admit,
+# so a pattern loosened to take a colon or any organization passed them all.
+edge() { # $1=what $2=row $3=message the refusal must carry
+	local root_case="$WORK/edge-${1//[^A-Za-z0-9]/_}"
+	new_root "$root_case"
+	raw_generator "$root_case/scripts/release/render-manifests.sh" "$2"
+	rc=0; run "$root_case/scripts/release/render-manifests.sh" "$root_case" || rc=$?
+	check "$1 is refused" "3 1" "$rc $(grep -c -- "$3" "$WORK/out" || true)"
+}
+for bad in 'pod:up' 'Podup' '.podup' '_podup' 'pod+up'; do
+	edge "the manifest name [$bad]" "Glyndor/podup|$bad|desc|podup-windows-x86_64.exe|-" "invalid manifest name"
+done
+for bad in 'Glyndor/pod:up' 'Glyndor/-podup' 'Glyndor/pod+up'; do
+	edge "the repository [$bad]" "$bad|podup|desc|podup-windows-x86_64.exe|-" "invalid repository"
+done
+for bad in 'EvilCorp/podup' 'glyndor/podup' 'Glyndor-x/podup'; do
+	edge "the repository [$bad]" "$bad|podup|desc|podup-windows-x86_64.exe|-" "outside the Glyndor organization"
+done
+for bad in 'a:b' '.hidden' 'a#b' 'a+b'; do
+	edge "the asset [$bad] in slot 3" "Glyndor/podup|podup|desc|$bad|-" "invalid asset name in a64"
+	edge "the asset [$bad] in slot 4" "Glyndor/podup|podup|desc|podup-windows-x86_64.exe|$bad" "invalid asset name in aarm"
+done
+
 echo
 echo "$pass passed, $fail failed"
 printf 'DONE %s %d %d\n' "${BASH_SOURCE[0]##*/}" "$pass" "$fail"
