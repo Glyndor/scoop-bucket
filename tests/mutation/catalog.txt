@@ -173,6 +173,10 @@ ed-key-length-python	scripts/release/release-signature.sh	    if len(raw) != 32:
 pq-key-length-python	scripts/release/release-signature.sh	    if len(raw) != 1952:	    if False:	tests/release/release-signature.test.sh
 trust-constants-readonly	scripts/release/render-manifests.sh	readonly RELEASE_PUBKEY_B64 RELEASE_PUBKEY2_B64 RELEASE_PQ_PUBKEY_B64 RELEASE_PQ_PUBKEY2_B64 RELEASE_PQ_REQUIRED \	: RELEASE_PUBKEY_B64 RELEASE_PUBKEY2_B64 RELEASE_PQ_PUBKEY_B64 RELEASE_PQ_PUBKEY2_B64 RELEASE_PQ_REQUIRED \	tests/release/release-signature.test.sh
 trust-caps-readonly	scripts/release/render-manifests.sh	MAX_SUMS_BYTES MAX_SIG_BYTES MAX_PQ_SIG_BYTES PQ_SIG_LENGTH	MAX_SUMS_BYTES MAX_SIG_BYTES MAX_PQ_SIG_BYTES	tests/release/release-signature.test.sh
+renderer-manifest-widen	scripts/release/render-manifests.sh	'^[a-z0-9][a-z0-9._-]*$'	'^[a-z0-9][a-z0-9._:-]*$'	tests/release/render-manifests/render-manifests-products.test.sh
+renderer-repository-widen	scripts/release/render-manifests.sh	'^[A-Za-z0-9][A-Za-z0-9._-]*/[A-Za-z0-9][A-Za-z0-9._-]*$'	'^[A-Za-z0-9][A-Za-z0-9._-]*/[A-Za-z0-9][A-Za-z0-9._:-]*$'	tests/release/render-manifests/render-manifests-products.test.sh
+renderer-organization-widen	scripts/release/render-manifests.sh	Glyndor/*) ;;	*/*) ;;	tests/release/render-manifests/render-manifests-products.test.sh
+renderer-asset-widen	scripts/release/render-manifests.sh	'^[A-Za-z0-9][A-Za-z0-9._-]*$'	'^[A-Za-z0-9][A-Za-z0-9._:-]*$'	tests/release/render-manifests/render-manifests-products.test.sh
 pq-venv-second-slot	.github/workflows/update.yml	^RELEASE_PQ_PUBKEY2?_B64=	^RELEASE_PQ_PUBKEY(_2)?_B64=	tests/publication/update/update-mldsa-venv.test.sh
 pq-venv-path	.github/workflows/update.yml	PATH="$mldsa_venv/bin:$PATH"	:	tests/publication/update/update-mldsa-venv.test.sh
 suite-on-main-push-filter	scripts/monitoring/check-suite-on-main.sh	?branch=main&head_sha=${PUSH_SHA}&per_page=30"	?branch=main&per_page=30"	tests/monitoring/check-suite-on-main/check-suite-on-main-push.test.sh
