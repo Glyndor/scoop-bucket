@@ -104,6 +104,12 @@ tests/ci/suites/check-suite-completeness.test.sh
 	scripts/**
 	.github/workflows/**
 
+# The reader of a workflow step is the fixture, and the suite is its only input.
+
+tests/ci/suites/step-script.test.sh
+	tests/fixtures/ci/step-script.sh
+	tests/ci/suites/step-script.test.sh
+
 # Its verdict case runs the real runner over suites it writes itself, so the
 # runner and the case are the whole of its input.
 
@@ -215,6 +221,7 @@ tests/publication/update/update-workflow.test.sh
 	scripts/release/render-manifests.sh
 	tests/fixtures/publication/**
 	tests/publication/update/**
+	tests/fixtures/ci/step-script.sh
 
 # The key isolation suite reads the workflow's structure and nothing it runs.
 
@@ -222,6 +229,7 @@ tests/publication/update/update-key-isolation.test.sh
 	.github/workflows/update.yml
 	tests/fixtures/publication/**
 	tests/publication/update/**
+	tests/fixtures/ci/step-script.sh
 
 # The hand-off suite runs the two digest steps of the workflow against the
 # real digest script and the real manifest gate.
@@ -233,6 +241,7 @@ tests/publication/update/update-digest-handoff.test.sh
 	scripts/artifacts/manifest-digests.sh
 	tests/fixtures/publication/**
 	tests/publication/update/**
+	tests/fixtures/ci/step-script.sh
 
 tests/publication/update/update-mldsa-venv.test.sh
 	.github/workflows/update.yml
@@ -591,20 +600,25 @@ tests/monitoring/published-url-rules-agree.test.sh
 tests/ci/reusable/reusable-line-limit.test.sh
 	.github/workflows/reusable-line-limit.yml
 	.github/workflows/line-limit.yml
+	tests/fixtures/ci/step-script.sh
 
 tests/ci/reusable/reusable-shell-ci.test.sh
 	.github/workflows/reusable-shell-ci.yml
 	scripts/quality/scope/suite-dependencies.txt
 	.github/workflows/tests.yml
+	tests/fixtures/ci/step-script.sh
 
 tests/ci/reusable/reusable-empty-diff.test.sh
 	.github/workflows/reusable-empty-diff.yml
+	tests/fixtures/ci/step-script.sh
 
 tests/ci/reusable/reusable-dco.test.sh
 	.github/workflows/reusable-dco.yml
+	tests/fixtures/ci/step-script.sh
 
 tests/ci/reusable/reusable-dependabot-freshness.test.sh
 	.github/workflows/reusable-dependabot-freshness.yml
+	tests/fixtures/ci/step-script.sh
 
 tests/ci/reusable/reusable-schedule-freshness.test.sh
 	.github/workflows/reusable-schedule-freshness.yml
