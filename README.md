@@ -42,6 +42,14 @@ the latest one, until Scoop next refreshes the bucket by itself.
 comes from a `SHA256SUMS` this repository verified against the organisation's
 Ed25519 release key first, the same key the products embed.
 
+The verifier also accepts a second signature beside the Ed25519 one: an
+ML-DSA-65 (FIPS 204) signature over the same `SHA256SUMS`. It is a hybrid and
+never a replacement, so the Ed25519 signature is checked first and always, and
+the second one is checked whenever the release carries it. No product publishes
+that second signature yet, so every release today is admitted exactly as it was
+before, and the second signature only starts to protect a release once one
+carries it.
+
 `scoop` reads this repository straight from GitHub, so there is no separate
 server in the path, and a download whose bytes do not match the pinned SHA-256
 is refused.

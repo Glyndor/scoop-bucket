@@ -45,6 +45,7 @@ fails when one does not.
 | The manifests | `bucket/*.json`, one per row of `PRODUCTS` (`scripts/release/render-manifests.sh#PRODUCTS`) | what `scoop install` reads; the commit is the release |
 | The rendered hashes | `architecture.<arch>.hash` (`bucket/podup.json#hash`) | the thing binding a download to the verified release; copied from a signed `SHA256SUMS` and compared with the downloaded asset digest before rendering (`scripts/release/render-manifests.sh#hash_of`, `scripts/release/render-manifests.sh#verify_attestation`), then independently checked against the bytes the release URL serves after publication (`scripts/monitoring/check-published-manifests.sh#check_asset`) |
 | The organization's Ed25519 release public key | `RELEASE_PUBKEY_B64` (`scripts/release/render-manifests.sh#RELEASE_PUBKEY_B64`), with a second slot (`scripts/release/render-manifests.sh#RELEASE_PUBKEY2_B64`) | the trust anchor; a wrong value fails every render closed (`scripts/release/render-manifests.sh#verify_sha256sums`) |
+| The organization's ML-DSA-65 release public key | `RELEASE_PQ_PUBKEY_B64` (`scripts/release/render-manifests.sh#RELEASE_PQ_PUBKEY_B64`), with a second slot (`scripts/release/render-manifests.sh#RELEASE_PQ_PUBKEY2_B64`) and the list of products whose second signature is required (`scripts/release/render-manifests.sh#RELEASE_PQ_REQUIRED`) | the second half of the hybrid release signature; empty today, and no product carries that signature yet |
 | `main` | the branch the bot commits to (`.github/workflows/update.yml#Commit the update to main (GitHub-signed)`) and Scoop clones | it is the published artifact; no build and no review stand between a commit and `scoop install` |
 
 ## Trust boundaries and actors
@@ -90,6 +91,7 @@ fails when one does not.
 |---|---|---|
 | A release asset is tampered with (the bytes differ from what the product signed) | the manifest hash comes from `SHA256SUMS` after its signature verified, so the tampered download fails Scoop's hash check | test: `tests/release/render-manifests.test.sh#the 64bit hash is the one the signed manifest declares` |
 | `SHA256SUMS.sig` is missing, altered or signed by someone else | `verify_sha256sums` fails closed (`scripts/release/render-manifests.sh#verify_sha256sums`): the product is skipped, its manifest untouched, and the job ends red (`.github/workflows/update.yml#Fail if any product was skipped`) | test: `tests/release/render-manifests.test.sh#an unverifiable signature skips the product`; `tests/release/render-manifests.test.sh#and writes no manifest`; `tests/release/render-manifests.test.sh#the run still fails, so the skip is not silent` |
+| A release carries a second signature, an ML-DSA-65 one, and it is not checked, or it is left out where it is required | the Ed25519 signature is checked first and always, and a second signature is checked whenever the release carries it: one that does not verify is refused, one that arrives with no key configured is refused, and a product named in `RELEASE_PQ_REQUIRED` is refused without one (`scripts/release/render-manifests.sh#verify_sha256sums`, `scripts/release/render-manifests.sh#RELEASE_PQ_REQUIRED`) | test: none yet; the six cases of the hybrid signature are being written |
 | The signing key is wrong, stale or rotated under the bucket | a key that did not sign the release fails every render; no environment variable can replace the constant (`scripts/release/render-manifests.sh#RELEASE_PUBKEY_B64`) | test: `tests/release/render-manifests.test.sh#the environment cannot swap the trust anchor`; `tests/release/render-manifests.test.sh#a well-formed key that did not sign it fails as a signature`; `tests/release/render-manifests.test.sh#two wrong keys still fail closed` |
 | `SHA256SUMS` is well signed but malformed (an asset listed twice, a non-hex or short digest) | `hash_of` demands exactly one 64-character hex entry per asset (`scripts/release/render-manifests.sh#hash_of`) | test: `tests/release/render-manifests.test.sh#an asset listed twice is rejected`; `tests/release/render-manifests.test.sh#a non-hexadecimal checksum is rejected`; `tests/release/render-manifests.test.sh#a short digest is rejected` |
 | A release tag carries code or a path | the version is held to a fixed character set before it is interpolated (`scripts/release/render-manifests.sh#version_guard`) | test: `tests/release/render-manifests.test.sh#a release tag carrying code is refused` |
@@ -188,6 +190,12 @@ The bucket stays on the last version it could verify; the freshness watcher
 reports 24 hours without a successful scheduled update. Nothing unverified
 ships, but the channel stops advancing.
 
+The ML-DSA-65 key has the same two slots (`scripts/release/render-manifests.sh#RELEASE_PQ_PUBKEY_B64`,
+`scripts/release/render-manifests.sh#RELEASE_PQ_PUBKEY2_B64`) and the same
+overlap, and the two channels carry the same key material: a rotation that
+lands in one of them and not the other is reported as drift by
+`scripts/monitoring/check-render-drift.sh#UNITS`.
+
 Tests: `tests/release/render-manifests.test.sh#a release signed by the second key
 still verifies`; `tests/release/render-manifests.test.sh#the first key alone still verifies`;
 `tests/release/render-manifests.test.sh#two wrong keys still fail closed`.
@@ -246,7 +254,7 @@ oversights.
 
 ```sh
 git clone https://github.com/Glyndor/scoop-bucket && cd scoop-bucket
-grep -n 'RELEASE_PUBKEY' scripts/release/render-manifests.sh             # the two slots
+grep -n 'RELEASE_PUBKEY\|RELEASE_PQ' scripts/release/render-manifests.sh   # the key slots and the required list
 grep -n 'timeout-minutes\|group:\|contents:' .github/workflows/update.yml
 grep -c 'persist-credentials: false' .github/workflows/*.yml     # one per checkout
 grep -n 'uses:' .github/workflows/*.yml                          # no third-party action
