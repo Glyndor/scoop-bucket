@@ -71,6 +71,7 @@ tests/ci/policy/rules/network-calls-are-bounded.test.sh -
 tests/mutation/run-mutations.test.sh -
 
 # python3-yaml
+tests/ci/reusable/reusable-schedule-freshness/reusable-schedule-freshness-grace.test.sh python3-yaml
 tests/publication/update/update-key-isolation.test.sh python3-yaml
 tests/publication/update/update-digest-handoff.test.sh python3-yaml
 tests/ci/policy/workflows/workflow-publish-triggers.test.sh python3-yaml
