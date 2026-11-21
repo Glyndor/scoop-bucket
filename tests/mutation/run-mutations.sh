@@ -82,13 +82,13 @@ REPO="$(cd "$REPO" 2>/dev/null && pwd)" || {
 #       pull request may narrow the suite set: there is no HEAD^1 in a copy made
 #       with `git archive`.
 #
-#   tests/quality/check-editorconfig.test.sh
+#   tests/quality/hygiene/check-editorconfig.test.sh
 #       The gate it covers enumerates the files with `git ls-files`. A copy made
 #       with `git archive` is not a repository, so the walk finds nothing, and a
 #       gate that inspected nothing is the failure this gate exists to catch.
 EXCLUDED=(
 	"tests/ci/suites/check-suite-completeness.test.sh"
-	"tests/quality/check-editorconfig.test.sh"
+	"tests/quality/hygiene/check-editorconfig.test.sh"
 )
 
 is_excluded() { # <test path>
