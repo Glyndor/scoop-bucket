@@ -196,6 +196,18 @@ overlap, and the two channels carry the same key material: a rotation that
 lands in one of them and not the other is reported as drift by
 `scripts/monitoring/check-render-drift.sh#UNITS`.
 
+The second signature has a switch besides its key: `RELEASE_PQ_REQUIRED`
+(`scripts/release/render-manifests.sh#RELEASE_PQ_REQUIRED`), the products whose second
+signature is required. It is empty today, here and in Glyndor/homebrew-tap. The order is:
+the ML-DSA-65 public key goes into a slot in both channels; a product starts to
+sign with both keys; and once a release of it has been verified here with both
+signatures, the product is named in the list in both channels. From that commit
+on, a release of that product without its second signature is refused. Before
+it, a second signature is checked whenever a release carries one, and it stops
+nobody who can forge the Ed25519 one, since that forger leaves it out. The list
+is part of what `scripts/monitoring/check-render-drift.sh#UNITS` compares
+between the channels, like the keys.
+
 Tests: `tests/release/render-manifests.test.sh#a release signed by the second key
 still verifies`; `tests/release/render-manifests.test.sh#the first key alone still verifies`;
 `tests/release/render-manifests.test.sh#two wrong keys still fail closed`.
@@ -239,6 +251,11 @@ oversights.
 - **The release key is shared across products** and held by each product's
   release job. This repository can rotate what it trusts; it cannot see a
   compromise upstream.
+- **The second signature is optional until a product is required.** No
+  product is in `RELEASE_PQ_REQUIRED` today, so every release is admitted on
+  its Ed25519 signature alone, and a forger of that signature is not stopped by
+  the ML-DSA-65 check. The list is edited by hand in both channels, in the order
+  the key rotation section gives.
 
 ## Out of scope
 
@@ -260,6 +277,7 @@ grep -c 'persist-credentials: false' .github/workflows/*.yml     # one per check
 grep -n 'uses:' .github/workflows/*.yml                          # no third-party action
 bash scripts/quality/check-doc-anchors.sh                       # every reference above resolves
 ./tests/release/render-manifests.test.sh                                 # signature, slots, tag, digests
+./tests/release/release-signature.test.sh                                # the second signature, without the ML-DSA library
 ./tests/publication/update/update-workflow.test.sh                                  # the job's own run: blocks
 ./tests/artifacts/check-manifests.test.sh                                  # what jq refuses
 ./tests/monitoring/check-published-manifests.test.sh                      # published bytes match their digests
