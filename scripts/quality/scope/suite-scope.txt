@@ -363,11 +363,18 @@ tests/ci/policy/workflows/dependabot-groups.test.sh
 tests/ci/policy/workflows/workflow-publish-triggers.test.sh
 	.github/workflows/update.yml
 
-# The published-bytes gate reads the workflow it covers.
+# The published-bytes gate reads the workflow it covers, and the files that
+# workflow runs or loads, which its paths filter has to name.
 
 tests/ci/policy/workflows/published-bytes-order.test.sh
 	.github/workflows/published-bytes.yml
 	.github/workflows/update.yml
+	scripts/artifacts/check-manifests.sh
+	scripts/monitoring/check-published-manifests.sh
+	scripts/release/render-manifests.sh
+	scripts/release/release-signature.sh
+	scripts/release/products.sh
+	scripts/release/render-requirements.txt
 
 # The freshness gates read the workflow that fires them and the reusables it
 # names. The path filter of freshness.yml lists those reusables and the two

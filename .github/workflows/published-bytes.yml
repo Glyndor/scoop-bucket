@@ -27,6 +27,9 @@ on:
       - bucket/**
       - scripts/artifacts/check-manifests.sh
       - scripts/release/render-manifests.sh
+      - scripts/release/release-signature.sh
+      - scripts/release/products.sh
+      - scripts/release/render-requirements.txt
       - scripts/monitoring/check-published-manifests.sh
       - .github/workflows/published-bytes.yml
 

@@ -178,6 +178,69 @@ check "with a condition on the job that holds the product check it is reported" 
 check "with the checks in different jobs it is reported" "the two checks are in different jobs" "$(verdict "$WORK/c/split.yml")"
 check "with continue-on-error on the product check it is reported" "the product check can be skipped or can fail without stopping the job" "$(verdict "$WORK/c/softened.yml")"
 
+# The push trigger of the workflow is filtered by `paths:`. A file the job runs or loads
+# that the filter does not name can change without the job running: the daily schedule
+# is then the only thing that looks at it. So every file the job runs, and every file
+# those files name by basename (a `.`/`source` of the signature verifier, the roster
+# reader), has to match a pattern of each `paths:` list. A basename mentioned only in a
+# message is counted too: the filter then names a file it need not, which is the safe side.
+paths_verdict() { # $1 = workflow file -> "ok", or the files the filter does not name
+	python3 - "$1" "$HERE" <<'PY'
+import fnmatch, pathlib, re, sys, yaml
+doc = yaml.safe_load(open(sys.argv[1]))
+root = pathlib.Path(sys.argv[2])
+def code(text):
+    return "\n".join(l for l in text.splitlines() if not l.lstrip().startswith("#"))
+seed = set()
+for job in doc["jobs"].values():
+    for step in job.get("steps", []):
+        for m in re.findall(r"(?<![\w./-])(?:\./)?((?:scripts|tests|\.github)/[\w./-]+)", code(step.get("run", ""))):
+            if (root / m).is_file():
+                seed.add(m)
+names = {str(f.relative_to(root)): f.name for f in (root / "scripts").rglob("*") if f.is_file()}
+used, todo = set(seed), list(seed)
+while todo:
+    text = code((root / todo.pop()).read_text())
+    for path, name in names.items():
+        if path not in used and name in text:
+            used.add(path)
+            todo.append(path)
+triggers = doc.get("on", doc.get(True)) or {}
+filters = [t["paths"] for t in triggers.values() if isinstance(t, dict) and "paths" in t]
+if not filters or not used:
+    print("the workflow has no paths filter, or the job runs no file of the repository")
+    sys.exit(0)
+missing = sorted(f for f in used if not all(any(fnmatch.fnmatchcase(f, p) for p in flt) for flt in filters))
+print("the paths filter does not name " + ", ".join(missing) if missing else "ok")
+PY
+}
+check "the live paths filter names every file the job runs or loads" "ok" \
+	"$(paths_verdict "$HERE/.github/workflows/published-bytes.yml")"
+python3 - "$HERE/.github/workflows/published-bytes.yml" "$WORK/c" <<'PY'
+import copy, sys, yaml
+doc = yaml.safe_load(open(sys.argv[1]))
+def write(name, edit):
+    d = copy.deepcopy(doc)
+    edit(d)
+    yaml.safe_dump(d, open(f"{sys.argv[2]}/{name}.yml", "w"), sort_keys=False)
+def unname(path):
+    def edit(d):
+        d[True]["push"]["paths"].remove(path)
+    return edit
+def extra_script(d):
+    next(iter(d["jobs"].values()))["steps"].append({"run": "bash ./scripts/quality/lint/check-action-pins.sh"})
+write("paths-no-signature", unname("scripts/release/release-signature.sh"))
+write("paths-no-roster-reader", unname("scripts/release/products.sh"))
+write("paths-no-renderer", unname("scripts/release/render-manifests.sh"))
+write("paths-no-requirements", unname("scripts/release/render-requirements.txt"))
+write("paths-extra-script", extra_script)
+PY
+check "a filter without the signature verifier is reported" "the paths filter does not name scripts/release/release-signature.sh" "$(paths_verdict "$WORK/c/paths-no-signature.yml")"
+check "a filter without the roster reader is reported" "the paths filter does not name scripts/release/products.sh" "$(paths_verdict "$WORK/c/paths-no-roster-reader.yml")"
+check "a filter without the renderer is reported" "the paths filter does not name scripts/release/render-manifests.sh" "$(paths_verdict "$WORK/c/paths-no-renderer.yml")"
+check "a filter without the wheel requirements is reported" "the paths filter does not name scripts/release/render-requirements.txt" "$(paths_verdict "$WORK/c/paths-no-requirements.yml")"
+check "a step that runs a file the filter does not name is reported" "the paths filter does not name scripts/quality/lint/check-action-pins.sh" "$(paths_verdict "$WORK/c/paths-extra-script.yml")"
+
 echo "$pass passed, $fail failed"
 printf 'DONE %s %d %d\n' "${BASH_SOURCE[0]##*/}" "$pass" "$fail"
 [ "$fail" -eq 0 ]
