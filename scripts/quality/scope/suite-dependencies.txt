@@ -115,3 +115,4 @@ tests/quality/lint/lint-workflow-shell.test.sh shellcheck
 
 # shellcheck, python3-yaml
 tests/ci/reusable/reusable-shell-ci.test.sh shellcheck python3-yaml
+tests/quality/scope/suite-scope-map.test.sh -
