@@ -222,14 +222,37 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
 
+      # What this step prints decides whether the watcher below runs, so a pull
+      # request must not be the one that writes it. In a pull request the script
+      # is the copy in the base commit (HEAD^1 of the merge commit), taken to a
+      # temporary file; anywhere else it is the one in the checkout. There is one
+      # invocation, and only where `$script` comes from changes. The result is
+      # exactly `ready=true` or `ready=false`. A base that cannot be read, one
+      # that has no such script and any other output give `ready=true`, so the
+      # watcher runs: a failure here never skips it. The whole value is compared,
+      # because a line break in it would write another key into the outputs.
       - name: Check whether published-bytes has scheduled-run history
         id: check
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
+          EVENT: ${{ github.event_name }}
         run: |
           set -euo pipefail
-          ready="$(bash ./scripts/monitoring/check-schedule-history-ready.sh published-bytes.yml 3)"
+          path=scripts/monitoring/check-schedule-history-ready.sh
+          script="$path"
+          if [ "$EVENT" = pull_request ]; then
+            copy="$(mktemp "$RUNNER_TEMP/history-ready.XXXXXX")"
+            trap 'rm -f "$copy"' EXIT
+            if git show "HEAD^1:$path" > "$copy" 2>/dev/null; then script="$copy"; else script=""; fi
+          fi
+          ready=ready=true
+          if [ -n "$script" ]; then
+            printed="$(bash "$script" published-bytes.yml 3)"
+            case "$printed" in
+              ready=true | ready=false) ready="$printed" ;;
+            esac
+          fi
           echo "$ready" >> "$GITHUB_OUTPUT"
 
   freshness-published-bytes:

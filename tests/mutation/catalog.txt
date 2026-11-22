@@ -161,7 +161,6 @@ tools-verdict	scripts/monitoring/check-tool-versions.sh	if problems or behind:	i
 tools-lag-constant	scripts/monitoring/check-tool-versions.sh	lag_days = LAG_DAYS	lag_days = int(os.environ.get("MAX_LAG_DAYS", LAG_DAYS))	tests/monitoring/check-tool-versions.test.sh
 tools-overrides	scripts/monitoring/check-tool-versions.sh	            if given:	            if False:	tests/monitoring/check-tool-versions.test.sh
 fresh-mutation-watched	.github/workflows/freshness.yml	      workflow: mutation.yml	      workflow: unwatched.yml	tests/ci/policy/workflows/scheduled-workflows-are-watched.test.sh
-fresh-published-bytes-readiness-call	.github/workflows/freshness.yml	ready="$(bash ./scripts/monitoring/check-schedule-history-ready.sh published-bytes.yml 3)"	ready="$(bash -c ':')"	tests/ci/policy/workflows/workflows-run-their-scripts.test.sh
 shell-pinned-shellcheck	.github/workflows/reusable-shell-ci.yml	            if [ "$package" = shellcheck ]; then	            if false; then	tests/ci/reusable/reusable-shell-ci.test.sh
 shell-pinned-sha256	.github/workflows/reusable-shell-ci.yml	            printf '%s  %s\n' "$SHELLCHECK_SHA256" "$tarball" | sha256sum -c -	            true	tests/ci/reusable/reusable-shell-ci.test.sh
 grace-shallow	.github/workflows/reusable-schedule-freshness.yml	              && [ "$(git rev-parse --is-shallow-repository 2>/dev/null)" = false ]; then	              ; then	tests/ci/reusable/reusable-schedule-freshness/reusable-schedule-freshness-grace.test.sh
@@ -410,9 +409,20 @@ lint-pin-diff-verdict	scripts/quality/lint/check-test-job-not-switchable.sh	diff
 lint-run-events	scripts/quality/lint/check-test-job-not-switchable.sh	runs_pr = bool(PULL_REQUEST_EVENTS & set(events if isinstance(events, (dict, list)) else [events]))	runs_pr = True	tests/quality/lint/check-test-job-not-switchable-jobs.test.sh
 lint-run-event-target	scripts/quality/lint/check-test-job-not-switchable.sh	PULL_REQUEST_EVENTS = {"pull_request", "pull_request_target", "workflow_call"}	PULL_REQUEST_EVENTS = {"pull_request", "workflow_call"}	tests/quality/lint/check-test-job-not-switchable-jobs.test.sh
 lint-run-event-call	scripts/quality/lint/check-test-job-not-switchable.sh	PULL_REQUEST_EVENTS = {"pull_request", "pull_request_target", "workflow_call"}	PULL_REQUEST_EVENTS = {"pull_request", "pull_request_target"}	tests/quality/lint/check-test-job-not-switchable-jobs.test.sh
-lint-run-listed	scripts/quality/lint/check-test-job-not-switchable.sh	not in PRODUCER_RUNS_CHECKOUT	not in ()	tests/quality/lint/check-test-job-not-switchable-jobs.test.sh
-lint-run-listed-job	scripts/quality/lint/check-test-job-not-switchable.sh	(path, ident if kind == "needs" else job_id) not in	(path, job_id) not in	tests/quality/lint/check-test-job-not-switchable-jobs.test.sh
 lint-run-case-arm	scripts/quality/lint/check-test-job-not-switchable.sh	re.sub(r"(?m)^\s*[^\s()]+\)", "",	re.sub(r"(?m)^\s*[^\s()]+\)x", "",	tests/quality/lint/check-test-job-not-switchable-jobs.test.sh
 lint-run-interpreter	scripts/quality/lint/check-test-job-not-switchable.sh	(?:(?:bash|sh|python3?|source|\.)\s+(?:-\S+\s+)*)?	(?:(?:sh|python3?|source|\.)\s+(?:-\S+\s+)*)?	tests/quality/lint/check-test-job-not-switchable-jobs.test.sh
 lint-run-dot-slash	scripts/quality/lint/check-test-job-not-switchable.sh	[\"']?(?:\./)?((?:scripts|tests|keyring|\.github)/	[\"']?((?:scripts|tests|keyring|\.github)/	tests/quality/lint/check-test-job-not-switchable-jobs.test.sh
 lint-run-verdict	scripts/quality/lint/check-test-job-not-switchable.sh	if runs_pr and any(RUN_FROM_CHECKOUT.search(r) for r in runs)	if runs_pr and False	tests/quality/lint/check-test-job-not-switchable-jobs.test.sh
+fresh-published-bytes-readiness-call	.github/workflows/freshness.yml	printed="$(bash "$script" published-bytes.yml 3)"	printed="$(bash -c ':')"	tests/ci/policy/workflows/workflows-run-their-scripts.test.sh,tests/ci/policy/workflows/published-bytes-ready-step.test.sh
+fresh-ready-path	.github/workflows/freshness.yml	path=scripts/monitoring/check-schedule-history-ready.sh	path=scripts/monitoring/check-schedule-history-readyx.sh	tests/ci/policy/workflows/workflows-run-their-scripts.test.sh,tests/ci/policy/workflows/published-bytes-ready-step.test.sh
+fresh-ready-script-var	.github/workflows/freshness.yml	script="$path"	script=""	tests/ci/policy/workflows/published-bytes-ready-step.test.sh
+fresh-ready-event	.github/workflows/freshness.yml	if [ "$EVENT" = pull_request ]; then	if false; then	tests/ci/policy/workflows/published-bytes-ready-step.test.sh
+fresh-ready-base-ref	.github/workflows/freshness.yml	git show "HEAD^1:$path"	git show "HEAD:$path"	tests/ci/policy/workflows/published-bytes-ready-step.test.sh
+fresh-ready-base-missing	.github/workflows/freshness.yml	; then script="$copy"; else script=""; fi	; then script="$copy"; else script="$path"; fi	tests/ci/policy/workflows/published-bytes-ready-step.test.sh
+fresh-ready-exact	.github/workflows/freshness.yml	ready=true | ready=false) ready="$printed" ;;	*) ready="$printed" ;;	tests/ci/policy/workflows/published-bytes-ready-step.test.sh
+fresh-ready-default	.github/workflows/freshness.yml	ready=ready=true	ready=ready=false	tests/ci/policy/workflows/published-bytes-ready-step.test.sh
+fresh-ready-empty-script	.github/workflows/freshness.yml	if [ -n "$script" ]; then	if true; then	tests/ci/policy/workflows/published-bytes-ready-step.test.sh
+fresh-ready-output	.github/workflows/freshness.yml	echo "$ready" >> "$GITHUB_OUTPUT"	echo "$printed" >> "$GITHUB_OUTPUT"	tests/ci/policy/workflows/published-bytes-ready-step.test.sh
+fresh-ready-trap	.github/workflows/freshness.yml	trap 'rm -f "$copy"' EXIT	:	tests/ci/policy/workflows/published-bytes-ready-step.test.sh
+lint-run-listed	scripts/quality/lint/check-test-job-not-switchable.sh	not in PRODUCER_RUNS_CHECKOUT	not in ()	tests/quality/lint/check-test-job-not-switchable-jobs.test.sh
+lint-run-listed-job	scripts/quality/lint/check-test-job-not-switchable.sh	(path, ident if kind == "needs" else job_id) not in	(path, job_id) not in	tests/quality/lint/check-test-job-not-switchable-jobs.test.sh

@@ -263,6 +263,10 @@ oversights.
   or for three days after the workflow entered the branch
   (`scripts/monitoring/check-schedule-history-ready.sh`). Before that, there is
   no cadence to measure and a missing run is expected rather than a failure.
+  The answer decides whether the watcher runs, so in a pull request the step
+  runs the copy of that script in the base commit, and anything it prints but
+  `ready=true` or `ready=false` counts as `ready=true`: the pull request cannot
+  switch the watcher off by editing the script.
 - **The release key is shared across products** and held by each product's
   release job. This repository can rotate what it trusts; it cannot see a
   compromise upstream.

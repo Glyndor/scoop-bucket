@@ -95,6 +95,7 @@ tests/ci/policy/workflows/workflow-shape.test.sh python3-yaml
 tests/ci/policy/workflows/persist-credentials.test.sh python3-yaml
 tests/ci/policy/workflows/pull-request-runs-are-superseded.test.sh python3-yaml
 tests/ci/policy/workflows/freshness-pr-scope.test.sh python3-yaml
+tests/ci/policy/workflows/published-bytes-ready-step.test.sh -
 tests/ci/policy/workflows/scheduled-workflows-are-watched.test.sh python3-yaml
 tests/ci/policy/workflows/freshness-poll-concurrency.test.sh python3-yaml
 tests/ci/policy/workflows/dependabot-groups.test.sh python3-yaml

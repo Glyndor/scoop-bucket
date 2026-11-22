@@ -380,6 +380,11 @@ tests/ci/policy/workflows/published-bytes-order.test.sh
 # names. The path filter of freshness.yml lists those reusables and the two
 # monitoring scripts, so a change to any of them changes what the filter says.
 
+tests/ci/policy/workflows/published-bytes-ready-step.test.sh
+	.github/workflows/freshness.yml
+	scripts/monitoring/check-schedule-history-ready.sh
+	tests/fixtures/ci/step-script.sh
+
 tests/ci/policy/workflows/freshness-pr-scope.test.sh
 	.github/workflows/freshness.yml
 	.github/workflows/reusable-dependabot-freshness.yml
