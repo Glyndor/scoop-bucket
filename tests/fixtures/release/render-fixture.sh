@@ -205,6 +205,9 @@ for ((i = 0; i < ${#args[@]}; i++)); do
 done
 [ -n "$output" ] || { echo "curl stub: no -o output" >&2; exit 1; }
 [ -n "$url" ] || { echo "curl stub: no url" >&2; exit 1; }
+# CURL_STUB_LOG, when set, receives one line per transfer asked for, so a test can
+# count how many times a release was read.
+if [ -n "${CURL_STUB_LOG:-}" ]; then echo "$url" >> "$CURL_STUB_LOG"; fi
 # https://github.com/owner/repo/releases/download/TAG/ASSET
 path="${url#https://github.com/}"
 owner_repo="${path%%/releases/download/*}"
@@ -216,6 +219,13 @@ fixture="$RELEASES/$slug/asset_${asset}"
 case "$asset" in
 	SHA256SUMS|SHA256SUMS.sig|SHA256SUMS.mldsa65.sig) fixture="$RELEASES/$slug/$asset" ;;
 esac
+# A second release of the same repository, kept under tags/<tag>/ beside the current one.
+if [ -d "$RELEASES/$slug/tags/$tag" ]; then
+	fixture="$RELEASES/$slug/tags/$tag/asset_${asset}"
+	case "$asset" in
+		SHA256SUMS|SHA256SUMS.sig|SHA256SUMS.mldsa65.sig) fixture="$RELEASES/$slug/tags/$tag/$asset" ;;
+	esac
+fi
 # A test can play a server that answers the second signature with another
 # status, or a transfer that breaks: CURL_STUB_PQ_STATUS is the status the
 # stub reports for it, and CURL_STUB_PQ_RC the exit status it ends with. The

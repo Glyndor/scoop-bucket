@@ -49,6 +49,17 @@ verify "$WORK/ok"
 check "a manifest whose digests are the signed ones is accepted" "0" "$rc"
 check "and says how many digests it read" "1" "$(said 'verified 2 published digest(s)')"
 
+# The two architectures name one release, so it is read once: SHA256SUMS, its
+# signature and the second signature are three transfers, not six.
+reads() { grep -c -- "$1\$" "$WORK/curl.log" || true; }
+rm -f "$WORK/curl.log"
+CURL_STUB_LOG="$WORK/curl.log" verify "$WORK/ok"
+check "two architectures of one release are accepted" "0" "$rc"
+check "and SHA256SUMS of the release was fetched once" "1" "$(reads '/SHA256SUMS')"
+check "and its Ed25519 signature was fetched once" "1" "$(reads '/SHA256SUMS.sig')"
+check "and its second signature was asked for once" "1" "$(reads '/SHA256SUMS.mldsa65.sig')"
+check "and nothing else was fetched" "3" "$(wc -l < "$WORK/curl.log")"
+
 # --- a digest that is not the signed one ------------------------------------
 good_tree "$WORK/digest"
 edit "$WORK/digest" ".architecture[\"64bit\"].hash = \"$(printf 'e%.0s' {1..64})\""
@@ -56,6 +67,15 @@ verify "$WORK/digest"
 check "a digest that is not the signed one is refused" "1" "$rc"
 check "and the refusal is for the digest, naming the signed one" "1" "$(said "but the signed SHA256SUMS of Glyndor/podup v9.9.9 gives $H64 for podup-windows-x86_64.exe")"
 check "and the architecture that was not edited is not reported" "0" "$(said 'architecture arm64 declares')"
+
+# The second architecture reads the list the first one verified, and its own digest is
+# still compared with it.
+good_tree "$WORK/digest-second"
+edit "$WORK/digest-second" ".architecture[\"arm64\"].hash = \"$(printf 'd%.0s' {1..64})\""
+verify "$WORK/digest-second"
+check "a digest of the architecture that reads the list again is refused" "1" "$rc"
+check "and the refusal names the signed one for that architecture" "1" "$(said "architecture arm64 declares digest $(printf 'd%.0s' {1..64}), but the signed SHA256SUMS of Glyndor/podup v9.9.9 gives")"
+check "and the architecture that was not edited is not reported" "0" "$(said 'architecture 64bit declares')"
 
 # --- an asset the signed list does not carry ---------------------------------
 # The release holds one more file, with a digest of its own that is the digest of its
@@ -76,8 +96,30 @@ printf '%s  unrelated.exe\n' "$H64" >> "$RELEASES/Glyndor__podup/SHA256SUMS"
 verify "$WORK/forged"
 check "a SHA256SUMS whose signature does not verify is refused" "1" "$rc"
 check "and the refusal is the signature's, not the digest's" "0" "$(said 'but the signed SHA256SUMS')"
-check "and the verifier refused the release for each architecture" "2" "$(said 'the release was not admitted')"
+rm -f "$WORK/curl.log"
+CURL_STUB_LOG="$WORK/curl.log" verify "$WORK/forged"
+check "and the verifier read the refused release once" "3" "$(wc -l < "$WORK/curl.log")"
+check "and the verifier refused it once" "1" "$(said 'Glyndor/podup v9.9.9: the release was not admitted')"
+check "and it counts as a failure for the 64bit architecture" "1" "$(said 'architecture 64bit names Glyndor/podup v9.9.9, whose release was not admitted')"
+check "and it counts as a failure for the arm64 architecture" "1" "$(said 'architecture arm64 names Glyndor/podup v9.9.9, whose release was not admitted')"
+check "and both digests are counted as not verified" "1" "$(said '2 of 2 published digest(s) are not the ones')"
 check "and no digest was reported as verified" "0" "$(said 'verified ')"
+
+# --- two releases of one product, the first one read again ----------------------------
+# 64bit and 32bit name v9.9.9, arm64 names the older v9.9.8, whose list holds only the
+# arm64 asset. Each release is read once, and the third architecture is compared with
+# the list of v9.9.9 again, not with the one read last.
+good_tree "$WORK/two-tags"
+publish Glyndor/podup v9.9.8 podup-windows-arm64.exe
+mkdir -p "$WORK/older"; cp -r "$RELEASES/Glyndor__podup/." "$WORK/older/"
+publish Glyndor/podup v9.9.9 podup-windows-x86_64.exe podup-windows-arm64.exe
+mkdir -p "$RELEASES/Glyndor__podup/tags"; mv "$WORK/older" "$RELEASES/Glyndor__podup/tags/v9.9.8"
+edit "$WORK/two-tags" '.architecture["arm64"].url |= sub("v9.9.9"; "v9.9.8") | .architecture["32bit"] = .architecture["64bit"]'
+rm -f "$WORK/curl.log"
+CURL_STUB_LOG="$WORK/curl.log" verify "$WORK/two-tags"
+check "an architecture that names the first release again is accepted" "0" "$rc"
+check "and says it read three digests" "1" "$(said 'verified 3 published digest(s)')"
+check "and each of the two releases was read once" "2" "$(reads '/SHA256SUMS')"
 
 # --- a url outside the product's repository -----------------------------------------
 good_tree "$WORK/other-repo"

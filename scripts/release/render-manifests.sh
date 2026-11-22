@@ -698,11 +698,21 @@ render_product() { # $1=table entry
 # release by someone who cannot forge the signature) passes every other gate, because
 # the bytes behind the url really do have that digest.
 #
+# A release is verified once per product, however many architectures name it: its
+# SHA256SUMS and signatures are three transfers, and a second read of the same
+# release learns nothing the first did not. The product is part of the key because
+# the verdict depends on it (a product the required list names must carry the second
+# signature). The signed list is kept and put back before each digest is read, so
+# every architecture is still compared against the list of the release its url
+# names, and a release that was refused is refused for every architecture that
+# names it.
+#
 # Exit 0 when every digest is the signed one, 1 otherwise. A bucket with no manifest is
 # a failure: nothing was verified.
 verify_published() {
 	local manifest name repo row row_repo row_name arch url digest prefix rest tag asset signed
-	local checked=0 failed=0
+	local checked=0 failed=0 key lists=0
+	local -A release_list=()
 	shopt -s nullglob
 	for manifest in "$root"/bucket/*.json; do
 		name="$(basename "$manifest" .json)"
@@ -736,10 +746,22 @@ verify_published() {
 					continue
 					;;
 			esac
-			verify_sha256sums "$repo" "$tag" "$name" || {
+			key="$repo|$tag|$name"
+			if [ -z "${release_list[$key]:-}" ]; then
+				if verify_sha256sums "$repo" "$tag" "$name"; then
+					lists=$((lists + 1))
+					cp "$work/SHA256SUMS" "$work/signed.$lists"
+					release_list["$key"]="$work/signed.$lists"
+				else
+					release_list["$key"]="refused"
+				fi
+			fi
+			if [ "${release_list[$key]}" = refused ]; then
+				echo "::error file=$manifest::architecture $arch names $repo $tag, whose release was not admitted" >&2
 				failed=$((failed + 1))
 				continue
-			}
+			fi
+			cp "${release_list[$key]}" "$work/SHA256SUMS"
 			signed="$(hash_of "$asset")" || {
 				echo "::error file=$manifest::architecture $arch downloads $asset, which the signed SHA256SUMS of $repo $tag does not list once" >&2
 				failed=$((failed + 1))
