@@ -52,7 +52,7 @@ complete() {
 	cat <<'JSON'
 {
   "version": "1.0.0",
-  "description": "test",
+  "description": "Docker-compose translator and runner for rootless Podman",
   "homepage": "https://github.com/Glyndor/podup",
   "license": "MIT",
   "architecture": {

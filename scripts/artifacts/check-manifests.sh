@@ -20,9 +20,13 @@
 # manifest's own product's release asset: the repository from the roster row
 # that names it, and the tag the version in the manifest implies. The other
 # fields the renderer derives from that same row are held to it too: the
-# homepage is that repository's page, the description is present and not
-# empty, and every `bin` entry is the pair the renderer writes -- the file
-# the architecture downloads, and the product the shim is called after.
+# homepage is that repository's page, the description is the row's, the
+# licence is the one the renderer writes, each architecture downloads the asset
+# the row names for it (and only an architecture the row publishes), and every
+# `bin` entry is the pair the renderer writes -- the file the architecture
+# downloads, and the product the shim is called after. The description is the
+# text Scoop shows before anything is installed, and an asset of the same
+# release that the row does not name has not been attested.
 #
 # Usage: check-manifests.sh [bucket-dir]   (default: bucket/ next to this repo)
 set -euo pipefail
@@ -78,10 +82,28 @@ fi
 # reader, scripts/release/products.sh: one list of products, one grammar.
 roster_file="$root/scripts/release/render-manifests.sh"
 declare -A roster=()
+declare -A roster_description=()
+declare -A roster_asset_64=()
+declare -A roster_asset_arm=()
 rows="$(bash "$(dirname "${BASH_SOURCE[0]}")/../release/products.sh" "$roster_file")" || rows=""
-while IFS='|' read -r repo product _; do
+while IFS='|' read -r repo product description asset_64 asset_arm; do
 	if [ -n "$product" ] && [ -n "$repo" ]; then
+		# A product declared twice is rendered twice, the second row over the
+		# first, and which row this gate binds a manifest to would be whichever
+		# came last. The renderer refuses it before it reads a release, by the
+		# same words.
+		if [ -n "${roster[$product]:-}" ]; then
+			echo "::error::the PRODUCTS roster declares $product twice" >&2
+			exit 1
+		fi
 		roster["$product"]="$repo"
+		# The renderer reads the row with bash, which takes a backslash before
+		# a double quote, a dollar sign, a backtick or another backslash as that
+		# character; the table is read here as it is written, so the same
+		# reading is applied to the one column that is compared as text.
+		roster_description["$product"]="$(printf '%s' "$description" | sed -E 's/\\([\\"$`])/\1/g')"
+		roster_asset_64["$product"]="$asset_64"
+		roster_asset_arm["$product"]="$asset_arm"
 	fi
 done <<<"$rows"
 # A roster that declares no product leaves nothing to bind a url to. That is an
@@ -103,6 +125,10 @@ fi
 # silently accepted. Anything outside these sets is a hand edit or a hijacked
 # render, and the renderer is the only thing that should be writing here.
 TOP_KEYS='["version","description","homepage","license","architecture"]'
+# Every product published here is MIT: the renderer writes that literal for all
+# of them, and tests/artifacts/check-manifests/check-manifests-binding.test.sh
+# compares the two so that neither can change alone.
+LICENSE='MIT'
 ARCH_KEYS='["64bit","32bit","arm64"]'
 SUB_KEYS='["url","hash","bin"]'
 # The url must be a Glyndor release asset, not just a string that begins
@@ -124,6 +150,9 @@ for m in "${manifests[@]}"; do
 	# assets live in -- the row the renderer takes the repository from.
 	product="$(basename "$m" .json)"
 	repo="${roster[$product]-}"
+	row_description="${roster_description[$product]-}"
+	row_asset_64="${roster_asset_64[$product]-}"
+	row_asset_arm="${roster_asset_arm[$product]-}"
 
 	# JSON must parse. If it does not, there is no field to point at; the
 	# message names the file and stops. Done first because every later check
@@ -228,6 +257,8 @@ PY
 	                    --arg urlre "$URL_RE" \
 	                    --arg hashre "$HASH_RE" \
 	                    --arg repo "$repo" --arg product "$product" \
+	                    --arg description "$row_description" --arg license "$LICENSE" \
+	                    --arg asset64 "$row_asset_64" --arg assetarm "$row_asset_arm" \
 	                    --arg rosterknown "$rosterknown" '
 		(.version | if type == "string" then . else "" end) as $version | [
 			(if $repo == "" and $rosterknown == "yes" then "the PRODUCTS roster of scripts/release/render-manifests.sh has no row for \"\($product)\", so no release url or homepage is admissible for this manifest" else empty end),
@@ -245,6 +276,9 @@ PY
 			(if has("description") | not then "missing required top-level field \"description\""
 			 elif (.description | type) != "string" then "field \"description\" must be a string"
 			 elif (.description | length) == 0 then "field \"description\" must be a non-empty string"
+			 elif $repo == "" then empty
+			 elif .description != $description
+			 then "field \"description\" must be exactly \($description | @json), the description of the PRODUCTS row of this product; it is \(.description | @json)"
 			 else empty end),
 			# The homepage is the repository the row names, and nothing else.
 			# A string of any shape passed before, including a "javascript:"
@@ -259,6 +293,8 @@ PY
 			 else empty end),
 			(if has("license") | not then "missing required top-level field \"license\""
 			 elif (.license | type) != "string" then "field \"license\" must be a string"
+			 elif .license != $license
+			 then "field \"license\" must be exactly \($license | @json), the licence the renderer writes; it is \(.license | @json)"
 			 else empty end),
 			(if has("architecture") | not then "missing required top-level field \"architecture\""
 			 elif (.architecture | type) != "object" then "field \"architecture\" must be a non-empty object"
@@ -276,6 +312,10 @@ PY
 				(if ($v | type) == "object" and ($v.url | type) == "string" and ($v.url | test($urlre))
 				 then ($v.url | split("/") | last)
 				 else null end) as $asset |
+				# The asset the PRODUCTS row names for this architecture, "-" when
+				# the row publishes nothing for it. The renderer has no build to
+				# write for 32bit, so the row has no slot for it.
+				(if $a == "64bit" then $asset64 elif $a == "arm64" then $assetarm else "-" end) as $named |
 				[
 					(if ($v | type) != "object"
 					 then "architecture \"\($a)\" must be an object, not \($v | type)"
@@ -311,6 +351,17 @@ PY
 						  end
 						end
 					 end),
+
+					# Not every asset of a release is one the row vouches for: a
+					# checksum file, a source tarball or an extra binary sits in the same
+					# release and fits the url rule. The file this architecture downloads
+					# is the one the row names for it.
+					(if $asset == null or $repo == "" then empty
+					 elif $named == "-"
+					 then "architecture \"\($a)\" is not published by the PRODUCTS row of this product, which names no asset for it"
+					 elif $asset != $named
+					 then "architecture \"\($a)\" field \"url\" must download the asset \($named | @json), the one the PRODUCTS row names for it; it downloads \($asset | @json)"
+					 else empty end),
 
 					(if ($v | type) != "object" then empty
 					 elif ($v | has("hash") | not) then "architecture \"\($a)\" missing required field \"hash\""

@@ -9,6 +9,10 @@
 #
 # Run by .github/workflows/update.yml on a schedule and on demand.
 #
+# With --verify-published it renders nothing: it reads every manifest already in
+# bucket/ against the signed SHA256SUMS of the release each url names, and is run by
+# .github/workflows/published-bytes.yml.
+#
 # Exit codes: 0 every product rendered; 3 at least one product was skipped and
 # the rest rendered (update.yml commits those, then fails the job); anything
 # else is a fatal failure and update.yml must not publish any changes.
@@ -115,8 +119,13 @@ MAX_ASSET_BYTES=104857600
 # no environment variable that could swap the trust anchor from outside. This is
 # the shape Glyndor/apt's verify-debs.sh already uses, where the key is an
 # argument for the same reason.
+VERIFY_PUBLISHED=0
 while [ $# -gt 0 ]; do
 	case "$1" in
+		--verify-published)
+			VERIFY_PUBLISHED=1
+			shift
+			;;
 		--pubkey)
 			[ $# -ge 2 ] || { echo "--pubkey needs a value" >&2; exit 2; }
 			RELEASE_PUBKEY_B64="$2"
@@ -316,7 +325,9 @@ PY
 # attacker-influenced, because whoever can publish a release controls them.
 hash_of() { # $1=asset
 	local matches count digest
-	matches="$(awk -v a="$1" '$2 == a { print $1 }' "$work/SHA256SUMS")"
+	# Compared as text. awk compares two fields that look like numbers as numbers,
+	# so an asset called 1e5 would match the line of one called 100000.
+	matches="$(awk -v a="$1" '$2 "" == a "" { print $1 }' "$work/SHA256SUMS")"
 	[ -n "$matches" ] || return 1
 	count="$(printf '%s\n' "$matches" | wc -l)"
 	[ "$count" -eq 1 ] || {
@@ -678,10 +689,102 @@ render_product() { # $1=table entry
 	echo "rendered bucket/$manifest.json -> $version"
 }
 
+# Read what is published instead of rendering it. For every manifest in bucket/ and
+# every architecture in it, the release the url names has its SHA256SUMS and signature
+# verified exactly as a render verifies them, and the digest in the manifest has to be
+# the entry of the asset the url names. A render writes only digests it verified, but
+# a manifest is a file a person can edit, and nothing after the render read it against
+# the signed list again: the digest of an asset nobody signed (a file added to a
+# release by someone who cannot forge the signature) passes every other gate, because
+# the bytes behind the url really do have that digest.
+#
+# Exit 0 when every digest is the signed one, 1 otherwise. A bucket with no manifest is
+# a failure: nothing was verified.
+verify_published() {
+	local manifest name repo row row_repo row_name arch url digest prefix rest tag asset signed
+	local checked=0 failed=0
+	shopt -s nullglob
+	for manifest in "$root"/bucket/*.json; do
+		name="$(basename "$manifest" .json)"
+		repo=""
+		for row in "${PRODUCTS[@]}"; do
+			IFS='|' read -r row_repo row_name _ <<<"$row"
+			[ "$row_name" != "$name" ] || repo="$row_repo"
+		done
+		if [ -z "$repo" ]; then
+			echo "::error file=$manifest::the PRODUCTS table has no row for \"$name\", so its digests cannot be read against a signed release" >&2
+			failed=$((failed + 1))
+			continue
+		fi
+		prefix="https://github.com/$repo/releases/download/"
+		while IFS=$'\t' read -r arch url digest; do
+			checked=$((checked + 1))
+			case "$url" in
+				"$prefix"*) rest="${url#"$prefix"}" ;;
+				*)
+					echo "::error file=$manifest::architecture $arch names $url, which is not an asset of $repo" >&2
+					failed=$((failed + 1))
+					continue
+					;;
+			esac
+			tag="${rest%%/*}"
+			asset="${rest#*/}"
+			case "$asset" in
+				"" | */*)
+					echo "::error file=$manifest::architecture $arch names $url, which is not one asset of one release" >&2
+					failed=$((failed + 1))
+					continue
+					;;
+			esac
+			verify_sha256sums "$repo" "$tag" "$name" || {
+				failed=$((failed + 1))
+				continue
+			}
+			signed="$(hash_of "$asset")" || {
+				echo "::error file=$manifest::architecture $arch downloads $asset, which the signed SHA256SUMS of $repo $tag does not list once" >&2
+				failed=$((failed + 1))
+				continue
+			}
+			if [ "$signed" != "$digest" ]; then
+				echo "::error file=$manifest::architecture $arch declares digest $digest, but the signed SHA256SUMS of $repo $tag gives $signed for $asset" >&2
+				failed=$((failed + 1))
+			fi
+		done < <(jq -r '.architecture // {} | to_entries[] | [.key, (.value.url // ""), (.value.hash // "")] | @tsv' "$manifest")
+	done
+	if [ "$checked" -eq 0 ]; then
+		echo "::error::no digest was read against a signed release" >&2
+		return 1
+	fi
+	if [ "$failed" -ne 0 ]; then
+		echo "::error::$failed of $checked published digest(s) are not the ones the signed SHA256SUMS gives" >&2
+		return 1
+	fi
+	echo "verified $checked published digest(s) against the signed SHA256SUMS"
+}
+
 # Exit 2 is this repository's convention for a local configuration error, and
 # it stops the run before anything is rendered: a broken trust anchor or a
 # required product this repository does not publish is not a bad release.
 check_release_configuration || exit 2
+
+# One manifest declared twice is rendered twice, the second row over the first, and the
+# file that is committed is whichever came last. The roster gate reads the same table
+# and refuses it, and the renderer refuses it before it reads a release, by the same
+# words.
+declare -A seen_manifests=()
+for entry in "${PRODUCTS[@]}"; do
+	IFS='|' read -r _ manifest _ <<<"$entry"
+	if [ -n "${seen_manifests[$manifest]:-}" ]; then
+		echo "::error::the PRODUCTS roster declares $manifest twice" >&2
+		exit 2
+	fi
+	seen_manifests["$manifest"]=1
+done
+
+if [ "$VERIFY_PUBLISHED" = 1 ]; then
+	verify_published
+	exit $?
+fi
 
 mkdir -p "$root/bucket"
 

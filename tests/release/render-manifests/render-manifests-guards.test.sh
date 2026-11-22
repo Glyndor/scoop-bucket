@@ -103,6 +103,17 @@ check "MAX_SUMS_BYTES ships as 4096" "MAX_SUMS_BYTES=4096" "$(grep '^MAX_SUMS_BY
 check "MAX_SIG_BYTES ships as 64" "MAX_SIG_BYTES=64" "$(grep '^MAX_SIG_BYTES=' "$SCRIPT")"
 check "MAX_ASSET_BYTES ships as 104857600" "MAX_ASSET_BYTES=104857600" "$(grep '^MAX_ASSET_BYTES=' "$SCRIPT")"
 
+# --- a product declared twice ---------------------------------------------------------
+# The second row would overwrite the first, so the renderer refuses the table as a
+# configuration error before it reads a release.
+publish Glyndor/podup v9.9.9 podup-windows-x86_64.exe podup-windows-arm64.exe
+new_root "$WORK/twice"
+generator_with "$WORK/twice/scripts/release/render-manifests.sh" "$PODUP" "$PODUP"
+rc=0; run "$WORK/twice/scripts/release/render-manifests.sh" "$WORK/twice" || rc=$?
+check "a product declared twice is refused as a configuration error" "2" "$rc"
+check "and the refusal names the product" "1" "$(grep -c 'the PRODUCTS roster declares podup twice' "$WORK/out" || true)"
+check "and nothing was rendered" "0" "$(find "$WORK/twice/bucket" -name '*.json' | wc -l)"
+
 echo
 echo "$pass passed, $fail failed"
 printf 'DONE %s %d %d\n' "${BASH_SOURCE[0]##*/}" "$pass" "$fail"

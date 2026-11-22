@@ -104,6 +104,19 @@ tests/ci/suites/check-suite-completeness.test.sh
 	scripts/**
 	.github/workflows/**
 
+# The reader of a workflow step is the fixture, and the suite is its only input.
+
+tests/ci/suites/step-script.test.sh
+	tests/fixtures/ci/step-script.sh
+	tests/ci/suites/step-script.test.sh
+
+# Its verdict case runs the real runner over suites it writes itself, so the
+# runner and the case are the whole of its input.
+
+tests/ci/suites/check-suite-completeness-verdict.test.sh
+	tests/ci/suites/check-suite-completeness.test.sh
+	tests/ci/suites/check-suite-completeness-verdict.test.sh
+
 # --- the renderer -----------------------------------------------------------
 #
 # Every renderer suite reads the generator and the fixture both of them share.
@@ -131,6 +144,20 @@ tests/release/render-manifests/render-manifests-sums-selection.test.sh
 	scripts/release/release-signature.sh
 	tests/fixtures/release/**
 	tests/release/render-manifests/**
+
+# The published digests are read against a release the suite signs itself.
+
+tests/release/render-manifests/render-manifests-verify-published.test.sh
+	scripts/release/render-manifests.sh
+	scripts/release/release-signature.sh
+	tests/fixtures/release/**
+	tests/release/render-manifests/render-manifests-verify-published.test.sh
+
+# hash_of is read out of the renderer and run over a SHA256SUMS the suite writes.
+
+tests/release/render-manifests/render-manifests-hash-of.test.sh
+	scripts/release/render-manifests.sh
+	tests/release/render-manifests/render-manifests-hash-of.test.sh
 
 tests/release/render-manifests/render-manifests-inputs.test.sh
 	scripts/release/render-manifests.sh
@@ -194,6 +221,7 @@ tests/publication/update/update-workflow.test.sh
 	scripts/release/render-manifests.sh
 	tests/fixtures/publication/**
 	tests/publication/update/**
+	tests/fixtures/ci/step-script.sh
 
 # The key isolation suite reads the workflow's structure and nothing it runs.
 
@@ -201,6 +229,7 @@ tests/publication/update/update-key-isolation.test.sh
 	.github/workflows/update.yml
 	tests/fixtures/publication/**
 	tests/publication/update/**
+	tests/fixtures/ci/step-script.sh
 
 # The hand-off suite runs the two digest steps of the workflow against the
 # real digest script and the real manifest gate.
@@ -212,6 +241,7 @@ tests/publication/update/update-digest-handoff.test.sh
 	scripts/artifacts/manifest-digests.sh
 	tests/fixtures/publication/**
 	tests/publication/update/**
+	tests/fixtures/ci/step-script.sh
 
 tests/publication/update/update-mldsa-venv.test.sh
 	.github/workflows/update.yml
@@ -295,6 +325,12 @@ tests/ci/policy/rules/locale-pinned.test.sh
 tests/ci/policy/rules/network-calls-are-bounded.test.sh
 	scripts/**
 
+# The curl calls the workflows run are read from the workflows.
+
+tests/ci/policy/rules/workflow-network-calls-are-bounded.test.sh
+	.github/workflows/**
+	tests/ci/policy/rules/workflow-network-calls-are-bounded.test.sh
+
 # The workflow gates walk every workflow.
 
 tests/ci/policy/workflows/workflow-shape.test.sh
@@ -302,6 +338,12 @@ tests/ci/policy/workflows/workflow-shape.test.sh
 
 tests/ci/policy/workflows/persist-credentials.test.sh
 	.github/workflows/**
+
+# The workflows are read for the concurrency of every job of their own.
+
+tests/ci/policy/workflows/pull-request-runs-are-superseded.test.sh
+	.github/workflows/**
+	tests/ci/policy/workflows/pull-request-runs-are-superseded.test.sh
 
 tests/ci/policy/rules/jobs-are-bounded.test.sh
 	.github/workflows/**
@@ -325,6 +367,7 @@ tests/ci/policy/workflows/workflow-publish-triggers.test.sh
 
 tests/ci/policy/workflows/published-bytes-order.test.sh
 	.github/workflows/published-bytes.yml
+	.github/workflows/update.yml
 
 # The freshness gates read the workflow that fires them and the reusables it
 # names. The path filter of freshness.yml lists those reusables and the two
@@ -563,20 +606,25 @@ tests/monitoring/published-url-rules-agree.test.sh
 tests/ci/reusable/reusable-line-limit.test.sh
 	.github/workflows/reusable-line-limit.yml
 	.github/workflows/line-limit.yml
+	tests/fixtures/ci/step-script.sh
 
 tests/ci/reusable/reusable-shell-ci.test.sh
 	.github/workflows/reusable-shell-ci.yml
 	scripts/quality/scope/suite-dependencies.txt
 	.github/workflows/tests.yml
+	tests/fixtures/ci/step-script.sh
 
 tests/ci/reusable/reusable-empty-diff.test.sh
 	.github/workflows/reusable-empty-diff.yml
+	tests/fixtures/ci/step-script.sh
 
 tests/ci/reusable/reusable-dco.test.sh
 	.github/workflows/reusable-dco.yml
+	tests/fixtures/ci/step-script.sh
 
 tests/ci/reusable/reusable-dependabot-freshness.test.sh
 	.github/workflows/reusable-dependabot-freshness.yml
+	tests/fixtures/ci/step-script.sh
 
 tests/ci/reusable/reusable-schedule-freshness.test.sh
 	.github/workflows/reusable-schedule-freshness.yml
@@ -681,3 +729,13 @@ tests/mutation/catalog-reaches-every-script.test.sh
 tests/ci/docs/documented-test-command.test.sh
 	CONTRIBUTING.md
 	.github/PULL_REQUEST_TEMPLATE.md
+
+# The documents are read for the paths they name and the commands they print.
+
+tests/ci/docs/documented-claims.test.sh
+	CONTRIBUTING.md
+	README.md
+	docs/**
+	scripts/**
+	tests/**
+	.github/workflows/**

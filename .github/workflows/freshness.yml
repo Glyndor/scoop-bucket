@@ -199,6 +199,12 @@ jobs:
   # the workflow has existed for the three-day grace period. The reusable then
   # takes over and measures the cadence normally.
   published-bytes-ready:
+    # A newer push to a pull request supersedes the poll still running on the old
+    # commit; outside a pull request every run keeps its own group, so no verdict
+    # of a push to main is lost to a newer one (cancel-policy.test.sh).
+    concurrency:
+      group: freshness-published-bytes-ready-${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+      cancel-in-progress: ${{ github.event_name == 'pull_request' }}
     permissions:
       contents: read
       actions: read

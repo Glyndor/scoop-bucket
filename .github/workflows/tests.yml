@@ -51,9 +51,13 @@ jobs:
       # purpose.
       test-command: >-
         ./tests/ci/suites/check-suite-completeness.test.sh
+        ./tests/ci/suites/check-suite-completeness-verdict.test.sh
+        ./tests/ci/suites/step-script.test.sh
         ./tests/release/render-manifests.test.sh
         ./tests/release/render-manifests/render-manifests-attestation.test.sh
         ./tests/release/render-manifests/render-manifests-sums-selection.test.sh
+        ./tests/release/render-manifests/render-manifests-hash-of.test.sh
+        ./tests/release/render-manifests/render-manifests-verify-published.test.sh
         ./tests/release/render-manifests/render-manifests-inputs.test.sh
         ./tests/release/render-manifests/render-manifests-transfer-limits.test.sh
         ./tests/release/render-manifests/render-manifests-products.test.sh
@@ -86,6 +90,7 @@ jobs:
         ./tests/monitoring/check-suite-on-main/check-suite-on-main-retry.test.sh
         ./tests/monitoring/check-suite-on-main/check-suite-on-main-order.test.sh
         ./tests/ci/docs/documented-test-command.test.sh
+        ./tests/ci/docs/documented-claims.test.sh
         ./tests/ci/suites/ci-runs-every-test.test.sh
         ./tests/quality/coverage/check-suites-wired.test.sh
         ./tests/quality/lint/lint-workflow-shell.test.sh
@@ -107,6 +112,7 @@ jobs:
         ./tests/ci/policy/rules/drift-watchers-transfer-cap.test.sh
         ./tests/ci/policy/workflows/workflow-shape.test.sh
         ./tests/ci/policy/workflows/persist-credentials.test.sh
+        ./tests/ci/policy/workflows/pull-request-runs-are-superseded.test.sh
         ./tests/ci/policy/workflows/freshness-pr-scope.test.sh
         ./tests/ci/policy/workflows/scheduled-workflows-are-watched.test.sh
         ./tests/ci/policy/workflows/freshness-poll-concurrency.test.sh
@@ -130,6 +136,7 @@ jobs:
         ./tests/quality/lint/check-tooling-isolation.test.sh
         ./tests/ci/policy/rules/jobs-are-bounded.test.sh
         ./tests/ci/policy/rules/network-calls-are-bounded.test.sh
+        ./tests/ci/policy/rules/workflow-network-calls-are-bounded.test.sh
         ./tests/mutation/run-mutations.test.sh
         ./tests/mutation/catalog-reaches-every-script.test.sh
       # shellcheck: tests/quality/lint/lint-workflow-shell.test.sh plants a violation and
@@ -258,7 +265,7 @@ jobs:
 
   products:
     concurrency:
-      group: products-${{ github.workflow }}-${{ github.ref }}
+      group: products-${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
       cancel-in-progress: ${{ github.event_name == 'pull_request' }}
     name: products match the generator
     # ubuntu-latest resolved to ubuntu-26.04 in apt's publish runs on
@@ -282,7 +289,7 @@ jobs:
 
   manifests:
     concurrency:
-      group: manifests-${{ github.workflow }}-${{ github.ref }}
+      group: manifests-${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
       cancel-in-progress: ${{ github.event_name == 'pull_request' }}
     name: validate manifests
     # ubuntu-latest resolved to ubuntu-26.04 in apt's publish runs on

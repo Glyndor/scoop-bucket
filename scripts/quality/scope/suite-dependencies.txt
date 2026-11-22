@@ -18,10 +18,14 @@
 
 # nothing beyond the runner image
 tests/release/products.test.sh -
+tests/ci/suites/check-suite-completeness-verdict.test.sh -
+tests/ci/suites/step-script.test.sh -
 tests/mutation/catalog-reaches-every-script.test.sh -
 tests/release/render-manifests.test.sh -
 tests/release/render-manifests/render-manifests-attestation.test.sh -
 tests/release/render-manifests/render-manifests-sums-selection.test.sh -
+tests/release/render-manifests/render-manifests-hash-of.test.sh -
+tests/release/render-manifests/render-manifests-verify-published.test.sh -
 tests/release/render-manifests/render-manifests-inputs.test.sh -
 tests/release/render-manifests/render-manifests-transfer-limits.test.sh -
 tests/release/render-manifests/render-manifests-products.test.sh -
@@ -70,6 +74,7 @@ tests/monitoring/check-render-drift/check-render-drift-version.test.sh -
 tests/ci/reusable/reusable-dependabot-freshness.test.sh -
 tests/ci/reusable/reusable-schedule-freshness.test.sh -
 tests/ci/policy/rules/network-calls-are-bounded.test.sh -
+tests/ci/policy/rules/workflow-network-calls-are-bounded.test.sh -
 tests/mutation/run-mutations.test.sh -
 
 # python3-yaml
@@ -88,6 +93,7 @@ tests/ci/suites/lint-job-scope.test.sh python3-yaml
 tests/ci/suites/mldsa-job-scope.test.sh python3-yaml
 tests/ci/policy/workflows/workflow-shape.test.sh python3-yaml
 tests/ci/policy/workflows/persist-credentials.test.sh python3-yaml
+tests/ci/policy/workflows/pull-request-runs-are-superseded.test.sh python3-yaml
 tests/ci/policy/workflows/freshness-pr-scope.test.sh python3-yaml
 tests/ci/policy/workflows/scheduled-workflows-are-watched.test.sh python3-yaml
 tests/ci/policy/workflows/freshness-poll-concurrency.test.sh python3-yaml
@@ -102,6 +108,7 @@ tests/ci/policy/rules/jobs-are-bounded.test.sh python3-yaml
 
 # shellcheck
 tests/ci/docs/documented-test-command.test.sh shellcheck
+tests/ci/docs/documented-claims.test.sh -
 tests/quality/lint/lint-workflow-shell.test.sh shellcheck
 
 # shellcheck, python3-yaml

@@ -31,7 +31,7 @@ PINNED = {
     "drift.yml": ["scripts/monitoring/check-channel-drift.sh", "scripts/monitoring/check-render-drift.sh", "scripts/monitoring/check-reusable-drift.sh"],
     "freshness.yml": ["scripts/monitoring/check-schedule-history-ready.sh", "scripts/monitoring/check-suite-on-main.sh", "scripts/monitoring/check-tool-versions.sh"],
     "mutation.yml": ["tests/mutation/run-mutations.sh"],
-    "published-bytes.yml": ["scripts/artifacts/check-manifests.sh", "scripts/monitoring/check-published-manifests.sh"],
+    "published-bytes.yml": ["scripts/artifacts/check-manifests.sh", "scripts/monitoring/check-published-manifests.sh", "scripts/release/render-manifests.sh"],
     "tests.yml": ["scripts/artifacts/check-manifests.sh", "scripts/artifacts/check-products-consistent.sh", "scripts/artifacts/check-version-monotonic.sh"],
     "update.yml": ["scripts/artifacts/check-manifests.sh", "scripts/artifacts/manifest-digests.sh", "scripts/release/render-manifests.sh"],
 }
