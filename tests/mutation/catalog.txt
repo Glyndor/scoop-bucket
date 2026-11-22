@@ -271,3 +271,6 @@ pr-superseded-no-concurrency	tests/ci/policy/workflows/pull-request-runs-are-sup
 pr-superseded-cancel	tests/ci/policy/workflows/pull-request-runs-are-superseded.test.sh	if str(conc.get("cancel-in-progress", "")).strip() != WANT_CANCEL:	if False:	tests/ci/policy/workflows/pull-request-runs-are-superseded.test.sh
 pins-enumerated-as-keys	.github/workflows/reusable-dependabot-freshness.yml	grep -rhE '^[[:space:]]*(-[[:space:]]+)?uses:	grep -rhE 'uses:	tests/ci/reusable/reusable-dependabot-freshness.test.sh
 pins-counted-as-keys	.github/workflows/reusable-dependabot-freshness.yml	grep -rhoE '^[[:space:]]*(-[[:space:]]+)?uses:	grep -rhoE 'uses:	tests/ci/reusable/reusable-dependabot-freshness.test.sh
+published-bytes-paths-signature	.github/workflows/published-bytes.yml	- scripts/release/release-signature.sh	- scripts/release/x-release-signature.sh	tests/ci/policy/workflows/published-bytes-order.test.sh
+published-bytes-paths-roster	.github/workflows/published-bytes.yml	- scripts/release/products.sh	- scripts/release/x-products.sh	tests/ci/policy/workflows/published-bytes-order.test.sh
+published-bytes-paths-requirements	.github/workflows/published-bytes.yml	- scripts/release/render-requirements.txt	- scripts/release/x-render-requirements.txt	tests/ci/policy/workflows/published-bytes-order.test.sh
