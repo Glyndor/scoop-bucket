@@ -210,6 +210,9 @@ jobs:
       actions: read
     # ubuntu-latest on purpose: this job only asks GitHub or git for data and
     # compares strings, so a new image cannot change its verdict.
+    # It stays ubuntu-latest for now: the job writes an output that a condition
+    # reads, and the rule on producers refuses a change to what such a job runs on
+    # unless an earlier pull request listed it. Naming the image is the second step.
     runs-on: ubuntu-latest
     # Two `gh run list` calls normally complete in under two seconds; ten
     # minutes leaves ample room for a slow API without approaching the default.
@@ -320,9 +323,8 @@ jobs:
       group: freshness-suite-on-main-${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
       cancel-in-progress: ${{ github.event_name == 'pull_request' }}
     name: suite is green on main
-    # ubuntu-latest on purpose: this job only asks GitHub or git for data and
-    # compares strings, so a new image cannot change its verdict.
-    runs-on: ubuntu-latest
+    # The image is named, as everywhere else: a new one arrives as a commit.
+    runs-on: ubuntu-26.04
     # Bound at 20 minutes by the script's retry budget (80 attempts of
     # 15 seconds); a suite behind a slow queue measured ten minutes on
     # 2026-11-08 (apt about 2 minutes when the queue is free, homebrew-tap
@@ -374,9 +376,8 @@ jobs:
     concurrency:
       group: freshness-tool-versions-${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
       cancel-in-progress: ${{ github.event_name == 'pull_request' }}
-    # ubuntu-latest on purpose: this job only asks GitHub or git for data and
-    # compares strings, so a new image cannot change its verdict.
-    runs-on: ubuntu-latest
+    # The image is named, as everywhere else: a new one arrives as a commit.
+    runs-on: ubuntu-26.04
     # Two `gh release list` calls and a checkout, seconds when measured
     # locally against stubs; the real calls are two API requests. Ten minutes
     # is the floor this repository uses for a job whose honest run is seconds.
