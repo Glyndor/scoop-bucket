@@ -267,9 +267,8 @@ jobs:
     # carries no `if:` of its own, because any status function there
     # (`always()`, `!cancelled()`) would let it run after a failed render.
     needs: render
-    # ubuntu-latest on purpose: this job only asks GitHub or git for data and
-    # compares strings, so a new image cannot change its verdict.
-    runs-on: ubuntu-latest
+    # The image is named, as everywhere else: a new one arrives as a commit.
+    runs-on: ubuntu-26.04
     # contents:read is enough for GITHUB_TOKEN: the write goes through the
     # updater app's token, minted below.
     permissions:

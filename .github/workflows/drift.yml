@@ -69,9 +69,8 @@ concurrency:
 jobs:
   drift:
     name: reusable drift
-    # ubuntu-latest on purpose: this job only asks GitHub or git for data and
-    # compares strings, so a new image cannot change its verdict.
-    runs-on: ubuntu-latest
+    # The image is named, as everywhere else: a new one arrives as a commit.
+    runs-on: ubuntu-26.04
     # Measured at about 10 seconds for the fourteen reusable fetches alone; the
     # shared-file fetches this job also performs add about nine
     # seconds measured here, and the deadlines added to the scripts themselves

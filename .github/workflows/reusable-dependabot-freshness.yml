@@ -96,9 +96,8 @@ permissions: {}
 jobs:
   freshness:
     name: dependabot freshness
-    # ubuntu-latest on purpose: this job only asks GitHub or git for data and
-    # compares strings, so a new image cannot change its verdict.
-    runs-on: ubuntu-latest
+    # The image is named, as everywhere else: a new one arrives as a commit.
+    runs-on: ubuntu-26.04
     # Measured at 5 to 29 seconds across recent runs; queries the GitHub
     # API and `git ls-remote` against each pinned action's upstream.
     timeout-minutes: 10
