@@ -76,7 +76,8 @@ fails when one does not.
   would let its holder push to `main` past the required checks, which is why
   the key is the credential that matters here.
 - **A human with Write.** Invitation-only (`CONTRIBUTING.md`). Has no bypass: the ruleset requires a pull request,
-  eight status checks with the branch up to date, signed commits and CodeQL, so
+  the status checks listed in
+  `tests/ci/policy/workflows/required-checks-are-emitted.test.sh` with the branch up to date, signed commits and CodeQL, so
   a human change reaches `main` only through a reviewed-by-CI pull request.
 - **A Windows user.** Runs the three lines in the README. Scoop clones
   `main` and refuses a download whose bytes do not match the pinned hash

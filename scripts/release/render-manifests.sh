@@ -79,8 +79,8 @@ RELEASE_PQ_REQUIRED=""
 #
 # The numbers, derived from what a legitimate file actually looks like:
 #
-#   MAX_SUMS_BYTES = 4096 (4 KiB). The current podup SHA256SUMS is two
-#   `<64-hex>  <asset>\n` lines, ~160 bytes. Even a roster of dozens of
+#   MAX_SUMS_BYTES = 4096 (4 KiB). A podup SHA256SUMS lists every asset
+#   of the roster, one `<64-hex>  <asset>\n` line each, some five hundred bytes. Even a roster of dozens of
 #   products with realistic Windows binary asset names lands well under a
 #   kilobyte; 4 KiB is two orders of magnitude of headroom over today's file
 #   and still fits comfortably under the size of a single apt sibling's
