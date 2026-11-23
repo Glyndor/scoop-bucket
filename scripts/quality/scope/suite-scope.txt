@@ -553,6 +553,20 @@ tests/monitoring/check-schedule-history-ready.test.sh
 	scripts/monitoring/check-schedule-history-ready.sh
 	.github/workflows/freshness.yml
 
+# The guard of what reaches main and the report of a failure that no pull request could block read
+# GitHub, not the tree: their scripts and the lists of what the updater app writes are the inputs.
+
+tests/monitoring/check-push-to-main.test.sh
+	scripts/monitoring/check-push-to-main.sh
+	scripts/monitoring/generated-paths.txt
+	scripts/monitoring/bypass-actors.txt
+	scripts/monitoring/main-ruleset.expected.json
+	tests/monitoring/check-push-to-main.test.sh
+
+tests/monitoring/report-failure.test.sh
+	scripts/monitoring/report-failure.sh
+	tests/monitoring/report-failure.test.sh
+
 # The reusable drift gate compares the seven reusables this repository
 # carries, so every one of them is an input of its verdict.
 
