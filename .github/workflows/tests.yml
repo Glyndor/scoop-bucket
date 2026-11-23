@@ -114,6 +114,8 @@ jobs:
         ./tests/ci/policy/rules/drift-watchers-transfer-cap.test.sh
         ./tests/ci/policy/workflows/workflow-shape.test.sh
         ./tests/ci/policy/workflows/persist-credentials.test.sh
+        ./tests/ci/policy/workflows/skip-only-on-an-explicit-false.test.sh
+        ./tests/ci/policy/workflows/required-checks-are-emitted.test.sh
         ./tests/ci/policy/workflows/pull-request-runs-are-superseded.test.sh
         ./tests/ci/policy/workflows/freshness-pr-scope.test.sh
         ./tests/ci/policy/workflows/scheduled-workflows-are-watched.test.sh
