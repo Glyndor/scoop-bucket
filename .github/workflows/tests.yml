@@ -86,6 +86,7 @@ jobs:
         ./tests/governance/check-issue-templates.test.sh
         ./tests/monitoring/check-suite-on-main.test.sh
         ./tests/monitoring/check-schedule-history-ready.test.sh
+        ./tests/ci/policy/workflows/published-bytes-ready-step.test.sh
         ./tests/monitoring/check-suite-on-main/check-suite-on-main-push.test.sh
         ./tests/monitoring/check-suite-on-main/check-suite-on-main-retry.test.sh
         ./tests/monitoring/check-suite-on-main/check-suite-on-main-order.test.sh
@@ -99,6 +100,7 @@ jobs:
         ./tests/ci/suites/shell-ci-scope.test.sh
         ./tests/quality/scope/ci-job-scope.test.sh
         ./tests/quality/scope/ci-job-scope-suites.test.sh
+        ./tests/quality/scope/suite-scope-map.test.sh
         ./tests/quality/scope/ci-job-scope-suite-needed.test.sh
         ./tests/quality/scope/ci-job-scope-packages.test.sh
         ./tests/ci/suites/mldsa-job-scope.test.sh
@@ -134,6 +136,11 @@ jobs:
         ./tests/monitoring/check-tool-versions.test.sh
         ./tests/quality/lint/check-test-job-not-switchable.test.sh
         ./tests/quality/lint/check-test-job-not-switchable-inputs.test.sh
+        ./tests/quality/lint/check-test-job-not-switchable-jobs.test.sh
+        ./tests/quality/lint/check-test-job-not-switchable-steps.test.sh
+        ./tests/quality/lint/check-test-job-not-switchable-pins.test.sh
+        ./tests/quality/lint/check-test-job-not-switchable-context.test.sh
+        ./tests/quality/lint/check-test-job-not-switchable-checkout.test.sh
         ./tests/quality/lint/check-tooling-isolation.test.sh
         ./tests/ci/policy/rules/jobs-are-bounded.test.sh
         ./tests/ci/policy/rules/network-calls-are-bounded.test.sh

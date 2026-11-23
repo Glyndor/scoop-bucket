@@ -7,10 +7,15 @@
 # names it. Each pinned call is then replaced by ':' in a copy and must be reported, which shows
 # the check looks at the call and not only at the file.
 #
-# A call can also be the right-hand side of an assignment, as the readiness probe of
-# freshness.yml is (ready="$(bash ./scripts/...)"): the watcher of published-bytes runs
-# only when that value says so, so replacing the call leaves the watcher skipped, and a
-# skipped job reports success. The pattern takes that form as well as a bare command.
+# A call can also be the right-hand side of an assignment (name="$(bash ./scripts/...)"),
+# and the pattern takes that form as well as a bare command.
+#
+# The readiness probe of freshness.yml is the one call that is neither. The watcher of
+# published-bytes runs only when its value says so, so replacing the call leaves the
+# watcher skipped, and a skipped job reports success. In a pull request the probe runs
+# the copy of the script in the base commit, so the script is named once, in `path=`,
+# and run through `bash "$script"`: INDIRECT pins the three lines that make that
+# chain, and each is replaced by ':' in a copy and must be reported.
 #
 # The mutation catalogue's runner is in this list for the same reason as the
 # rest: the weekly sweep is a report, and a report that stops running is a
@@ -29,11 +34,18 @@ root = Path(sys.argv[1])
 PINNED = {
     "dco-on-main.yml": ["scripts/governance/check-dco-on-main.sh"],
     "drift.yml": ["scripts/monitoring/check-channel-drift.sh", "scripts/monitoring/check-render-drift.sh", "scripts/monitoring/check-reusable-drift.sh"],
-    "freshness.yml": ["scripts/monitoring/check-schedule-history-ready.sh", "scripts/monitoring/check-suite-on-main.sh", "scripts/monitoring/check-tool-versions.sh"],
+    "freshness.yml": ["scripts/monitoring/check-suite-on-main.sh", "scripts/monitoring/check-tool-versions.sh"],
     "mutation.yml": ["tests/mutation/run-mutations.sh"],
     "published-bytes.yml": ["scripts/artifacts/check-manifests.sh", "scripts/monitoring/check-published-manifests.sh", "scripts/release/render-manifests.sh"],
     "tests.yml": ["scripts/artifacts/check-manifests.sh", "scripts/artifacts/check-products-consistent.sh", "scripts/artifacts/check-version-monotonic.sh"],
     "update.yml": ["scripts/artifacts/check-manifests.sh", "scripts/artifacts/manifest-digests.sh", "scripts/release/render-manifests.sh"],
+}
+INDIRECT = {
+    "freshness.yml": [
+        r"path=scripts/monitoring/check-schedule-history-ready\.sh",
+        r'script="\$path"',
+        r'printed="\$\(bash "\$script" published-bytes\.yml 3\)"',
+    ],
 }
 passed = failed = 0
 
@@ -68,6 +80,18 @@ for workflow, scripts in PINNED.items():
         # Replace that call, wherever it is made, by ':' and it must be reported.
         mutated = re.sub(MUTABLE + r"\./" + re.escape(script), r"\1:", text)
         check(f"  and is reported when {script} is replaced by :", False, runs(mutated, script))
+
+def has(text, pattern):
+    return any(re.fullmatch(pattern, line.strip()) for line in text.splitlines()
+               if not line.strip().startswith("#"))
+
+
+for workflow, patterns in INDIRECT.items():
+    text = (root / ".github/workflows" / workflow).read_text()
+    for pattern in patterns:
+        check(f"{workflow} has the line {pattern}", True, has(text, pattern))
+        mutated = "\n".join(":" if re.fullmatch(pattern, line.strip()) else line for line in text.splitlines())
+        check(f"  and is reported when that line is replaced by :", False, has(mutated, pattern))
 
 print(f"{passed} passed, {failed} failed")
 print(f"DONE workflows-run-their-scripts.test.sh {passed} {failed}")
