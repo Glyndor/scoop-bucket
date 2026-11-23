@@ -51,6 +51,25 @@ app's bypass covers the bot's push and nothing a human can do. Commits made
 through `createCommitOnBranch` are GitHub-signed, which is how they satisfy
 `required_signatures` without a signing key in this repository.
 
+**Why no suite runs on a push to `main`.** What reaches `main` through a pull request was
+judged by that pull request on the tree that lands, because the ruleset requires the branch
+to be up to date and the checks that judge it. The one path that skips that is the app's
+push, and it is covered twice: `update.yml` renders and checks the manifests before it
+pushes, and `generated-on-main.yml` and `published-bytes.yml` judge what was pushed, with an
+issue when that fails. `pushes-to-main.yml` reads every push, with no filter of paths, and
+fails with an issue when a commit reached `main` that is neither a merged pull request nor
+only what the app writes (`scripts/monitoring/generated-paths.txt`); it takes its script and
+its list from the commit that `main` had, so a push cannot change how it is judged. Nothing
+else runs suites on a push; the list of what does, with its reasons, is held by
+`tests/ci/policy/workflows/push-runs-only-what-main-owns.test.sh`.
+
+`freshness.yml` reads the ruleset of `main` and compares it with
+`scripts/monitoring/main-ruleset.expected.json`. The list of who may bypass is not shown to
+the token of a workflow, so what stands in for it is the time of the last change of the
+ruleset, which is assumed to move on any edit, the bypass list included; that has not been
+measured. When you change the ruleset on purpose, update the copy in a pull request of its
+own, or the next scheduled run opens an issue.
+
 **The workflow runs two jobs, and the split is the security boundary.** `render`
 installs the signature verifier, downloads each product's latest signed
 release, re-renders `bucket/`, validates the result and records the SHA-256 of

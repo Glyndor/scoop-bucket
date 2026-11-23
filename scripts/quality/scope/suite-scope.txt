@@ -339,6 +339,22 @@ tests/ci/policy/workflows/workflow-shape.test.sh
 tests/ci/policy/workflows/persist-credentials.test.sh
 	.github/workflows/**
 
+tests/ci/policy/workflows/push-runs-only-what-main-owns.test.sh
+	.github/workflows/**
+	tests/ci/policy/workflows/push-runs-only-what-main-owns.test.sh
+
+tests/ci/policy/workflows/recent-pushes-are-judged.test.sh
+	.github/workflows/**
+	tests/ci/policy/workflows/recent-pushes-are-judged.test.sh
+
+tests/ci/policy/workflows/main-judges-from-the-commit-it-had.test.sh
+	.github/workflows/**
+	tests/ci/policy/workflows/main-judges-from-the-commit-it-had.test.sh
+
+tests/ci/policy/workflows/push-guard-trusts-the-commit-it-had.test.sh
+	.github/workflows/**
+	tests/ci/policy/workflows/push-guard-trusts-the-commit-it-had.test.sh
+
 tests/ci/policy/workflows/skip-only-on-an-explicit-false.test.sh
 	.github/workflows/**
 
@@ -404,7 +420,8 @@ tests/ci/policy/workflows/mutation-sweep-is-split-and-bounded.test.sh
 	.github/workflows/reusable-schedule-freshness.yml
 	.github/workflows/published-bytes.yml
 	scripts/monitoring/check-schedule-history-ready.sh
-	scripts/monitoring/check-suite-on-main.sh
+	scripts/monitoring/check-main-ruleset.sh
+	scripts/monitoring/main-ruleset.expected.json
 
 # Every scheduled workflow, and the freshness jobs that watch them.
 
@@ -442,7 +459,7 @@ tests/ci/policy/workflows/workflows-run-their-scripts.test.sh
 	scripts/monitoring/check-published-manifests.sh
 	scripts/monitoring/check-render-drift.sh
 	scripts/monitoring/check-reusable-drift.sh
-	scripts/monitoring/check-suite-on-main.sh
+	scripts/monitoring/check-main-ruleset.sh
 	scripts/release/render-manifests.sh
 	tests/mutation/run-mutations.sh
 
@@ -535,24 +552,13 @@ tests/governance/check-issue-templates.test.sh
 
 # --- the monitoring gates ---------------------------------------------------
 #
-# The suite-on-main gate reads the run history, not the tree; its script is
-# the only file input. The four suites around it share the fixture.
+# The ruleset watcher reads the rules from GitHub, not the tree; its script and the copy
+# it compares with are the inputs.
 
-tests/monitoring/check-suite-on-main.test.sh
-	scripts/monitoring/check-suite-on-main.sh
-	tests/fixtures/monitoring/**
-
-tests/monitoring/check-suite-on-main/check-suite-on-main-push.test.sh
-	scripts/monitoring/check-suite-on-main.sh
-	tests/fixtures/monitoring/**
-
-tests/monitoring/check-suite-on-main/check-suite-on-main-retry.test.sh
-	scripts/monitoring/check-suite-on-main.sh
-	tests/fixtures/monitoring/**
-
-tests/monitoring/check-suite-on-main/check-suite-on-main-order.test.sh
-	scripts/monitoring/check-suite-on-main.sh
-	tests/fixtures/monitoring/**
+tests/monitoring/check-main-ruleset.test.sh
+	scripts/monitoring/check-main-ruleset.sh
+	scripts/monitoring/main-ruleset.expected.json
+	tests/monitoring/check-main-ruleset.test.sh
 
 # The readiness gate reads the workflow whose schedule it watches.
 

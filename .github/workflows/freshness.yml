@@ -14,7 +14,7 @@ name: Freshness
 # Separate from the suite on purpose. These fail because something did not
 # happen elsewhere, never because this pull request is wrong.
 
-# A schedule and a push to main, and a pull request only when it changes this
+# A schedule, and a pull request only when it changes this
 # workflow or the reusables it calls. Not every pull request, and the reason is
 # measured rather than assumed: every job in this file answers a question about main or
 # about a cron somewhere else, never about the change in the pull request, so
@@ -27,11 +27,10 @@ name: Freshness
 # The run was created when the pull request opened and finished long after its
 # answer had stopped mattering.
 #
-# What is left still watches the same thing, and the push is not the
-# decoration: a cron that stops firing is exactly what freshness-itself cannot
-# report about itself, so the path that fires without the cron is the one that
-# has to stay. Measured the same day, the schedule fired twice and main moved
-# five times before midday, update.yml committing to it directly.
+# What is left still watches the same thing. The push to main is gone from here: it ran
+# these jobs once per merge to say what the schedule says twice a day, and a commit that
+# update.yml pushes is judged by generated-on-main.yml, published-bytes.yml and
+# pushes-to-main.yml, which have their own reason to run on a push.
 #
 # Never promote one of these to a required check. What they measure lives
 # outside the pull request, so an author who did nothing wrong could not
@@ -44,8 +43,8 @@ name: Freshness
 # leaves no required check unreported.
 #
 # What this gives up: the red tick on work outside those files when the
-# schedule and the pushes are silent at once. That takes two crons dying together, and one of
-# the two watchers is what catches the first one.
+# schedule is silent and nobody opens a pull request that touches these files. That takes
+# a cron dying with nobody working here, and freshness-itself is the watcher of this cron.
 
 on:
   # A watcher with no schedule only watches while somebody is already looking.
@@ -53,7 +52,7 @@ on:
   # and nothing else, so a cron that stopped firing between two pull requests
   # would have gone unreported until a person next visited the repository.
   # The pull request trigger is narrowed to the files below, and the header
-  # says why; this schedule and the push to main are what remain for the rest. The freshness thresholds
+  # says why; this schedule is what remains for the rest. The freshness thresholds
   # below are measured in days; a watcher that runs only when a person happens
   # to push cannot honour a one-day one.
   #
@@ -84,10 +83,17 @@ on:
       - .github/workflows/reusable-schedule-freshness.yml
       - .github/workflows/published-bytes.yml
       - scripts/monitoring/check-schedule-history-ready.sh
-      - scripts/monitoring/check-suite-on-main.sh
+      - scripts/monitoring/check-main-ruleset.sh
+      - scripts/monitoring/main-ruleset.expected.json
       - scripts/monitoring/check-tool-versions.sh
-  push:
-    branches: [main]
+  # No `push` to main: what lands there came through a pull request that this workflow
+  # judged, on the tree that lands, because the ruleset requires the branch up to date and
+  # the checks that judge the pull request. One actor bypasses it, the app that regenerates
+  # the manifests and pushes them with no pull request; that path is judged by update.yml
+  # before it pushes and by generated-on-main.yml and published-bytes.yml after. freshness.yml
+  # reads the ruleset and compares it with the copy in the repository.
+  # tests/ci/policy/workflows/push-runs-only-what-main-owns.test.sh holds the list of the
+  # workflows that do run on a push, with the reason of each.
 
 permissions:
   contents: read
@@ -289,86 +295,130 @@ jobs:
       workflow: mutation.yml
       max-age-days: 15
 
-  # Report when `main` is red, not just when the workflow stopped firing.
-  #
-  # reusable-schedule-freshness reads the newest SUCCESSFUL scheduled
-  # run of the workflow it names, so a failing run is invisible to it
-  # by construction. This job covers the other half: the suite workflow
-  # is firing, the run is on record, and the newest COMPLETED one
-  # concluded with something other than success.
-  #
-  # On 2026-09-19 this job read the wrong run on push. It fired at the
-  # same moment as the `tests.yml` run for the commit being pushed,
-  # asked for the newest COMPLETED `tests.yml` run on `main` (which on
-  # a push is the previous commit's run), and a push that fixed a red
-  # main got a red cross from this gate while its own `tests.yml` was
-  # green. The script now asks for the run whose head_sha is the
-  # pushed commit and waits up to 20 minutes for it to finish, so the
-  # developer pushing the fix sees the green within minutes rather
-  # than on a later visit; the schedule keeps the verdict within hours
-  # if nobody pushes.
-  #
-  # DELIBERATELY NOT a required status check. A red `main` would then
-  # block the pull request that repairs it, which is the failure this
-  # exists to surface rather than deepen. Watching the ordinary CI path
-  # on push to main and on the schedule above is enough.
-  #
-  # Reads the API with the job's own GITHUB_TOKEN, the same shape
-  # reusable-schedule-freshness uses. `actions: read` is the scope that
-  # makes that call work, and `contents: read` is what the caller is
-  # already granted. GITHUB_EVENT_NAME and GITHUB_SHA are the runner's
-  # automatic env vars and reach the script without being listed here.
-  suite-on-main:
+  # What lets CI skip the suites on a push to main is the ruleset: the branch has to be up to
+  # date, the aggregator and the checks that judge a pull request are required, and nobody
+  # bypasses, so the tree that lands is the tree a pull request tested. This reads what is in
+  # force on main and compares it with the copy in the repository, and a scheduled run that
+  # finds a difference opens an issue.
+  ruleset:
     concurrency:
-      group: freshness-suite-on-main-${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+      group: freshness-ruleset-${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
       cancel-in-progress: ${{ github.event_name == 'pull_request' }}
-    name: suite is green on main
-    # The image is named, as everywhere else: a new one arrives as a commit.
+    name: the ruleset of main is the one CI relies on
     runs-on: ubuntu-26.04
-    # Bound at 20 minutes by the script's retry budget (80 attempts of
-    # 15 seconds); a suite behind a slow queue measured ten minutes on
-    # 2026-11-08 (apt about 2 minutes when the queue is free, homebrew-tap
-    # 1 to 4, scoop-bucket 33 seconds). Five minutes is the slack.
-    timeout-minutes: 25
+    timeout-minutes: 10
     permissions:
       contents: read
-      actions: read
+      issues: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
-      - name: Check tests.yml on main
+      - name: Compare the ruleset of main with the copy
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
-          WORKFLOW: tests.yml
+          EVENT: ${{ github.event_name }}
         run: |
           set -euo pipefail
-          ./scripts/monitoring/check-suite-on-main.sh
+          bash ./scripts/monitoring/check-main-ruleset.sh
 
-  # The versions of shellcheck and actionlint written inside the reusables have
-  # no update path: Dependabot moves `uses:` pins only, and dependabot-freshness
-  # reads only those. This compares each pinned version with the releases its
-  # upstream publishes and fails once the first release after the pin has been
-  # out longer than the lag the script states and explains (30 days). An
-  # upstream that cannot be read fails too, rather than passing unread.
+  # The guard of each push does not run on a push that says [skip ci], or when its workflow is disabled, and then nobody
+  # is told. This looks, from here, at the commits of main since the guard existed and asks GitHub whether the guard ran on
+  # each and passed. It is written in this file and calls nothing of the tree, because the updater app cannot change a
+  # workflow and can change a script: a push cannot change its own watcher. It is a job of its own, with no checkout and no
+  # step that runs anything of the repository, on a runner that nothing else has used: a step that shares a job with one that
+  # runs the code of the repository can have its PATH or its environment rewritten by it (GITHUB_PATH, GITHUB_ENV), and
+  # `if: always()` does not undo that.
   #
-  # Here because this workflow already runs twice a day and on every push to
-  # main, and its own cron is watched by freshness-itself. Like every job here
-  # it is not a required check: a new release upstream says nothing about the
-  # pull request under review. The pull request filter names the script and not
-  # the reusables that carry the pins, so a pin bump is judged by the push that
-  # lands it.
-  #
-  # It asks GitHub for the releases of two public repositories with the job's
-  # own token, and `contents: read` is all that needs.
-  #
-  # The script imports yaml and this job installs nothing for it, by the same
-  # criterion as the workflow-lint job: the image ships python3-yaml, as the
-  # lint steps that imported yaml on ubuntu-latest showed, and ubuntu-latest
-  # resolved to ubuntu-26.04 on 2026-11-21. An image without it is an
-  # ImportError and a red job, not a green one.
+  # The commits to read are the ones down to a stop: the commit that introduced the workflow of the guard, which GitHub names
+  # from the history of that file (not a date, which the author of a commit writes), or, once a commit of main has been
+  # recorded here in VERIFIED_FROM, that one. The commits are read from the head of main in pages of a hundred, as many pages
+  # as MAX_PAGES says, and a scan that does not reach the stop fails: a page that is full is not a success. When it fails for
+  # that reason, the way out is a pull request that writes in VERIFIED_FROM a commit that every later commit was checked against.
+  guard-ran:
+    concurrency:
+      group: freshness-guard-ran-${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+      cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+    name: the guard of every push ran on each commit of main
+    runs-on: ubuntu-26.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      checks: read # the runs of the guard on each commit
+      issues: write # a scheduled run opens one issue for each commit that nobody judged
+    steps:
+      - name: Check that the guard of every push ran on each commit of main since its stop
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          EVENT: ${{ github.event_name }}
+          GUARD_JOB: every commit pushed to main is a pull request or only what the updater writes
+          VERIFIED_FROM: ""
+          MAX_PAGES: "5"
+        run: |
+          set -euo pipefail
+          fail=0
+          report() { # <title> <body>
+            echo "::error::$2"
+            fail=1
+            if [ "$EVENT" = schedule ]; then
+              open="$(gh issue list -R "$REPO" --state open --author app/github-actions --limit 100 --json title --jq "[.[] | select(.title == \"$1\")] | length")"
+              [ "$open" != 0 ] || gh issue create -R "$REPO" --title "$1" --label "type:bug" --label "prio:P1" --body "A scheduled run reports: $2" >/dev/null
+            fi
+          }
+          [[ "$MAX_PAGES" =~ ^[1-9][0-9]*$ ]] || { echo "::error::MAX_PAGES is '$MAX_PAGES', not a whole number above zero"; exit 1; }
+          if [ -n "$VERIFIED_FROM" ]; then
+            [[ "$VERIFIED_FROM" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::VERIFIED_FROM is '$VERIFIED_FROM', not a commit hash"; exit 1; }
+            cutoff="$VERIFIED_FROM"
+          else
+            # The oldest commit of main that touched the workflow of the guard. A list that is not a list, or that fills
+            # its page (so the oldest may be on the next), is an error; an empty one means the guard has not reached main
+            # yet, so no commit of main has been pushed under it.
+            history="$(gh api "repos/${REPO}/commits?sha=main&path=.github/workflows/pushes-to-main.yml&per_page=100")" || history=""
+            cutoff="$(printf '%s' "$history" | jq -r 'if type == "array" and length < 100 then (.[-1].sha // "none") else empty end' 2>/dev/null)" || cutoff=""
+            if [ "$cutoff" = none ]; then
+              # An empty history is only the guard not having reached main while its file is not on main. If the file
+              # is there and its history is empty (a path that moved, an answer that is not what it should be) the
+              # commits cannot be told apart, and that is a failure.
+              if probe="$(gh api "repos/${REPO}/contents/.github/workflows/pushes-to-main.yml?ref=main" --jq '.type' 2>&1)"; then
+                echo "::error::the workflow of the guard of every push is on main and its history is empty, so the commit that introduced it cannot be found"
+                exit 1
+              fi
+              case "$probe" in
+                *"HTTP 404"*) echo "The guard of every push has not reached main yet, so no commit of main has been pushed under it."; exit 0 ;;
+                *) echo "::error::whether the workflow of the guard of every push is on main cannot be read"; exit 1 ;;
+              esac
+            fi
+            [[ "$cutoff" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::the commit that introduced the guard of every push cannot be found, so the commits before it cannot be told from the ones it should have judged"; exit 1; }
+          fi
+          shas=""
+          found=0
+          for page in $(seq 1 "$MAX_PAGES"); do
+            list="$(gh api "repos/${REPO}/commits?sha=main&per_page=100&page=${page}")" || list=""
+            chunk="$(printf '%s' "$list" | jq -r --arg stop "$cutoff" '
+              if type == "array" and length > 0 and length <= 100 and all(.[]; (.sha | test("^[0-9a-f]{40}$")) and ((.parents | length) >= 1))
+              then ([.[].sha] | index($stop)) as $i
+                | if $i != null then "found", .[:$i + 1][].sha elif length == 100 then "more", .[].sha else "end", .[].sha end
+              else empty end')" || chunk=""
+            status="${chunk%%$'\n'*}"
+            case "$status" in found | more | end) ;; *) echo "::error::the commits of main cannot be read whole, so whether the guard ran on them is not known"; exit 1 ;; esac
+            shas="$shas"$'\n'"$(printf '%s\n' "$chunk" | tail -n +2)"
+            if [ "$status" = found ]; then found=1; break; fi
+            [ "$status" = more ] || break
+          done
+          [ "$found" = 1 ] || { echo "::error::the commits of main were read from its head, ${MAX_PAGES} page(s) of a hundred at the most, and the commit the scan stops at (${cutoff:0:7}) was not among them, so whether the guard ran on every commit in between is not known; write in VERIFIED_FROM a commit that every later commit was checked against"; exit 1; }
+          for sha in $(printf '%s\n' "$shas" | sed '/^$/d'); do
+            enc="$(jq -rn --arg n "$GUARD_JOB" '$n | @uri')"
+            runs="$(gh api "repos/${REPO}/commits/${sha}/check-runs?check_name=${enc}&filter=all&per_page=100")"
+            if ! printf '%s' "$runs" | jq -e '(.check_runs | type) == "array" and (.total_count | type) == "number" and (.check_runs | length) == .total_count
+                and ([.check_runs[] | select(.app.id == 15368)] | length > 0 and all(.[]; .conclusion == "success"))' >/dev/null; then
+              report "main commit ${sha:0:7} was not judged" "main commit $sha has no run of the guard of every push, from GitHub Actions, that passed: it was pushed with [skip ci], or its workflow was disabled, or the guard failed on it"
+            fi
+          done
+          [ "$fail" = 0 ] || exit 1
+
   tool-versions:
     name: pinned tool versions keep up with upstream
     # A newer push to the same pull request supersedes the run; on main and on

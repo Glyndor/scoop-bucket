@@ -5,3 +5,4 @@
 # `estimated` line by the time the run prints when the fragment has run on a runner.
 tests/mutation/catalog.txt	433	1920	measured on a runner by the dispatch of 2026-11-24 (run 45381378004): 1920 seconds over 433 entries
 tests/mutation/catalog.d/monitoring.txt	55	345	measured on a runner by the dispatch of 2026-11-24 (run 45381378004): 345 seconds over 55 entries
+tests/mutation/catalog.d/ruleset.txt	30	87	estimated from the dispatch of 2026-11-22: 630 seconds over 216 entries, scaled to 30 entries
