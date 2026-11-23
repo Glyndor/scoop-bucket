@@ -710,7 +710,7 @@ render_product() { # $1=table entry
 # Exit 0 when every digest is the signed one, 1 otherwise. A bucket with no manifest is
 # a failure: nothing was verified.
 verify_published() {
-	local manifest name repo row row_repo row_name arch url digest prefix rest tag asset signed
+	local manifest name repo row row_repo row_name arch url digest prefix rest tag asset signed base
 	local checked=0 failed=0 key lists=0
 	local -A release_list=()
 	shopt -s nullglob
@@ -770,7 +770,16 @@ verify_published() {
 			if [ "$signed" != "$digest" ]; then
 				echo "::error file=$manifest::architecture $arch declares digest $digest, but the signed SHA256SUMS of $repo $tag gives $signed for $asset" >&2
 				failed=$((failed + 1))
+				continue
 			fi
+			# A signed list authenticates its own bytes, not the tag it was made for: an old SHA256SUMS with its valid
+			# signature and its binaries can be published again under a new tag. The attestation of the binary is what
+			# ties it to refs/tags/<tag> and to the release workflow, as the render checks it for every asset.
+			base="https://github.com/$repo/releases/download/$tag"
+			verify_attestation "$repo" "$tag" "$asset" "$signed" || {
+				echo "::error file=$manifest::architecture $arch: the build provenance of $asset is missing, names another tag than $tag, or was not signed by the release workflow of $repo" >&2
+				failed=$((failed + 1))
+			}
 		done < <(jq -r '.architecture // {} | to_entries[] | [.key, (.value.url // ""), (.value.hash // "")] | @tsv' "$manifest")
 	done
 	if [ "$checked" -eq 0 ]; then

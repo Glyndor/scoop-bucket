@@ -121,7 +121,8 @@ case "$sub" in
 			echo "stub gh: refusing attestation verify, --source-ref pin missing; an artifact from another tag would verify against this release" >&2
 			exit 1
 		fi
-		if [ "$source_ref" != "$expected_ref" ]; then
+		# ATTEST_STUB_EXTRA_REF names one more tag whose provenance is genuine, for a manifest that names two releases.
+		if [ "$source_ref" != "$expected_ref" ] && [ "$source_ref" != "${ATTEST_STUB_EXTRA_REF:-}" ]; then
 			echo "stub gh: refusing attestation verify, --source-ref is $source_ref, expected $expected_ref" >&2
 			exit 1
 		fi

@@ -90,6 +90,9 @@ jobs:
           fi
 
       - name: Read every manifest digest against the signed checksums
+        env:
+          # Read-only, for `gh attestation verify` of each asset: the token of the run has `contents: read` and nothing else.
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           mldsa_venv="${RUNNER_TEMP:-}/mldsa-venv"

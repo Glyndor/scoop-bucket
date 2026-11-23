@@ -58,7 +58,7 @@ check "two architectures of one release are accepted" "0" "$rc"
 check "and SHA256SUMS of the release was fetched once" "1" "$(reads '/SHA256SUMS')"
 check "and its Ed25519 signature was fetched once" "1" "$(reads '/SHA256SUMS.sig')"
 check "and its second signature was asked for once" "1" "$(reads '/SHA256SUMS.mldsa65.sig')"
-check "and nothing else was fetched" "3" "$(wc -l < "$WORK/curl.log")"
+check "and nothing else was fetched but the two assets, which the attestation is verified over" "5" "$(wc -l < "$WORK/curl.log")"
 
 # --- a digest that is not the signed one ------------------------------------
 good_tree "$WORK/digest"
@@ -116,10 +116,45 @@ publish Glyndor/podup v9.9.9 podup-windows-x86_64.exe podup-windows-arm64.exe
 mkdir -p "$RELEASES/Glyndor__podup/tags"; mv "$WORK/older" "$RELEASES/Glyndor__podup/tags/v9.9.8"
 edit "$WORK/two-tags" '.architecture["arm64"].url |= sub("v9.9.9"; "v9.9.8") | .architecture["32bit"] = .architecture["64bit"]'
 rm -f "$WORK/curl.log"
-CURL_STUB_LOG="$WORK/curl.log" verify "$WORK/two-tags"
+ATTEST_STUB_EXTRA_REF=refs/tags/v9.9.8 CURL_STUB_LOG="$WORK/curl.log" verify "$WORK/two-tags"
 check "an architecture that names the first release again is accepted" "0" "$rc"
 check "and says it read three digests" "1" "$(said 'verified 3 published digest(s)')"
 check "and each of the two releases was read once" "2" "$(reads '/SHA256SUMS')"
+
+# --- a signed list republished under another tag -------------------------------------
+# The attack the signature does not cover: an old SHA256SUMS, with its valid signature and its binaries, published again
+# under a new tag. Every digest of the manifest is in the signed list, so the digest comparison accepts it; the attestation
+# of the binary names the old tag, and that is what refuses it.
+good_tree "$WORK/replay"
+ATTEST_STUB_OUTCOME=wrong-tag verify "$WORK/replay"
+check "a signed list republished under another tag is refused" "1" "$rc"
+check "and the refusal is the provenance's, not the digest's" "0" "$(said 'but the signed SHA256SUMS')"
+check "and says the provenance names another tag" "1" "$(said 'the build provenance of podup-windows-x86_64.exe is missing, names another tag than v9.9.9')"
+check "and the other architecture is refused as well" "1" "$(said 'the build provenance of podup-windows-arm64.exe is missing')"
+check "and both are counted as not verified" "1" "$(said '2 of 2 published digest(s) are not the ones')"
+good_tree "$WORK/replay-one"
+ATTEST_STUB_REFUSE_ASSET=podup-windows-arm64.exe verify "$WORK/replay-one"
+check "one asset whose provenance names another tag refuses the release even when the other is genuine" "1" "$rc"
+check "and only that asset is named" "1" "$(said 'the build provenance of podup-windows-arm64.exe')"
+check "and the genuine one is not" "0" "$(said 'the build provenance of podup-windows-x86_64.exe')"
+for outcome in no-attestation wrong-signer empty-list; do
+	good_tree "$WORK/replay-$outcome"
+	ATTEST_STUB_OUTCOME=$outcome verify "$WORK/replay-$outcome"
+	check "an attestation that is $outcome refuses the release" "1" "$rc"
+done
+# The attestation is asked for every asset, pinned to the tag by the stub itself (it refuses a verify that lacks the source
+# ref of the tag or the signer workflow of the repository), so a good tree being accepted shows both pins are passed.
+good_tree "$WORK/asked"
+rm -f "$WORK/attest.log"
+ATTEST_STUB_LOG="$WORK/attest.log" verify "$WORK/asked"
+check "the attestation is asked once for each asset" "2" "$(wc -l < "$WORK/attest.log")"
+check "and a good tree is accepted with both pins in place" "0" "$rc"
+# A digest that is not the signed one is refused before any attestation is asked for.
+good_tree "$WORK/digest-first"
+edit "$WORK/digest-first" ".architecture[\"64bit\"].hash = \"$(printf 'c%.0s' {1..64})\""
+rm -f "$WORK/attest.log"
+ATTEST_STUB_LOG="$WORK/attest.log" verify "$WORK/digest-first"
+check "an asset whose digest is not the signed one is not asked about" "1" "$(wc -l < "$WORK/attest.log")"
 
 # --- a url outside the product's repository -----------------------------------------
 good_tree "$WORK/other-repo"
