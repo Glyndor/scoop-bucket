@@ -1,0 +1,78 @@
+name: Install from the bucket
+
+# check-manifests.sh reads a manifest with jq. This reads it with the parser Scoop uses, installs it, and updates it, as
+# a user does on Windows: ConvertFrom-Json in Windows PowerShell and in PowerShell 7 (scripts/monitoring/read-manifests.ps1),
+# then `scoop bucket add`, `scoop install glyndor/<app>`, the program prints the version of the manifest, and the
+# manifest of the commit before it updates to the current one with `scoop update`
+# (scripts/monitoring/install-from-the-bucket.sh, which holds every step and has its own suite with a stub of scoop).
+#
+# It runs when a push changes a manifest, which is what the updater app does with no pull request in front of it;
+# and on demand. Never on a pull request: it reads the bucket as published, not the change of a pull request. A
+# failure has no pull request to block, so it is a red run. It has no cron yet: the weekly one, because Scoop changes
+# under a manifest that does not, comes with the watcher that reads it, in a pull request of its own once this file is
+# on main.
+#
+# NOT VERIFIED YET: the scripts are tested against a stub of scoop, and the PowerShell and the steps of this
+# workflow have not run on a runner. The first run (a manual one, from main) shows whether the installer below works
+# on the image, whether the `scoop` of the shims answers from Git Bash as the stub does, and whether `scoop export` has
+# the shape the script reads. Until a scheduled run has ended well, the cron is in its grace period and no longer.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - bucket/**
+
+permissions:
+  contents: read
+
+concurrency:
+  group: install-from-the-bucket-${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  install:
+    # Every manifest of the bucket. The policy suite named below holds the list to the folder.
+    # tests/ci/policy/workflows/install-covers-the-bucket.test.sh holds all of it.
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [podup]
+    runs-on: windows-2025
+    # One install, one uninstall, one install and one update of a single binary, with no build, after the installer of
+    # Scoop. Thirty is a bound for a slow download, not an honest run.
+    timeout-minutes: 30
+    env:
+      # The installer of Scoop, of one commit of ScoopInstaller/Install and held to its digest, so that a change of
+      # the installer is a commit here. What it then downloads (Scoop itself) is what the project publishes.
+      SCOOP_INSTALLER_COMMIT: 1e2f334083d609986d8c8bc9e31ae8e87c39fab4
+      SCOOP_INSTALLER_SHA256: 94f983b190438311e006b957db7c8422709e0ba62a6c2ac04e278164108f2512
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          # The history of the manifest is what the commit before it is found in.
+          fetch-depth: 0
+          ref: ${{ github.event_name == 'workflow_dispatch' && 'main' || github.sha }}
+
+      - name: Read the manifests with ConvertFrom-Json of Windows PowerShell
+        shell: powershell
+        run: ./scripts/monitoring/read-manifests.ps1
+
+      - name: Read the manifests with ConvertFrom-Json of PowerShell 7
+        shell: pwsh
+        run: ./scripts/monitoring/read-manifests.ps1
+
+      # The installer is downloaded from the commit named above and run only after its SHA-256 is checked
+      # (scripts/monitoring/install-scoop.ps1). The job has no secret and a read-only token.
+      - name: Install Scoop
+        shell: pwsh
+        run: ./scripts/monitoring/install-scoop.ps1
+
+      - name: Install the app and update it from the version before
+        shell: bash
+        env:
+          APP: ${{ matrix.app }}
+        run: |
+          set -euo pipefail
+          bash ./scripts/monitoring/install-from-the-bucket.sh "$APP"

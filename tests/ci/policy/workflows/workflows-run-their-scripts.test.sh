@@ -35,6 +35,7 @@ PINNED = {
     "dco-on-main.yml": ["scripts/governance/check-dco-on-main.sh"],
     "drift.yml": ["scripts/monitoring/check-channel-drift.sh", "scripts/monitoring/check-render-drift.sh", "scripts/monitoring/check-reusable-drift.sh"],
     "freshness.yml": ["scripts/monitoring/check-main-ruleset.sh", "scripts/monitoring/check-tool-versions.sh"],
+    "install-from-the-bucket.yml": ["scripts/monitoring/install-from-the-bucket.sh", "scripts/monitoring/read-manifests.ps1", "scripts/monitoring/install-scoop.ps1"],
     "mutation.yml": ["tests/mutation/run-mutations.sh"],
     "published-bytes.yml": ["scripts/artifacts/check-manifests.sh", "scripts/monitoring/check-published-manifests.sh", "scripts/release/render-manifests.sh"],
     "tests.yml": ["scripts/artifacts/check-manifests.sh", "scripts/artifacts/check-products-consistent.sh", "scripts/artifacts/check-version-monotonic.sh"],

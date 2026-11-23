@@ -32,6 +32,7 @@ FLOATING = {
 
 # (workflow, job) -> why its legs do not stop each other.
 INDEPENDENT = {
+    ("install-from-the-bucket.yml", "install"): "each leg is an app and answers for its own: a manifest that does not install says nothing about another",
     ("mutation.yml", "mutations"): "each fragment is a file of the catalogue and answers for its own entries; one that fails does not make what the others found worth less",
 }
 

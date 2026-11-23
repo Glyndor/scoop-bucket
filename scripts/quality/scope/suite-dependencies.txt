@@ -96,6 +96,9 @@ tests/ci/policy/workflows/skip-only-on-an-explicit-false.test.sh python3-yaml
 tests/ci/policy/workflows/required-checks-are-emitted.test.sh python3-yaml
 tests/ci/policy/workflows/pull-request-runs-are-superseded.test.sh python3-yaml
 tests/ci/policy/workflows/freshness-pr-scope.test.sh python3-yaml
+tests/ci/policy/workflows/install-covers-the-bucket.test.sh python3-yaml
+tests/monitoring/previous-manifest.test.sh -
+tests/monitoring/install-from-the-bucket.test.sh -
 tests/ci/policy/workflows/mutation-sweep-is-split-and-bounded.test.sh python3-yaml
 tests/ci/policy/workflows/published-bytes-ready-step.test.sh -
 tests/ci/policy/workflows/scheduled-workflows-are-watched.test.sh python3-yaml
