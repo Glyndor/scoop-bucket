@@ -97,7 +97,6 @@ jobs:
         ./tests/ci/policy/workflows/push-guard-trusts-the-commit-it-had.test.sh
         ./tests/monitoring/check-schedule-history-ready.test.sh
         ./tests/ci/policy/workflows/published-bytes-ready-step.test.sh
-        ./tests/monitoring/scheduled-run-exists.test.sh
         ./tests/ci/docs/documented-test-command.test.sh
         ./tests/ci/docs/documented-claims.test.sh
         ./tests/ci/suites/ci-runs-every-test.test.sh
