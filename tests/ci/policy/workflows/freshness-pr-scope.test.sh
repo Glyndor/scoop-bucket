@@ -4,7 +4,7 @@
 # change in a pull request, so it must not run on every pull request. It may
 # run on one that changes what it is made of: the workflow itself, the two
 # reusables it calls, the published-bytes workflow it watches, its schedule
-# history helper, the script its suite job runs and the one its tool-versions
+# history helper, the script and the copy its ruleset job reads, and the one its tool-versions
 # job runs. A filter that left its own
 # file out would stop testing the workflow it guards, and a filter on a
 # required check would never report it, so this also requires that no job of
@@ -44,7 +44,8 @@ need = {".github/workflows/freshness.yml",
         ".github/workflows/reusable-schedule-freshness.yml",
         ".github/workflows/published-bytes.yml",
         "scripts/monitoring/check-schedule-history-ready.sh",
-        "scripts/monitoring/check-suite-on-main.sh",
+        "scripts/monitoring/check-main-ruleset.sh",
+        "scripts/monitoring/main-ruleset.expected.json",
         "scripts/monitoring/check-tool-versions.sh"}
 if not present:
     print("ok")  # no pull_request trigger at all is also fine
@@ -63,26 +64,26 @@ plant() { # $1 = file, rest = the pull_request block lines
 	local f="$1"; shift
 	{ printf 'on:\n'; printf '  %s\n' "$@"; printf 'jobs: {}\n'; } > "$f"
 }
-FULL=('pull_request:' '  paths:' '    - .github/workflows/freshness.yml' '    - .github/workflows/reusable-dependabot-freshness.yml' '    - .github/workflows/reusable-schedule-freshness.yml' '    - .github/workflows/published-bytes.yml' '    - scripts/monitoring/check-schedule-history-ready.sh' '    - scripts/monitoring/check-suite-on-main.sh' '    - scripts/monitoring/check-tool-versions.sh')
+FULL=('pull_request:' '  paths:' '    - .github/workflows/freshness.yml' '    - .github/workflows/reusable-dependabot-freshness.yml' '    - .github/workflows/reusable-schedule-freshness.yml' '    - .github/workflows/published-bytes.yml' '    - scripts/monitoring/check-schedule-history-ready.sh' '    - scripts/monitoring/check-main-ruleset.sh' '    - scripts/monitoring/main-ruleset.expected.json' '    - scripts/monitoring/check-tool-versions.sh')
 
 plant "$WORK/c/good.yml" "${FULL[@]}"
-check "the seven files and nothing else pass" "ok" "$(scope "$WORK/c/good.yml")"
+check "the eight files and nothing else pass" "ok" "$(scope "$WORK/c/good.yml")"
 plant "$WORK/c/unfiltered.yml" 'pull_request:'
 check "an unfiltered pull_request trigger is reported" "the pull_request trigger has no paths filter" "$(scope "$WORK/c/unfiltered.yml")"
-plant "$WORK/c/noself.yml" 'pull_request:' '  paths:' '    - .github/workflows/reusable-dependabot-freshness.yml' '    - .github/workflows/reusable-schedule-freshness.yml' '    - .github/workflows/published-bytes.yml' '    - scripts/monitoring/check-schedule-history-ready.sh' '    - scripts/monitoring/check-suite-on-main.sh' '    - scripts/monitoring/check-tool-versions.sh'
+plant "$WORK/c/noself.yml" 'pull_request:' '  paths:' '    - .github/workflows/reusable-dependabot-freshness.yml' '    - .github/workflows/reusable-schedule-freshness.yml' '    - .github/workflows/published-bytes.yml' '    - scripts/monitoring/check-schedule-history-ready.sh' '    - scripts/monitoring/check-main-ruleset.sh' '    - scripts/monitoring/main-ruleset.expected.json' '    - scripts/monitoring/check-tool-versions.sh'
 check "a filter that leaves out the workflow itself is reported" \
 	"paths missing: ['.github/workflows/freshness.yml']; paths not allowed: []" "$(scope "$WORK/c/noself.yml")"
 plant "$WORK/c/noscript.yml" 'pull_request:' '  paths:' '    - .github/workflows/freshness.yml' '    - .github/workflows/reusable-dependabot-freshness.yml' '    - .github/workflows/reusable-schedule-freshness.yml' '    - .github/workflows/published-bytes.yml' '    - scripts/monitoring/check-schedule-history-ready.sh' '    - scripts/monitoring/check-tool-versions.sh'
 check "a filter that leaves out the script the suite job runs is reported" \
-	"paths missing: ['scripts/monitoring/check-suite-on-main.sh']; paths not allowed: []" "$(scope "$WORK/c/noscript.yml")"
-plant "$WORK/c/nobytes.yml" 'pull_request:' '  paths:' '    - .github/workflows/freshness.yml' '    - .github/workflows/reusable-dependabot-freshness.yml' '    - .github/workflows/reusable-schedule-freshness.yml' '    - scripts/monitoring/check-schedule-history-ready.sh' '    - scripts/monitoring/check-suite-on-main.sh' '    - scripts/monitoring/check-tool-versions.sh'
+	"paths missing: ['scripts/monitoring/check-main-ruleset.sh', 'scripts/monitoring/main-ruleset.expected.json']; paths not allowed: []" "$(scope "$WORK/c/noscript.yml")"
+plant "$WORK/c/nobytes.yml" 'pull_request:' '  paths:' '    - .github/workflows/freshness.yml' '    - .github/workflows/reusable-dependabot-freshness.yml' '    - .github/workflows/reusable-schedule-freshness.yml' '    - scripts/monitoring/check-schedule-history-ready.sh' '    - scripts/monitoring/check-main-ruleset.sh' '    - scripts/monitoring/main-ruleset.expected.json' '    - scripts/monitoring/check-tool-versions.sh'
 check "a filter that leaves out the published-bytes workflow is reported" \
 	"paths missing: ['.github/workflows/published-bytes.yml']; paths not allowed: []" "$(scope "$WORK/c/nobytes.yml")"
-plant "$WORK/c/nohelper.yml" 'pull_request:' '  paths:' '    - .github/workflows/freshness.yml' '    - .github/workflows/reusable-dependabot-freshness.yml' '    - .github/workflows/reusable-schedule-freshness.yml' '    - .github/workflows/published-bytes.yml' '    - scripts/monitoring/check-suite-on-main.sh' '    - scripts/monitoring/check-tool-versions.sh'
+plant "$WORK/c/nohelper.yml" 'pull_request:' '  paths:' '    - .github/workflows/freshness.yml' '    - .github/workflows/reusable-dependabot-freshness.yml' '    - .github/workflows/reusable-schedule-freshness.yml' '    - .github/workflows/published-bytes.yml' '    - scripts/monitoring/check-main-ruleset.sh' '    - scripts/monitoring/main-ruleset.expected.json' '    - scripts/monitoring/check-tool-versions.sh'
 check "a filter that leaves out the schedule-history helper is reported" \
 	"paths missing: ['scripts/monitoring/check-schedule-history-ready.sh']; paths not allowed: []" "$(scope "$WORK/c/nohelper.yml")"
 plant "$WORK/c/wide.yml" "${FULL[@]}" '    - README.md'
-check "a filter wider than the seven files is reported" \
+check "a filter wider than the eight files is reported" \
 	"paths missing: []; paths not allowed: ['README.md']" "$(scope "$WORK/c/wide.yml")"
 
 plant "$WORK/c/notools.yml" "${FULL[@]:0:${#FULL[@]}-1}"
