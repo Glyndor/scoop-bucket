@@ -186,16 +186,16 @@ run_plan() { plan "$WORK/render.out" "$WORK/digests.out" | tr '\n' '|'; }
 
 render_and_record 0 valid
 check "a clean render with a change runs the check, the mint and the commit" \
-	"actions/checkout|Download the rendered manifests|Check the rendered bytes against the render job's digests|Mint a token for the updater app|Commit the update to main (GitHub-signed)|" \
+	"Refuse any ref but main|actions/checkout|Download the rendered manifests|Check the rendered bytes against the render job's digests|Mint a token for the updater app|Commit the update to main (GitHub-signed)|" \
 	"$(run_plan)"
 
 render_and_record 0 no
 check "a clean render without a change still mints, and does nothing else" \
-	"Mint a token for the updater app|" "$(run_plan)"
+	"Refuse any ref but main|Mint a token for the updater app|" "$(run_plan)"
 
 render_and_record 3 valid
 check "a partial render with a change commits what rendered, then fails" \
-	"actions/checkout|Download the rendered manifests|Check the rendered bytes against the render job's digests|Mint a token for the updater app|Commit the update to main (GitHub-signed)|Fail if any product was skipped|" \
+	"Refuse any ref but main|actions/checkout|Download the rendered manifests|Check the rendered bytes against the render job's digests|Mint a token for the updater app|Commit the update to main (GitHub-signed)|Fail if any product was skipped|" \
 	"$(run_plan)"
 rc=0; ( cd "$WORK/r" && bash "$FAILSTEP" ) > "$WORK/out" 2>&1 || rc=$?
 check "and the failure step fails the commit job" "1" "$rc"
@@ -203,7 +203,7 @@ check "and says what was skipped" "1" "$(grep -c 'skipped at least one product' 
 
 render_and_record 3 no
 check "a partial render without a change mints and fails" \
-	"Mint a token for the updater app|Fail if any product was skipped|" "$(run_plan)"
+	"Refuse any ref but main|Mint a token for the updater app|Fail if any product was skipped|" "$(run_plan)"
 
 echo
 echo "$pass passed, $fail failed"
