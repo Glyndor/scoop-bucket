@@ -35,11 +35,11 @@ name: Freshness
 # Never promote one of these to a required check. What they measure lives
 # outside the pull request, so an author who did nothing wrong could not
 # clear it, and the whole repository would wait on an unrelated repair.
-# Measured 2026-11-06 against the live ruleset: the eight required checks are
-# shell / test, shell / shellcheck, line-limit / line limit, dco /
-# Signed-off-by present on every commit, workflow-lint / workflow-lint,
-# empty-diff / empty diff, validate manifests, and products match the
-# generator. None of them is a job in this file, so narrowing the trigger
+# The copy of the ruleset (scripts/monitoring/main-ruleset.expected.json) names
+# nine required checks: shell / test, shell / shellcheck, line-limit / line limit,
+# dco / Signed-off-by present on every commit, workflow-lint / workflow-lint,
+# empty-diff / empty diff, validate manifests, products match the generator, and
+# ML-DSA-65 verifier. None of them is a job in this file, so narrowing the trigger
 # leaves no required check unreported.
 #
 # What this gives up: the red tick on work outside those files when the
