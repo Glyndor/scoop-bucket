@@ -85,7 +85,7 @@ something, and `tests/publication/update/update-digest-handoff.test.sh` runs the
 two steps that pass the digests from one job to the other.
 
 **What installs from the bucket is tried, not only read.** `install-from-the-bucket.yml` runs when a manifest is
-pushed and on demand, on Windows: every manifest is read with `ConvertFrom-Json` of Windows PowerShell and of
+pushed, weekly and on demand, on Windows: every manifest is read with `ConvertFrom-Json` of Windows PowerShell and of
 PowerShell 7 (`scripts/monitoring/read-manifests.ps1`), then `scoop bucket add`, `scoop install glyndor/<app>`, the
 program prints the version of the manifest, and the manifest of the commit before it updates to the current one with
 `scoop update` (`scripts/monitoring/install-from-the-bucket.sh`, tested against a stub of scoop; the PowerShell and the
