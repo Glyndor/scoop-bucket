@@ -55,3 +55,13 @@ monitor-push-main-pages-empty	scripts/monitoring/check-push-to-main.sh	[ "$(jq '
 monitor-push-main-associated-merger	scripts/monitoring/check-push-to-main.sh	{ [ -z "$merger" ] || bypasses "$merger"; }	{ bypasses "$merger"; }	tests/monitoring/check-push-to-main.test.sh
 lint-listed-generated-report	scripts/quality/lint/switch-rule-forms.json	generated-on-main.yml", "job": "report"	generated-on-main.yml", "job": "reportx"	tests/quality/lint/check-test-job-not-switchable-forms.test.sh
 lint-listed-pushes-report	scripts/quality/lint/switch-rule-forms.json	pushes-to-main.yml", "job": "report"	pushes-to-main.yml", "job": "reportx"	tests/quality/lint/check-test-job-not-switchable-forms.test.sh
+channel-forms-in-part	scripts/monitoring/check-channel-drift.sh	if [ "$path" = "$FORMS_PATH" ]; then	if false; then	tests/monitoring/check-channel-drift.test.sh
+forms-common-usage	scripts/monitoring/common-switch-forms.sh	[ "$#" -eq 5 ] || {	true || {	tests/monitoring/common-switch-forms.test.sh
+forms-common-refusal-ends	scripts/monitoring/common-switch-forms.sh	    sys.exit(1)	    return None	tests/monitoring/common-switch-forms.test.sh
+forms-common-key-twice	scripts/monitoring/common-switch-forms.sh	            raise ValueError("a key is written twice")	            pass	tests/monitoring/common-switch-forms.test.sh
+forms-common-shape	scripts/monitoring/common-switch-forms.sh	    if not isinstance(data, dict) or any(	    if False and any(	tests/monitoring/common-switch-forms.test.sh
+forms-common-line-shape	scripts/monitoring/common-switch-forms.sh	    if len(fields) != 3 or fields[0] not in SECTIONS or not all(fields):	    if len(fields) != 3:	tests/monitoring/common-switch-forms.test.sh
+forms-common-line-twice	scripts/monitoring/common-switch-forms.sh	    if tuple(fields) in differing:	    if False:	tests/monitoring/common-switch-forms.test.sh
+forms-common-stale	scripts/monitoring/common-switch-forms.sh	    if entries(mine, section, workflow, job) == entries(sibling, section, workflow, job):	    if False:	tests/monitoring/common-switch-forms.test.sh
+forms-common-leaves-out	scripts/monitoring/common-switch-forms.sh	        data[section] = [e for e in data[section] if (section, e["file"], e["job"]) not in differing]	        pass	tests/monitoring/common-switch-forms.test.sh
+forms-common-leaves-only-the-listed	scripts/monitoring/common-switch-forms.sh	(section, e["file"], e["job"]) not in differing]	e["file"] not in [w for _, w, _ in differing]]	tests/monitoring/common-switch-forms.test.sh
