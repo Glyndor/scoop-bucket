@@ -660,7 +660,17 @@ render_product() { # $1=table entry
 		echo "::error::bucket/$manifest.json is a symlink; refusing to write through it" >&2
 		return 1
 	fi
-	tmp="$(mktemp "$root/bucket/.render.XXXXXX")" || return 1
+	if [ -d "$target" ]; then
+		echo "::error::bucket/$manifest.json is a directory; refusing to write the manifest over it" >&2
+		return 1
+	fi
+	# The temporary is written at the root of the repository, not inside
+	# bucket/. update.yml commits every untracked file under bucket/, so a
+	# temporary left there by an interrupted run would be published as part of
+	# the bucket. The root is on the same filesystem as bucket/, so the move
+	# into place is still a rename and never a copy: a reader never sees half
+	# a manifest.
+	tmp="$(mktemp "$root/.render.XXXXXX")" || return 1
 
 	# Build with jq so the output is always valid JSON. `bin` renames the arch
 	# exe to the tool name, so `scoop install` exposes it simply as `<manifest>`.
@@ -678,6 +688,12 @@ render_product() { # $1=table entry
 			license: "MIT",
 			architecture: $architecture
 		}' >"$tmp" || {
+		rm -f "$tmp"
+		return 1
+	}
+	# `mktemp` creates the file with mode 600 and `mv` keeps it, so the
+	# manifest landed unreadable by group and others. A manifest is 644.
+	chmod 644 "$tmp" || {
 		rm -f "$tmp"
 		return 1
 	}
@@ -815,6 +831,16 @@ done
 if [ "$VERIFY_PUBLISHED" = 1 ]; then
 	verify_published
 	exit $?
+fi
+
+# bucket/ is a directory of the repository, and it is where every manifest is
+# written below. If it is a symlink, all of those writes land somewhere else:
+# the render reported success, the bucket never changed, and `mkdir -p` is
+# happy with a symlink to a directory. The refusal happens before any product is
+# rendered, so a run that finds one writes nothing at all.
+if [ -L "$root/bucket" ]; then
+	echo "::error::bucket/ is a symlink; refusing to write the manifests outside the repository" >&2
+	exit 1
 fi
 
 mkdir -p "$root/bucket"

@@ -175,6 +175,10 @@ renderer-manifest-widen	scripts/release/render-manifests.sh	'^[a-z0-9][a-z0-9._-
 renderer-repository-widen	scripts/release/render-manifests.sh	'^[A-Za-z0-9][A-Za-z0-9._-]*/[A-Za-z0-9][A-Za-z0-9._-]*$'	'^[A-Za-z0-9][A-Za-z0-9._-]*/[A-Za-z0-9][A-Za-z0-9._:-]*$'	tests/release/render-manifests/render-manifests-products.test.sh
 renderer-organization-widen	scripts/release/render-manifests.sh	Glyndor/*) ;;	*/*) ;;	tests/release/render-manifests/render-manifests-products.test.sh
 renderer-asset-widen	scripts/release/render-manifests.sh	'^[A-Za-z0-9][A-Za-z0-9._-]*$'	'^[A-Za-z0-9][A-Za-z0-9._:-]*$'	tests/release/render-manifests/render-manifests-products.test.sh
+render-bucket-symlink	scripts/release/render-manifests.sh	if [ -L "$root/bucket" ]; then	if false; then	tests/release/render-manifests/render-manifests-symlink.test.sh
+render-manifest-directory	scripts/release/render-manifests.sh	if [ -d "$target" ]; then	if false; then	tests/release/render-manifests/render-manifests-symlink.test.sh
+render-temp-at-root	scripts/release/render-manifests.sh	tmp="$(mktemp "$root/.render.XXXXXX")" || return 1	tmp="$(mktemp "$root/bucket/.render.XXXXXX")" || return 1	tests/release/render-manifests/render-manifests-symlink.test.sh
+render-manifest-mode	scripts/release/render-manifests.sh	chmod 644 "$tmp" || {	true || {	tests/release/render-manifests.test.sh
 pq-venv-second-slot	.github/workflows/update.yml	^RELEASE_PQ_PUBKEY2?_B64=	^RELEASE_PQ_PUBKEY(_2)?_B64=	tests/publication/update/update-mldsa-venv.test.sh
 pq-venv-path	.github/workflows/update.yml	PATH="$mldsa_venv/bin:$PATH"	:	tests/publication/update/update-mldsa-venv.test.sh
 products-row-shape	scripts/release/products.sh	if ($0 !~ /^[[:space:]]*"([^"\\]|\\.)*"[[:space:]]*$/) {	if (0) {	tests/release/products.test.sh
