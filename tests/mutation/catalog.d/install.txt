@@ -1,0 +1,24 @@
+# The guards of the install of an app from the bucket and of the search of the manifest before it.
+# Same format as tests/mutation/catalog.txt, which says what every field means.
+install-bucket-app-does-not-start-out	scripts/monitoring/install-from-the-bucket.sh	|| fail "$app does not start: $out"	|| true	tests/monitoring/install-from-the-bucket.test.sh
+install-bucket-the-bucket-bucket-cannot-be-added	scripts/monitoring/install-from-the-bucket.sh	|| fail "the bucket $bucket cannot be added"	|| true	tests/monitoring/install-from-the-bucket.test.sh
+install-bucket-the-clone-of-the-bucket-is-not-a-folder-dir	scripts/monitoring/install-from-the-bucket.sh	|| fail "the clone of the bucket is not a folder: $dir"	|| true	tests/monitoring/install-from-the-bucket.test.sh
+install-bucket-the-clone-of-the-bucket-has-no-head	scripts/monitoring/install-from-the-bucket.sh	|| fail "the clone of the bucket has no HEAD"	|| true	tests/monitoring/install-from-the-bucket.test.sh
+install-bucket-the-manifest-file-of-the-bucket-declares-no-ve	scripts/monitoring/install-from-the-bucket.sh	|| fail "the manifest $file of the bucket declares no version"	|| true	tests/monitoring/install-from-the-bucket.test.sh
+install-bucket-scoop-install-bucket-app-failed	scripts/monitoring/install-from-the-bucket.sh	|| fail "scoop install $bucket/$app failed"	|| true	tests/monitoring/install-from-the-bucket.test.sh
+install-bucket-scoop-installed-app-installed-not-the-want-its	scripts/monitoring/install-from-the-bucket.sh	|| fail "scoop installed $app $(installed), not the $want its manifest declares"	|| true	tests/monitoring/install-from-the-bucket.test.sh
+install-bucket-the-commit-sha-of-file-is-not-in-the-clone-of	scripts/monitoring/install-from-the-bucket.sh	|| fail "the commit $sha of $file is not in the clone of the bucket"	|| true	tests/monitoring/install-from-the-bucket.test.sh
+install-bucket-scoop-uninstall-app-failed	scripts/monitoring/install-from-the-bucket.sh	|| fail "scoop uninstall $app failed"	|| true	tests/monitoring/install-from-the-bucket.test.sh
+install-bucket-the-manifest-of-sha-cannot-be-put-in-the-clone	scripts/monitoring/install-from-the-bucket.sh	|| fail "the manifest of $sha cannot be put in the clone of the bucket"	|| true	tests/monitoring/install-from-the-bucket.test.sh
+install-bucket-scoop-install-of-the-manifest-of-sha-failed	scripts/monitoring/install-from-the-bucket.sh	|| fail "scoop install of the manifest of $sha failed"	|| true	tests/monitoring/install-from-the-bucket.test.sh
+install-bucket-the-manifest-of-sha-installed-app-installed-no	scripts/monitoring/install-from-the-bucket.sh	|| fail "the manifest of $sha installed $app $(installed), not its $before"	|| true	tests/monitoring/install-from-the-bucket.test.sh
+install-bucket-the-current-manifest-cannot-be-put-back-in-the	scripts/monitoring/install-from-the-bucket.sh	|| fail "the current manifest cannot be put back in the clone of the bucket"	|| true	tests/monitoring/install-from-the-bucket.test.sh
+install-bucket-scoop-update-app-failed	scripts/monitoring/install-from-the-bucket.sh	|| fail "scoop update $app failed"	|| true	tests/monitoring/install-from-the-bucket.test.sh
+install-bucket-after-scoop-update-app-is-installed-not-want	scripts/monitoring/install-from-the-bucket.sh	|| fail "after scoop update $app is $(installed), not $want"	|| true	tests/monitoring/install-from-the-bucket.test.sh
+install-bucket-exit-3-when-nothing-earlier	scripts/monitoring/install-from-the-bucket.sh	exit 3	exit 0	tests/monitoring/install-from-the-bucket.test.sh
+previous-manifest-same-version-is-not-previous	scripts/monitoring/previous-manifest.sh	key(before) < current	key(before) <= current	tests/monitoring/previous-manifest.test.sh
+previous-manifest-nothing-below-is-exit-3	scripts/monitoring/previous-manifest.sh	sys.exit(3)	sys.exit(0)	tests/monitoring/previous-manifest.test.sh
+previous-manifest-pre-release-below-release	scripts/monitoring/previous-manifest.sh	0 if pre else 1	1 if pre else 0	tests/monitoring/previous-manifest.test.sh
+previous-manifest-numeric-identifiers	scripts/monitoring/previous-manifest.sh	(0, int(p), "") if p.isdigit() else	(1, 0, p) if p.isdigit() else	tests/monitoring/previous-manifest.test.sh
+previous-manifest-not-semver	scripts/monitoring/previous-manifest.sh	    if not m:	    if False:	tests/monitoring/previous-manifest.test.sh
+previous-manifest-no-version	scripts/monitoring/previous-manifest.sh	if now is None:	if False:	tests/monitoring/previous-manifest.test.sh

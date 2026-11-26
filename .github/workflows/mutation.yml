@@ -61,6 +61,8 @@ jobs:
             minutes: 50
           - fragment: tests/mutation/catalog.d/monitoring.txt
             minutes: 12
+          - fragment: tests/mutation/catalog.d/install.txt
+            minutes: 10
           - fragment: tests/mutation/catalog.d/ruleset.txt
             minutes: 10
     steps:

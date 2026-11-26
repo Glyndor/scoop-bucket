@@ -33,11 +33,12 @@ ON_PUSH = {
     "dco-on-main.yml": "the sign-off of the commit that GitHub makes when it squashes a pull request exists only on main",
     "generated-on-main.yml": "the updater app bypasses the ruleset and pushes the manifests with no pull request, so what it pushed is judged here",
     "pushes-to-main.yml": "a commit that reached main with no pull request and that is not what the updater writes is judged by nobody, so this reads every push",
+    "install-from-the-bucket.yml": "the updater app bypasses the ruleset and pushes the manifests with no pull request, so what it pushed is read with the parser of Scoop and installed from the bucket here, as a user does",
     "published-bytes.yml": "what the updater app pushes is what Scoop downloads, so the bytes served from main are read back after a push of the manifests and the scripts that produce them",
 }
 # The workflows of the list that judge what the updater app writes: their `paths` have to cover everything
 # the app commits, read from the step of update.yml that commits it.
-GENERATED = ("generated-on-main.yml",)
+GENERATED = ("generated-on-main.yml", "install-from-the-bucket.yml")
 # The workflow that judges every push: it has no filter of paths, and it takes its judge, the
 # script and the list, from the commit that main had (`github.event.before`) in every checkout,
 # never from what was pushed, so a push cannot change how it is judged.
