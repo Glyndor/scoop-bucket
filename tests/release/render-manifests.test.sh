@@ -42,6 +42,7 @@ rc=0; run "$WORK/r1/scripts/release/render-manifests.sh" "$WORK/r1" || rc=$?
 check "a verified release renders and exits 0" "0" "$rc"
 
 M="$WORK/r1/bucket/podup.json"
+check "the manifest is written world readable (644)" "644" "$(stat -c %a "$M")"
 check "the output is valid JSON" "0" "$(jq -e . "$M" >/dev/null 2>&1; echo $?)"
 check "the version comes from the release tag" "9.9.9" "$(jq -r .version "$M")"
 check "the 64bit url points at the tagged asset" \
