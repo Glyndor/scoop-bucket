@@ -7,7 +7,7 @@
 #   * the job runs on a Windows image it names, not on a floating label;
 #   * it reads the manifests with ConvertFrom-Json twice, in Windows PowerShell and in PowerShell 7, which parse
 #     differently, and installs Scoop from an installer of one commit held to its digest;
-#   * it runs on dispatch and on a push that changes bucket/ and nothing else, and on no pull
+#   * it runs on a schedule, on dispatch and on a push that changes bucket/ and nothing else, and on no pull
 #     request: it reads the bucket as published, and a pull request has not published anything;
 #   * its steps use only actions of GitHub (`actions/`), pinned to a commit, and its checkout keeps the history the
 #     manifest before is found in and keeps no credential;
@@ -61,7 +61,7 @@ def problems(repo):
         found.append("the installer of Scoop is not held to a digest")
     for bad in sorted({"pull_request", "pull_request_target"} & set(on)):
         found.append(f"it runs on {bad}")
-    for need in ("workflow_dispatch", "push"):
+    for need in ("schedule", "workflow_dispatch", "push"):
         if need not in on:
             found.append(f"it does not run on {need}")
     push = on.get("push") or {}
@@ -88,7 +88,7 @@ def plant(apps, mutate=lambda spec: None, on=None):
         for a in apps:
             (repo / "bucket" / f"{a}.json").write_text("{}\n")
         spec = {
-            "on": on or {"workflow_dispatch": None, "push": {"branches": ["main"], "paths": ["bucket/**"]}},
+            "on": on or {"schedule": [{"cron": "0 0 * * 2"}], "workflow_dispatch": None, "push": {"branches": ["main"], "paths": ["bucket/**"]}},
             "jobs": {"install": {
                 "strategy": {"fail-fast": False, "matrix": {"app": ["podup"]}},
                 "runs-on": "windows-2025", "timeout-minutes": 30,
@@ -126,9 +126,9 @@ check("a workflow that never reads with PowerShell 7 is refused", ["no step read
 check("a workflow that installs Scoop with something else is refused", ["no step installs Scoop with the script that holds the installer to its digest"], plant(["podup"], lambda s: job(s)["steps"].pop(3)))
 check("an installer of Scoop that is not held to a commit is refused", ["the installer of Scoop is not held to a commit"], plant(["podup"], lambda s: job(s)["env"].update({"SCOOP_INSTALLER_COMMIT": "master"})))
 check("an installer of Scoop that is not held to a digest is refused", ["the installer of Scoop is not held to a digest"], plant(["podup"], lambda s: job(s)["env"].pop("SCOOP_INSTALLER_SHA256")))
-check("a run on a pull request is refused", ["it runs on pull_request"], plant(["podup"], on={"workflow_dispatch": None, "push": {"paths": ["bucket/**"]}, "pull_request": None}))
-check("a run with no push is refused", ["it does not run on push", "its push runs for None and not for bucket/** alone"], plant(["podup"], on={"workflow_dispatch": None}))
-check("a push for more than the manifests is refused", ["its push runs for ['bucket/**', 'docs/**'] and not for bucket/** alone"], plant(["podup"], on={"workflow_dispatch": None, "push": {"paths": ["bucket/**", "docs/**"]}}))
+check("a run on a pull request is refused", ["it runs on pull_request"], plant(["podup"], on={"schedule": [{"cron": "0 0 * * 2"}], "workflow_dispatch": None, "push": {"paths": ["bucket/**"]}, "pull_request": None}))
+check("a run with no schedule is refused", ["it does not run on schedule"], plant(["podup"], on={"workflow_dispatch": None, "push": {"paths": ["bucket/**"]}}))
+check("a push for more than the manifests is refused", ["its push runs for ['bucket/**', 'docs/**'] and not for bucket/** alone"], plant(["podup"], on={"schedule": [{"cron": "0 0 * * 2"}], "workflow_dispatch": None, "push": {"paths": ["bucket/**", "docs/**"]}}))
 check("a step of a third party is refused", ["a step uses someone/action@" + "b" * 40 + ", which is not an action of GitHub pinned to a commit"], plant(["podup"], lambda s: job(s)["steps"].append({"uses": "someone/action@" + "b" * 40})))
 check("an action of GitHub pinned to a tag is refused", ["a step uses actions/cache@v4, which is not an action of GitHub pinned to a commit"], plant(["podup"], lambda s: job(s)["steps"].append({"uses": "actions/cache@v4"})))
 check("a checkout without the history is refused", ["the checkout does not keep the history, so the manifest before cannot be found"], plant(["podup"], lambda s: job(s)["steps"][0]["with"].update({"fetch-depth": 1})))

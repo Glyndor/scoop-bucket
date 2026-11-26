@@ -7,16 +7,17 @@ name: Install from the bucket
 # (scripts/monitoring/install-from-the-bucket.sh, which holds every step and has its own suite with a stub of scoop).
 #
 # It runs when a push changes a manifest, which is what the updater app does with no pull request in front of it;
-# and on demand. Never on a pull request: it reads the bucket as published, not the change of a pull request. A
-# failure has no pull request to block, so it is a red run. It has no cron yet: the weekly one, because Scoop changes
-# under a manifest that does not, comes with the watcher that reads it, in a pull request of its own once this file is
-# on main.
+# weekly, because Scoop changes under a manifest that does not; and on demand. Never on a pull request: it reads the
+# bucket as published, not the change of a pull request. A failure has no pull request to block, so it is a red run,
+# and freshness.yml watches the weekly cron.
 #
 # NOT VERIFIED YET: the scripts are tested against a stub of scoop, and the PowerShell and the steps of this
 # workflow have not run on a runner. The first run (a manual one, from main) shows whether the installer below works
 # on the image, whether the `scoop` of the shims answers from Git Bash as the stub does, and whether `scoop export` has
 # the shape the script reads. Until a scheduled run has ended well, the cron is in its grace period and no longer.
 on:
+  schedule:
+    - cron: "47 6 * * 2"
   workflow_dispatch:
   push:
     branches: [main]
