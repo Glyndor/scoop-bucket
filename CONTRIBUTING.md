@@ -293,6 +293,10 @@ copies in the sibling channels (`scripts/monitoring/check-reusable-drift.sh` com
 them). The scripts and tests listed in `scripts/monitoring/channel-shared-paths.txt` are
 copies kept identical to the tap's (`scripts/monitoring/check-channel-drift.sh` compares them).
 The comparison does fetch the sibling copies, read-only and size-capped, from `raw.githubusercontent.com`; it runs in `drift.yml`, and the test job fetches nothing.
+`switch-rule-forms.json` is compared in part: the entries that
+`scripts/monitoring/differing-switch-forms.txt` names are of each repository and left out of
+both copies. The jobs of a repository that keep a floating runner label are in its own
+`tests/ci/policy/workflows/runners-exceptions.json`.
 
 **Job ids are load-bearing.** A required status check is named
 `<caller job id> / <inner job name>`, so renaming a job renames its check.

@@ -1,0 +1,9 @@
+{
+ "floating": [
+  ["freshness.yml", "published-bytes-ready", "writes an output a condition reads; naming the image is a producer change that needs its own earlier pull request"]
+ ],
+ "independent": [
+  ["install-from-the-bucket.yml", "install", "each leg is an app and answers for its own: a manifest that does not install says nothing about another"],
+  ["mutation.yml", "mutations", "each fragment is a file of the catalogue and answers for its own entries; one that fails does not make what the others found worth less"]
+ ]
+}
