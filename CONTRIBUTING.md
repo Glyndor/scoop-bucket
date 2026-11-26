@@ -58,13 +58,14 @@ push, and it is covered twice: `update.yml` renders and checks the manifests bef
 pushes, and `generated-on-main.yml` and `published-bytes.yml` judge what was pushed, with an
 issue when that fails. `pushes-to-main.yml` reads every push, with no filter of paths, and
 fails with an issue when a commit reached `main` that is neither a merged pull request nor
-only what the app writes (`scripts/monitoring/generated-paths.txt`); it takes its script and
+only what the app writes (`scripts/monitoring/generated-paths.txt`); it takes its script
+(`scripts/monitoring/check-push-to-main.sh`) and
 its list from the commit that `main` had, so a push cannot change how it is judged. Nothing
 else runs suites on a push; the list of what does, with its reasons, is held by
 `tests/ci/policy/workflows/push-runs-only-what-main-owns.test.sh`.
 
 `freshness.yml` reads the ruleset of `main` and compares it with
-`scripts/monitoring/main-ruleset.expected.json`. The list of who may bypass is not shown to
+`scripts/monitoring/main-ruleset.expected.json` (`scripts/monitoring/check-main-ruleset.sh`). The list of who may bypass is not shown to
 the token of a workflow, so what stands in for it is the time of the last change of the
 ruleset, which is assumed to move on any edit, the bypass list included; that has not been
 measured. When you change the ruleset on purpose, update the copy in a pull request of its
@@ -108,7 +109,8 @@ The renderer refuses versions below the served version using SemVer precedence
 For a reviewed rollback, take two pull requests. First merge one that adds a line
 `bucket/<name>.json <committed version> <version to go back to>` to
 `scripts/artifacts/approved-rollbacks.txt`: the permission is read from the base
-branch, so it cannot arrive together with the rollback, and the version gate then
+branch, so it cannot arrive together with the rollback, and the version gate
+(`scripts/artifacts/check-version-monotonic.sh`) then
 lets exactly that manifest go between exactly those two versions and refuses
 anything else. The rollback pull request must also delete the line: an approval is
 single-use, and the gate refuses a tree that is already at the version a line allowed.
@@ -201,7 +203,10 @@ CI runs that suite in its own job, `ML-DSA-65 verifier` in `tests.yml`. The job
 always starts and reports under that name, and decides in its first step whether
 anything the suite reads changed: when nothing did, the wheel install and the
 suite are skipped and the job says so in its summary. It asks the same question
-on a pull request and on a push to main, and any doubt runs the suite.
+on every pull request, and any doubt runs the suite.
+
+`scripts/monitoring/report-failure.sh` opens the issue for a failed job that judges
+`main`, and no workflow calls it today: the workflows that open issues do it inline.
 
 **Every script in `scripts/` needs a test.**
 `scripts/quality/coverage/check-test-coverage.sh` fails when one does not, itself included --
