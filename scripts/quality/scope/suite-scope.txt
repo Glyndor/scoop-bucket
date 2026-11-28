@@ -456,13 +456,7 @@ tests/ci/policy/workflows/freshness-poll-concurrency.test.sh
 # those workflows must run.
 
 tests/ci/policy/workflows/workflows-run-their-scripts.test.sh
-	.github/workflows/dco-on-main.yml
-	.github/workflows/drift.yml
-	.github/workflows/freshness.yml
-	.github/workflows/mutation.yml
-	.github/workflows/published-bytes.yml
-	.github/workflows/tests.yml
-	.github/workflows/update.yml
+	.github/workflows/**
 	scripts/artifacts/check-manifests.sh
 	scripts/artifacts/check-products-consistent.sh
 	scripts/artifacts/check-version-monotonic.sh
