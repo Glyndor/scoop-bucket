@@ -339,6 +339,17 @@ tests/ci/policy/workflows/workflow-shape.test.sh
 tests/ci/policy/workflows/persist-credentials.test.sh
 	.github/workflows/**
 
+# The permissions gate walks every workflow, and the cancel gate reads the
+# script it runs, the workflow that runs it and the name of every workflow,
+# because a name the cancellable list holds has to be the name of one of them.
+
+tests/ci/policy/workflows/permissions-declared.test.sh
+	.github/workflows/**
+
+tests/ci/cancel/others.test.sh
+	scripts/ci/cancel/others.sh
+	.github/workflows/**
+
 tests/ci/policy/workflows/main/push-runs-only-what-main-owns.test.sh
 	.github/workflows/**
 	tests/ci/policy/workflows/main/push-runs-only-what-main-owns.test.sh
@@ -445,13 +456,7 @@ tests/ci/policy/workflows/freshness-poll-concurrency.test.sh
 # those workflows must run.
 
 tests/ci/policy/workflows/workflows-run-their-scripts.test.sh
-	.github/workflows/dco-on-main.yml
-	.github/workflows/drift.yml
-	.github/workflows/freshness.yml
-	.github/workflows/mutation.yml
-	.github/workflows/published-bytes.yml
-	.github/workflows/tests.yml
-	.github/workflows/update.yml
+	.github/workflows/**
 	scripts/artifacts/check-manifests.sh
 	scripts/artifacts/check-products-consistent.sh
 	scripts/artifacts/check-version-monotonic.sh

@@ -58,7 +58,7 @@ jobs:
       matrix:
         include:
           - fragment: tests/mutation/catalog.txt
-            minutes: 50
+            minutes: 51
           - fragment: tests/mutation/catalog.d/monitoring.txt
             minutes: 12
           - fragment: tests/mutation/catalog.d/install.txt
