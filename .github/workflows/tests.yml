@@ -24,7 +24,7 @@ on:
   # the manifests and pushes them with no pull request; that path is judged by update.yml
   # before it pushes and by generated-on-main.yml and published-bytes.yml after. freshness.yml
   # reads the ruleset and compares it with the copy in the repository.
-  # tests/ci/policy/workflows/push-runs-only-what-main-owns.test.sh holds the list of the
+  # tests/ci/policy/workflows/main/push-runs-only-what-main-owns.test.sh holds the list of the
   # workflows that do run on a push, with the reason of each.
 
 permissions:
@@ -88,13 +88,15 @@ jobs:
         ./tests/quality/coverage/check-test-coverage.test.sh
         ./tests/quality/hygiene/check-doc-anchors.test.sh
         ./tests/quality/lint/check-action-pins.test.sh
+        ./tests/quality/structure/folder-limit.test.sh
+        ./tests/quality/lint/switch-rule-forms.test.sh
         ./tests/governance/check-dco-on-main.test.sh
         ./tests/governance/check-issue-templates.test.sh
         ./tests/monitoring/check-main-ruleset.test.sh
-        ./tests/ci/policy/workflows/push-runs-only-what-main-owns.test.sh
-        ./tests/ci/policy/workflows/recent-pushes-are-judged.test.sh
-        ./tests/ci/policy/workflows/main-judges-from-the-commit-it-had.test.sh
-        ./tests/ci/policy/workflows/push-guard-trusts-the-commit-it-had.test.sh
+        ./tests/ci/policy/workflows/main/push-runs-only-what-main-owns.test.sh
+        ./tests/ci/policy/workflows/main/recent-pushes-are-judged.test.sh
+        ./tests/ci/policy/workflows/main/main-judges-from-the-commit-it-had.test.sh
+        ./tests/ci/policy/workflows/main/push-guard-trusts-the-commit-it-had.test.sh
         ./tests/monitoring/check-schedule-history-ready.test.sh
         ./tests/ci/policy/workflows/published-bytes-ready-step.test.sh
         ./tests/ci/docs/documented-test-command.test.sh
