@@ -339,21 +339,21 @@ tests/ci/policy/workflows/workflow-shape.test.sh
 tests/ci/policy/workflows/persist-credentials.test.sh
 	.github/workflows/**
 
-tests/ci/policy/workflows/push-runs-only-what-main-owns.test.sh
+tests/ci/policy/workflows/main/push-runs-only-what-main-owns.test.sh
 	.github/workflows/**
-	tests/ci/policy/workflows/push-runs-only-what-main-owns.test.sh
+	tests/ci/policy/workflows/main/push-runs-only-what-main-owns.test.sh
 
-tests/ci/policy/workflows/recent-pushes-are-judged.test.sh
+tests/ci/policy/workflows/main/recent-pushes-are-judged.test.sh
 	.github/workflows/**
-	tests/ci/policy/workflows/recent-pushes-are-judged.test.sh
+	tests/ci/policy/workflows/main/recent-pushes-are-judged.test.sh
 
-tests/ci/policy/workflows/main-judges-from-the-commit-it-had.test.sh
+tests/ci/policy/workflows/main/main-judges-from-the-commit-it-had.test.sh
 	.github/workflows/**
-	tests/ci/policy/workflows/main-judges-from-the-commit-it-had.test.sh
+	tests/ci/policy/workflows/main/main-judges-from-the-commit-it-had.test.sh
 
-tests/ci/policy/workflows/push-guard-trusts-the-commit-it-had.test.sh
+tests/ci/policy/workflows/main/push-guard-trusts-the-commit-it-had.test.sh
 	.github/workflows/**
-	tests/ci/policy/workflows/push-guard-trusts-the-commit-it-had.test.sh
+	tests/ci/policy/workflows/main/push-guard-trusts-the-commit-it-had.test.sh
 
 tests/ci/policy/workflows/skip-only-on-an-explicit-false.test.sh
 	.github/workflows/**

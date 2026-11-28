@@ -1,0 +1,76 @@
+name: Folder limit
+
+# The number of files a folder may hold directly, twenty. The limit of lines
+# per file is the other half of the same standard, and line-limit.yml holds
+# that one; this workflow holds the other.
+#
+# A folder that grows past twenty files stops being readable as a list: the
+# reviewer has to open every file to know what is there, and nobody can tell
+# which of them belongs with which. The rule is what keeps the decision of
+# where a file goes in the hands of the person who adds it: the folder has to
+# be split, and the split is part of the change that adds the file.
+#
+# The script counts what git tracks, so a file that is not committed does not
+# count and a file that is committed does, whatever the working directory
+# holds. It ignores the flat .github/workflows folder on purpose: GitHub
+# requires the workflows to sit there, and it holds more than twenty files.
+# The folders that cannot be split are listed, with a reason, in
+# .github/folder-limit-exceptions.txt.
+#
+# On a pull request it is judged against the base commit as well as its own
+# list: a folder has to fit what the base allows, so an exception is added in
+# a pull request of its own, before the folder outgrows the limit, and cannot
+# approve itself. A ceiling may only go down from the base's.
+
+on:
+  pull_request:
+  # No `push` to main: what lands there came through a pull request that this workflow
+  # judged, on the tree that lands, because the ruleset requires the branch up to date and
+  # the checks that judge the pull request. One actor bypasses it, the app that regenerates the
+  # manifests and pushes them with no pull request; that path is judged by update.yml
+  # before it pushes and by generated-on-main.yml and published-bytes.yml after. freshness.yml
+  # reads the ruleset and compares it with the copy in the repository.
+  # tests/ci/policy/workflows/main/push-runs-only-what-main-owns.test.sh holds the list of the
+  # workflows that do run on a push, with the reason of each.
+
+permissions:
+  contents: read
+
+concurrency:
+  # The group names the event and the ref, so a newer push to a pull request
+  # supersedes the run still going on the old commit, and a run on main is
+  # never queued behind, or cancelled by, one.
+  group: folder-limit-${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  folder-limit:
+    name: folder limit
+    runs-on: ubuntu-26.04
+    # The count is a walk of the tracked files: seconds. Ten minutes is the
+    # org floor for a job whose honest run is seconds.
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      # The script is the base commit's copy, so a pull request cannot weaken the check that judges it,
+      # and it reads the base's list of exceptions as well as the tree's, so it cannot raise a ceiling for
+      # itself. The pull request that adds the script has no base copy and runs its own once.
+      - name: No folder holds more files than its ceiling
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          path=scripts/quality/structure/folder-limit.sh
+          gate="$(mktemp "$RUNNER_TEMP/folder-limit.XXXXXX")"
+          base_commit="$(git rev-parse --verify "${BASE}^{commit}")"
+          listed="$(git ls-tree --name-only "$base_commit" -- "$path")"
+          if [ -n "$listed" ]; then
+            git show "$base_commit:$path" > "$gate"
+          else
+            echo "The base commit has no $path; this pull request adds it and runs its own copy once."
+            cp "$path" "$gate"
+          fi
+          bash "$gate"
