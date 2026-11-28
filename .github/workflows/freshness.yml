@@ -346,8 +346,11 @@ jobs:
   # The commits to read are the ones down to a stop: the commit that introduced the workflow of the guard, which GitHub names
   # from the history of that file (not a date, which the author of a commit writes), or, once a commit of main has been
   # recorded here in VERIFIED_FROM, that one. The commits are read from the head of main in pages of a hundred, as many pages
-  # as MAX_PAGES says, and a scan that does not reach the stop fails: a page that is full is not a success. When it fails for
-  # that reason, the way out is a pull request that writes in VERIFIED_FROM a commit that every later commit was checked against.
+  # as MAX_PAGES says, and a scan that does not reach the stop fails: a page that is full is not a success. The commit that
+  # introduced the guard is judged like the ones after it. The one in VERIFIED_FROM is not: a person checked it by hand, so the
+  # guard is not asked about it or about what came before it, and every commit after it is judged. It is written here, and
+  # in pushes-to-main.yml, by a pull request whose body says what was checked; the way out of a scan that does not reach
+  # its stop, and of a commit the guard did not pass on for a reason that is not the commit's, is that pull request.
   guard-ran:
     concurrency:
       group: freshness-guard-ran-${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
@@ -366,7 +369,8 @@ jobs:
           REPO: ${{ github.repository }}
           EVENT: ${{ github.event_name }}
           GUARD_JOB: every commit pushed to main is a pull request or only what the updater writes
-          VERIFIED_FROM: ""
+          # Empty, or the full hash of the one commit checked by hand. A literal, never an expression.
+          VERIFIED_FROM: "029158ea97ed7480e0ef8be5e3d7f910dcdfee3d"
           MAX_PAGES: "5"
         run: |
           set -euo pipefail
@@ -421,6 +425,7 @@ jobs:
           done
           [ "$found" = 1 ] || { echo "::error::the commits of main were read from its head, ${MAX_PAGES} page(s) of a hundred at the most, and the commit the scan stops at (${cutoff:0:7}) was not among them, so whether the guard ran on every commit in between is not known; write in VERIFIED_FROM a commit that every later commit was checked against"; exit 1; }
           for sha in $(printf '%s\n' "$shas" | sed '/^$/d'); do
+            [ "$sha" != "$VERIFIED_FROM" ] || continue
             enc="$(jq -rn --arg n "$GUARD_JOB" '$n | @uri')"
             runs="$(gh api "repos/${REPO}/commits/${sha}/check-runs?check_name=${enc}&filter=all&per_page=100")"
             if ! printf '%s' "$runs" | jq -e '(.check_runs | type) == "array" and (.total_count | type) == "number" and (.check_runs | length) == .total_count

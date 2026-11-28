@@ -43,3 +43,9 @@ folder-limit-the-verdict-reaches-the-caller	scripts/quality/structure/folder-lim
 folder-limit-the-rule-comes-from-the-base	.github/workflows/folder-limit.yml	git show "$base_commit:$path" > "$gate"	cp "$path" "$gate"	tests/quality/structure/folder-limit.test.sh
 # An entry of the switch forms names a job of this repository.
 switch-forms-missing-job	tests/quality/lint/switch-rule-forms.test.sh	if str(entry.get("job", "")) not in jobs:	if False:	tests/quality/lint/switch-rule-forms.test.sh
+push-guard-verified-from-is-a-hash	.github/workflows/pushes-to-main.yml	[[ "$VERIFIED_FROM" =~ ^[0-9a-f]{40}$ ]] ||	true ||	tests/ci/policy/workflows/main/push-guard-trusts-the-commit-it-had.test.sh
+push-guard-verified-from-only-the-commit-main-had	.github/workflows/pushes-to-main.yml	if [ "$VERIFIED_FROM" = "$BEFORE" ]; then	if true; then	tests/ci/policy/workflows/main/push-guard-trusts-the-commit-it-had.test.sh
+push-guard-verified-from-came-before	.github/workflows/pushes-to-main.yml	[ "$relation" = ahead ] ||	true ||	tests/ci/policy/workflows/main/push-guard-trusts-the-commit-it-had.test.sh
+push-guard-verified-from-order-of-the-comparison	.github/workflows/pushes-to-main.yml	compare/${VERIFIED_FROM}...${BEFORE}	compare/${BEFORE}...${VERIFIED_FROM}	tests/ci/policy/workflows/main/push-guard-trusts-the-commit-it-had.test.sh
+guard-ran-verified-from-is-not-asked-about	.github/workflows/freshness.yml	[ "$sha" != "$VERIFIED_FROM" ] || continue	true	tests/ci/policy/workflows/main/recent-pushes-are-judged.test.sh
+guard-ran-only-the-verified-commit-is-skipped	.github/workflows/freshness.yml	[ "$sha" != "$VERIFIED_FROM" ] || continue	[ -z "$VERIFIED_FROM" ] || continue	tests/ci/policy/workflows/main/recent-pushes-are-judged.test.sh

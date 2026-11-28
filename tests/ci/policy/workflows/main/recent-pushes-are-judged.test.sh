@@ -11,8 +11,10 @@
 #   * it names the guard job exactly as pushes-to-main.yml does, the integration of GitHub Actions
 #     (15368), every attempt (`filter=all`), and every commit from the head of main down to the commit
 #     that introduced the workflow of the guard (taken from the history of that file, never written by
-#     hand or read as a date) or to the commit recorded in VERIFIED_FROM, page by page, and it is itself
-#     judged; a scan that does not reach that commit within MAX_PAGES fails, a full page is not a success;
+#     hand or read as a date) or to the commit recorded in VERIFIED_FROM, page by page; a scan that does
+#     not reach that commit within MAX_PAGES fails, a full page is not a success. The commit that introduced
+#     the guard is itself judged; the one in VERIFIED_FROM, checked by hand, is not, and every one after it is.
+#     The record is a literal of the workflow;
 #   * run with answers of a fake `gh`: a commit with a passing run is fine; one with no run, with a
 #     failed attempt, with a run of another app, with a list cut short or with an API that fails is
 #     refused, and a scheduled run opens one issue per commit, titled with its sha and only
@@ -37,7 +39,7 @@ check() { # <description> <expected> <actual>
 }
 
 python3 -I - "$HERE" "$WORK" <<'PY'
-import sys, yaml
+import re, sys, yaml
 here, work = sys.argv[1:3]
 fresh = yaml.safe_load(open(f"{here}/.github/workflows/freshness.yml"))
 job = fresh["jobs"].get("guard-ran", {"steps": []})
@@ -53,6 +55,9 @@ open(f"{work}/run.sh", "w").write(step["run"])
 env = step.get("env", {})
 open(f"{work}/job", "w").write(str(env.get("GUARD_JOB", "")))
 open(f"{work}/env-keys", "w").write(" ".join(sorted(env)))
+record = env.get("VERIFIED_FROM")
+literal = isinstance(record, str) and re.fullmatch(r"(?:[0-9a-f]{40})?", record)
+open(f"{work}/record", "w").write("literal" if literal else repr(record))
 guard = yaml.safe_load(open(f"{here}/.github/workflows/pushes-to-main.yml"))
 open(f"{work}/guard-name", "w").write(guard["jobs"]["guard"]["name"])
 PY
@@ -187,6 +192,27 @@ check "and then the history of the workflow of the guard is not even asked for" 
 good; check "a VERIFIED_FROM that is not a hash fails" "rc=1|issues=0" "$(VERIFIED_FROM=main run)"
 check "and says that it is not a commit hash, before it reads anything" "1" "$(grep -c 'is .main., not a commit hash' "$WORK/log")"
 good; check "a VERIFIED_FROM that is not on main fails: the stop is never reached" "rc=1|issues=0" "$(VERIFIED_FROM=9999999999999999999999999999999999999999 run)"
+nobody() { printf '{"total_count":0,"check_runs":[]}' >"$WORK/api/runs-$1.json"; }
+check "the record of the workflow is a literal, empty or a full hash, and no expression" "literal" "$(cat "$WORK/record")"
+good; runs "$B" 15368 failure
+check "the commit recorded in VERIFIED_FROM is not asked about, though its guard failed" "rc=0|issues=0" "$(VERIFIED_FROM="$B" run)"
+good; nobody "$B"
+check "nor when it has no run at all" "rc=0|issues=0" "$(VERIFIED_FROM="$B" run)"
+good; nobody "$CUT"
+check "nor is a commit before it" "rc=0|issues=0" "$(VERIFIED_FROM="$B" run)"
+good; nobody "$A"
+check "a commit after the recorded one is judged as ever, and reported" "rc=1|issues=1" "$(VERIFIED_FROM="$B" run)"
+check "and it is the one the title names" "main commit 1111111 was not judged" "$(cat "$WORK/api/created")"
+good; runs "$A" 15368 failure
+check "and so is one whose guard failed" "rc=1|issues=1" "$(VERIFIED_FROM="$B" run)"
+good; nobody "$A"
+check "with the head of main recorded there is nothing after it to ask about" "rc=0|issues=0" "$(VERIFIED_FROM="$A" run)"
+good; nobody "$B"
+check "and with no record the same commit is reported" "rc=1|issues=1" "$(run)"
+for bad in "${B:0:7}" "${B:0:39}" "${B}2" ABCDEFABCDEFABCDEFABCDEFABCDEFABCDEFABCD "$B " " $B" "\$B"; do
+	good; check "a VERIFIED_FROM '$bad' fails" "rc=1|issues=0" "$(VERIFIED_FROM="$bad" run)"
+	check "and says '$bad' is not a commit hash" "1" "$(grep -c 'not a commit hash' "$WORK/log")"
+done
 good; check "a MAX_PAGES that is not a number fails" "rc=1|issues=0" "$(MAX_PAGES=x run)"
 good; list "$CUT" "$A"
 check "a head that is the cut-off is judged and accepted when its guard passed" "rc=0|issues=0" "$(run)"
