@@ -124,8 +124,9 @@ output_line="$(grep -F 'echo "$ready" >> "$GITHUB_OUTPUT"' "$workflow")"
 # shellcheck disable=SC2016 # the workflow's literal shell is under test
 check "the workflow writes the helper output verbatim" "1" \
 	"$(printf '%s\n' "$output_line" | grep -c 'echo "\$ready" >> "\$GITHUB_OUTPUT"')"
+readiness="$(awk '/^  [a-z0-9-]+:$/ { p = ($0 == "  published-bytes-ready:") } p' "$workflow")"
 check "the readiness checkout has full history" "1" \
-	"$(grep -c 'fetch-depth: 0' "$workflow")"
+	"$(grep -c 'fetch-depth: 0' <<<"$readiness")"
 
 echo
 echo "$pass passed, $fail failed"
