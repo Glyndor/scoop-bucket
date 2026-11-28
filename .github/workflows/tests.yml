@@ -88,6 +88,8 @@ jobs:
         ./tests/quality/coverage/check-test-coverage.test.sh
         ./tests/quality/hygiene/check-doc-anchors.test.sh
         ./tests/quality/lint/check-action-pins.test.sh
+        ./tests/quality/structure/folder-limit.test.sh
+        ./tests/quality/lint/switch-rule-forms.test.sh
         ./tests/governance/check-dco-on-main.test.sh
         ./tests/governance/check-issue-templates.test.sh
         ./tests/monitoring/check-main-ruleset.test.sh
