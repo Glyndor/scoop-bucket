@@ -64,6 +64,19 @@ its list from the commit that `main` had, so a push cannot change how it is judg
 else runs suites on a push; the list of what does, with its reasons, is held by
 `tests/ci/policy/workflows/main/push-runs-only-what-main-owns.test.sh`.
 
+**When the guard did not pass on a good commit.** `pushes-to-main.yml` runs the scripts of the commit `main` had only
+if the guard passed on it, so one commit it fails on for a reason that is not the commit's (a check run GitHub leaves
+pending for ever on the head of a pull request, say) fails every push after it, and the `guard-ran` job of
+`freshness.yml` stays red. The way out is a pull request that writes the full hash of that commit in `VERIFIED_FROM`
+in both workflows. Its body shows, for every commit since the last one the guard passed on, that it is the squash of a
+merged pull request, on the tree of that head, signed, with every required check run and passed and none failed, and it
+names any check run left unfinished. The push guard skips its question only when the recorded commit is the one `main`
+had, and the scan of `guard-ran` stops at it without asking about it; the commits after it are judged as before. The
+record holds one commit, so replace it instead of adding to it. If `main` moves before that pull request merges, check
+the new commits and record the new head. A push reads its workflow from the pushed commit, so what stops a push from
+recording itself is the ruleset (no person bypasses it) and the missing `workflows` permission of the updater app. The
+ruleset asks for no approval, so nobody but the author has to read that pull request.
+
 `freshness.yml` reads the ruleset of `main` and compares it with
 `scripts/monitoring/main-ruleset.expected.json` (`scripts/monitoring/check-main-ruleset.sh`). The list of who may bypass is not shown to
 the token of a workflow, so what stands in for it is the time of the last change of the

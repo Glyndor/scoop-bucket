@@ -14,6 +14,18 @@ name: Pushes to main
 # passed on the commit main had, waits for it when it is still running, and nothing of the
 # repository runs before it says yes. A commit that came before the workflow existed has no guard to ask and is
 # the root of the chain: it came to main through a pull request.
+#
+# A commit that is good and that the guard did not pass on would fail every push after it. The way out is
+# VERIFIED_FROM in that first step: the full hash of one commit that a person checked by hand, written here by a
+# pull request whose body says what was checked. The guard is not asked about that commit when it is the one main
+# had, and only then. The commits after it are judged as before, the script that judges them still comes from the
+# commit main had, and a record that is not a full hash, or that is neither that commit nor one that came before it,
+# fails the push. freshness.yml carries the same record for its scan.
+#
+# GitHub reads the workflow of a push from the commit that was pushed, so the record, like the rest of this file, is
+# the pushed tree's. What keeps a push from writing its own is outside this file: main takes the changes of a person
+# only through a pull request, and the app that bypasses that has no permission to write workflows. Somebody who can
+# change the ruleset, or that permission, can get around it.
 on:
   push:
     branches: [main]
@@ -44,10 +56,23 @@ jobs:
           GUARD_JOB: every commit pushed to main is a pull request or only what the updater writes
           ATTEMPTS: "60"
           PAUSE: "15"
+          # Empty, or the full hash of the one commit checked by hand. A literal, never an expression.
+          VERIFIED_FROM: "029158ea97ed7480e0ef8be5e3d7f910dcdfee3d"
         run: |
           set -euo pipefail
           [[ "$BEFORE" =~ ^[0-9a-f]{40}$ ]] && [[ ! "$BEFORE" =~ ^0+$ ]] || { echo "::error::the commit main had is '$BEFORE', so there is no commit to trust"; exit 1; }
           [[ "$ATTEMPTS" =~ ^[1-9][0-9]*$ && "$PAUSE" =~ ^[0-9]+$ ]] || { echo "::error::ATTEMPTS and PAUSE must be whole numbers"; exit 1; }
+          if [ -n "$VERIFIED_FROM" ]; then
+            [[ "$VERIFIED_FROM" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::VERIFIED_FROM is '$VERIFIED_FROM', not a commit hash"; exit 1; }
+            if [ "$VERIFIED_FROM" = "$BEFORE" ]; then
+              echo "The commit main had ($BEFORE) is the one VERIFIED_FROM records as checked by hand, so the guard is not asked about it."
+              exit 0
+            fi
+            # Any other commit main had is judged below. The record still has to be one that came before it: a hash that is
+            # not on main, one written wrong and one that arrives with this push are not.
+            relation="$(gh api "repos/${REPO}/compare/${VERIFIED_FROM}...${BEFORE}?per_page=1" --jq '.status')" || relation=""
+            [ "$relation" = ahead ] || { echo "::error::VERIFIED_FROM ($VERIFIED_FROM) is not a commit that came before the one main had ($BEFORE): it is not on main, it is written wrong, or that cannot be read"; exit 1; }
+          fi
           # The root of the chain: a commit that has no workflow of the guard in it was never pushed under one.
           if probe="$(gh api "repos/${REPO}/contents/.github/workflows/pushes-to-main.yml?ref=${BEFORE}" --jq '.type' 2>&1)"; then
             :
